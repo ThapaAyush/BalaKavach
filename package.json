@@ -1,0 +1,21 @@
+{
+  "name": "kidsguard",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev:api": "npm run dev --workspace @kidsguard/api",
+    "dev:web": "npm run dev --workspace @kidsguard/web",
+    "build": "npm run build --workspace @kidsguard/web",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
