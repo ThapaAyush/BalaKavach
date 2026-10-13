@@ -13,10 +13,12 @@ From the repository root:
 
 ```powershell
 npm install
-Copy-Item apps/api/.env.example apps/api/.env
+if (-not (Test-Path apps/api/.env)) { Copy-Item apps/api/.env.example apps/api/.env }
 ```
 
 Edit `apps/api/.env` locally and replace the MongoDB URI placeholders. Do not paste credentials into chat or commit `.env`.
+
+`AUTH_SESSION_TTL_HOURS` defaults to 168. Production must serve the app over HTTPS so the `Secure` session cookie is accepted. The frontend and API should share a site because sessions use `SameSite=Strict`; set `CLIENT_ORIGIN` to the exact frontend origin.
 
 In one terminal, start the API:
 
@@ -41,4 +43,4 @@ npm run build
 
 ## Not deployed
 
-No hosting provider or production environment has been selected or configured. HTTPS, production CORS, secrets, health probes, logs, backups, and restore procedures must be configured before deployment. Chrome extension loading and Android Studio build instructions will be added when those applications exist.
+No hosting provider or production environment has been selected or configured. HTTPS, production CORS, secret handling, health probes, logs, backups, and restore procedures must be configured before deployment. Live Atlas account creation and session persistence have not been verified. Chrome extension loading and Android Studio build instructions will be added when those applications exist.

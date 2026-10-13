@@ -6,14 +6,15 @@ export function notFoundHandler(_req, res) {
 }
 
 export function errorHandler(error, req, res, _next) {
-  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
+  const status = Number.isInteger(error.status)
+    && ((error.status >= 400 && error.status < 500) || error.status === 503)
     ? error.status
     : 500;
 
   res.status(status).json({
     ok: false,
     error: {
-      message: status < 500 ? error.message : 'Internal server error',
+      message: status < 500 || status === 503 ? error.message : 'Internal server error',
       requestId: req.id,
     },
   });

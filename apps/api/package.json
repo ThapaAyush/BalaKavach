@@ -12,6 +12,8 @@
     "test": "node --test"
   },
   "dependencies": {
+    "argon2": "^0.45.1",
+    "cookie": "^2.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",

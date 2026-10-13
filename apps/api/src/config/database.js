@@ -17,7 +17,11 @@ export async function connectDatabase(uri) {
 
   try {
     await withTimeout(
-      mongoose.connect(uri, { serverSelectionTimeoutMS: DATABASE_OPERATION_TIMEOUT_MS }),
+      mongoose.connect(uri, {
+        serverSelectionTimeoutMS: DATABASE_OPERATION_TIMEOUT_MS,
+        connectTimeoutMS: DATABASE_OPERATION_TIMEOUT_MS,
+        socketTimeoutMS: 10_000,
+      }),
       'MongoDB connection timed out.',
     );
     return true;
