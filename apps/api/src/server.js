@@ -6,6 +6,7 @@ import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { env } from './config/env.js';
 import { ensureAuthIndexes } from './services/authRepository.js';
 import { ensureFamilyChildIndexes } from './services/familyChildRepository.js';
+import { ensureDevicePairingIndexes } from './services/devicePairingRepository.js';
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 
@@ -24,6 +25,11 @@ export async function startServer() {
         await ensureFamilyChildIndexes();
       } catch {
         console.warn('Family and child storage could not be initialized; child profiles are unavailable.');
+      }
+      try {
+        await ensureDevicePairingIndexes();
+      } catch {
+        console.warn('Device pairing storage could not be initialized; pairing is unavailable.');
       }
     }
   } catch (error) {

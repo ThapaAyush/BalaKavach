@@ -6,16 +6,19 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { env } from './config/env.js';
 import { authService as defaultAuthService } from './services/authService.js';
+import { devicePairingService as defaultDevicePairingService } from './services/devicePairingService.js';
 import { familyChildService as defaultFamilyChildService } from './services/familyChildService.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
 import { createAuthRouter } from './routes/authRoutes.js';
 import { createChildRouter } from './routes/childRoutes.js';
+import { createDevicePairingRouter } from './routes/devicePairingRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 
 export function createApp({
   authService = defaultAuthService,
   familyChildService = defaultFamilyChildService,
+  devicePairingService = defaultDevicePairingService,
   runtimeEnv = env,
 } = {}) {
   const logger = pino({ level: runtimeEnv.NODE_ENV === 'test' ? 'silent' : 'info' });
@@ -54,6 +57,12 @@ export function createApp({
   app.use('/api/v1/children', createChildRouter({
     authService,
     familyChildService,
+    clientOrigin: runtimeEnv.CLIENT_ORIGIN,
+    nodeEnv: runtimeEnv.NODE_ENV,
+  }));
+  app.use('/api/v1', createDevicePairingRouter({
+    authService,
+    devicePairingService,
     clientOrigin: runtimeEnv.CLIENT_ORIGIN,
     nodeEnv: runtimeEnv.NODE_ENV,
   }));

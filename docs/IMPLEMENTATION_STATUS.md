@@ -20,7 +20,7 @@
 - [x] Run `npm test` (24 passed: 21 API and 3 web tests).
 - [x] Run `npm run build` (Vite production build passed).
 - [x] Run `npm audit` after the security review (0 vulnerabilities reported).
-- [ ] Verify registration, index creation, session persistence, and expiry against a live MongoDB Atlas database; no live connection was attempted.
+- [ ] Verify registration/session persistence and expiry against live MongoDB Atlas. The auth indexes were ensured during the later database setup, but CRUD persistence was not exercised.
 - [ ] Verify production cookie behavior in a deployed HTTPS browser environment.
 
 ## Stage 3 — family and child profiles
@@ -35,14 +35,31 @@
 - [x] Run `npm test` (40 passed: 35 API and 5 web tests).
 - [x] Run `npm run build` (Vite production build passed).
 - [x] Run `npm audit` (0 vulnerabilities reported).
-- [ ] Verify Family/ChildProfile index creation, CRUD persistence, and isolation against a live MongoDB Atlas database; no live connection was attempted.
+- [x] Ensure Family/ChildProfile indexes in the supplied Atlas database during setup.
+- [ ] Verify family/child CRUD persistence and cross-family isolation against live MongoDB Atlas; no records were created or read during setup.
 - [ ] Verify production session-cookie behavior in a deployed HTTPS browser environment.
 
-The family/child API tests use an isolated in-memory repository and do not use local `.env` credentials. They verify schema/index declarations, duplicate-key recovery behavior, concurrent service requests, and fail-closed behavior without MongoDB, but actual MongoDB query execution, index creation, connection recovery, and Atlas persistence remain unverified. Production HTTPS cookie behavior also remains unverified. Child profiles currently support one parent owner per family; multiple caregivers and child consent/retention controls are not implemented.
+The family/child API tests use an isolated in-memory repository and do not read local `.env` credentials. They verify schema/index declarations, duplicate-key recovery behavior, concurrent service requests, and fail-closed behavior. Auth/family/child indexes were ensured in Atlas during setup; actual registration/session writes, family/child query execution and persistence, connection recovery, and cross-family isolation remain unverified. Production HTTPS cookie behavior also remains unverified. Child profiles currently support one parent owner per family; multiple caregivers and child consent/retention controls are not implemented.
+
+## Stage 4 — secure child-device pairing
+
+- [x] Add expiring, revocable, single-use pairing codes with 128-bit cryptographic randomness and hash-only storage.
+- [x] Add server-generated device registrations with family/child scope, hash-only 256-bit credentials, paired/last-seen/revoked fields, and no enforcement claims.
+- [x] Add parent-authorized code issue/revocation and device list/revocation endpoints, plus rate-limited code redemption.
+- [x] Atomically claim a code only when its hash matches and it is unexpired, unused, and unrevoked; register a device only after the claim succeeds.
+- [x] Add tests for entropy/hash behavior, expiry, reuse, revocation, concurrent redemption, cross-family access, strict inputs, rate limits, database outages, uncertain enrollment outcomes, and honest device status.
+- [x] Run `npm test --workspace @kidsguard/api` (48 passed).
+- [x] Run `npm test` (53 passed: 48 API and 5 web tests).
+- [x] Run `npm run build` (Vite production build passed).
+- [x] Run `npm audit` (0 vulnerabilities reported).
+- [x] Run `git diff --check`.
+- [ ] Integration-test Stage 4 indexes, TTL cleanup, true concurrent redemption, and database failure recovery against MongoDB; no Atlas connection was made for Stage 4.
+- [ ] Verify credential handoff over production HTTPS and storage by a real device client; device authentication/heartbeat and enforcement are not implemented.
+
+The Stage 4 API tests use in-memory repositories and do not connect to MongoDB. Single-use behavior and uncertain insert outcomes are simulated in memory; the production repository uses MongoDB's atomic conditional `findOneAndUpdate`, which still needs live database race testing. If device insertion fails after code claim, the code remains consumed. If a committed insert's response is lost, the parent must revoke the listed registration and issue a new pairing code. Code claim and insert are not a multi-document transaction.
 
 ## Later stages
 
-- [ ] Stage 4 — rules, devices, and pairing.
 - [ ] Stage 5 — Chrome extension.
 - [ ] Stage 6 — Android pairing.
 - [ ] Stage 7 — Android enforcement.
@@ -51,4 +68,4 @@ The family/child API tests use an isolated in-memory repository and do not use l
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 
-Email verification, password recovery, multi-factor authentication, shared rate-limit storage for multi-instance deployments, multiple caregivers, child consent/retention controls, pairing/device management, and production HTTPS deployment remain future work. No Stage 4 implementation has started.
+Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, device authentication/heartbeats, enforcement, and production HTTPS deployment remain future work. No Stage 5 implementation has started.

@@ -69,10 +69,36 @@ Deletes a child profile in the signed-in parent's family and returns `204`. A mi
 
 Unauthenticated requests return `401`, invalid bodies return `400`, and unavailable MongoDB/index storage returns a generic `503`. Automated child API tests use an in-memory repository; live MongoDB persistence remains unverified. Child profiles do not create pairing codes or device records.
 
+## Child-device pairing
+
+### `POST /children/:childId/pairing-codes`
+
+Requires the authenticated parent session and exact configured `Origin`. The parent family is resolved server-side and the child must be in that family. The optional body may be omitted or `{}`; all other fields are rejected. The endpoint is limited to 10 requests per 15 minutes per IP/process. It returns a 128-bit random, 22-character base64url pairing code and an expiry 10 minutes in the future. The raw code is shown only in this creation response; MongoDB stores only its SHA-256 hash. Responses use `Cache-Control: no-store`.
+
+### `DELETE /children/:childId/pairing-codes/:pairingCodeId`
+
+Requires the parent session and exact `Origin`. The pairing code is revoked only when both the child and code belong to the parent's family and the code has not already been redeemed or revoked. Out-of-family and missing records return the same generic `404`.
+
+### `POST /device-pairing/redeem`
+
+Device enrollment endpoint; it does not require a parent cookie because the unexpired pairing code is the bearer proof. The strict request body is `{ "code": "...", "name": "...", "platform": "android|ios|windows|macos|linux|unknown" }`. The route is limited to 10 requests per 15 minutes per IP/process. Invalid, expired, revoked, and already-used codes receive the same `400` response. Redemption conditionally updates one PairingCode document only when its hash matches, `expiresAt` is later than the server time, and `redeemedAt`/`revokedAt` are null. MongoDB's atomic single-document update allows only one concurrent request to claim the code. Device creation happens only after that claim.
+
+A successful redemption returns a server-generated device ID and a 256-bit device credential once in this enrollment response. Only the credential hash is stored. The response is `no-store`; request/response bodies are excluded from API logs. Parent device-list responses never contain the credential or its hash. A device client must store the credential in platform secure storage. If device-record creation fails after the atomic code claim, the code remains consumed and the parent must issue a new code. If a timeout or connection loss leaves the insert outcome uncertain, a device may be listed even though the one-time credential response was lost; the parent can revoke that registration and issue a new code. No transaction spans the code claim and device insert, so enrollment is single-use but not delivery-recoverable.
+
+### `GET /devices`
+
+Requires the authenticated parent session and lists only registrations in that parent's family. A device includes `pairingStatus` (`paired` or `revoked`), `pairedAt`, `lastSeenAt`, and `enforcementStatus`. At registration, `lastSeenAt` is null and `enforcementStatus` is `not_implemented`. Paired does not mean online, monitored, or blocking anything.
+
+### `DELETE /devices/:deviceId`
+
+Requires the parent session and exact `Origin`; only a device in the parent's family can be revoked. Other-family and unknown device IDs return the same `404`. Revocation sets `revokedAt`; a future device-authentication endpoint must check this value and the credential hash. Device authentication, heartbeat, Android monitoring, and enforcement endpoints are not implemented.
+
+MongoDB TTL cleanup removes expired pairing records eventually, but redemption checks expiry directly and does not rely on TTL timing. Rate limits use in-process IP storage: counters reset on restart and are independent per API process, so deployment needs a shared store. Express proxy trust is not enabled here; behind a reverse proxy, configure only the known trusted proxy hops before using originating client IPs for limits. The API pairing tests use an in-memory repository; real MongoDB atomic redemption and index behavior remain unverified.
+
 ## Other behavior
 
 Responses include an `X-Request-Id` header. Unknown routes return a JSON 404. Unhandled server errors return a generic JSON 500.
 
 ## Planned, not implemented
 
-Email verification, password recovery, multiple caregivers, devices, pairing codes, website and screen-time rules, usage, blocked events, and policy acknowledgements are deferred to later stages. Do not treat this document as evidence that those endpoints exist.
+Email verification, password recovery, multiple caregivers, device authentication, heartbeats, website and screen-time rules, usage, blocked events, and policy acknowledgements are deferred to later stages. Do not treat this document as evidence that those endpoints exist.
