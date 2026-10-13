@@ -9,6 +9,11 @@ export default function WelcomePage() {
   const [password, setPassword] = useState('');
   const [formMessage, setFormMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [children, setChildren] = useState({ state: 'idle', items: [] });
+  const [childDisplayName, setChildDisplayName] = useState('');
+  const [childDateOfBirth, setChildDateOfBirth] = useState('');
+  const [childMessage, setChildMessage] = useState(null);
+  const [creatingChild, setCreatingChild] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -28,6 +33,28 @@ export default function WelcomePage() {
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (auth.state !== 'authenticated') {
+      if (auth.state === 'signed-out') setChildren({ state: 'idle', items: [] });
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setChildren({ state: 'loading', items: [] });
+    apiGet('/children', { signal: controller.signal })
+      .then((data) => setChildren({ state: 'ready', items: data.children }))
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        if (error.status === 401) {
+          setAuth({ state: 'signed-out', parent: null });
+          return;
+        }
+        setChildren({ state: 'error', items: [] });
+      });
+
+    return () => controller.abort();
+  }, [auth.state, auth.parent?.id]);
 
   async function submitCredentials(event) {
     event.preventDefault();
@@ -68,6 +95,30 @@ export default function WelcomePage() {
     }
   }
 
+  async function createChildProfile(event) {
+    event.preventDefault();
+    setCreatingChild(true);
+    setChildMessage(null);
+
+    try {
+      const profile = await apiPost('/children', {
+        displayName: childDisplayName,
+        ...(childDateOfBirth ? { dateOfBirth: childDateOfBirth } : {}),
+      });
+      setChildren((current) => ({
+        state: 'ready',
+        items: [...current.items, profile.child],
+      }));
+      setChildDisplayName('');
+      setChildDateOfBirth('');
+      setChildMessage({ type: 'success', text: 'Child profile created.' });
+    } catch (error) {
+      setChildMessage({ type: 'error', text: error.message });
+    } finally {
+      setCreatingChild(false);
+    }
+  }
+
   const isLoadingHealth = health.state === 'loading';
   const apiAvailable = health.state === 'available';
   const healthLabel = isLoadingHealth
@@ -103,17 +154,75 @@ export default function WelcomePage() {
         </div>
 
         {auth.state === 'authenticated' ? (
-          <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5">
-            <p className="text-sm text-zinc-400">Signed in as</p>
-            <p className="mt-1 break-all text-base font-medium text-zinc-100">{auth.parent.email}</p>
-            <button
-              className="mt-5 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
-              disabled={submitting}
-              onClick={signOut}
-              type="button"
-            >
-              Sign out
-            </button>
+          <div className="mt-8 space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+              <p className="text-sm text-zinc-400">Signed in as</p>
+              <p className="mt-1 break-all text-base font-medium text-zinc-100">{auth.parent.email}</p>
+              <button
+                className="mt-5 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+                disabled={submitting}
+                onClick={signOut}
+                type="button"
+              >
+                Sign out
+              </button>
+            </div>
+
+            <section aria-labelledby="children-title" className="rounded-2xl border border-white/10 bg-black/30 p-5">
+              <h2 className="text-lg font-semibold text-white" id="children-title">Child profiles</h2>
+              {children.state === 'loading' && <p className="mt-3 text-sm text-zinc-400" role="status">Loading child profiles…</p>}
+              {children.state === 'error' && <p className="mt-3 text-sm text-rose-300" role="alert">Child profiles could not be loaded. Try again later.</p>}
+              {children.state === 'ready' && (children.items.length === 0 ? (
+                <p className="mt-3 text-sm text-zinc-400">No child profiles yet.</p>
+              ) : (
+                <ul className="mt-3 space-y-2" aria-label="Saved child profiles">
+                  {children.items.map((child) => (
+                    <li className="rounded-xl border border-white/10 px-4 py-3" key={child.id}>
+                      <p className="font-medium text-zinc-100">{child.displayName}</p>
+                      {child.dateOfBirth && <p className="mt-1 text-sm text-zinc-400">Date of birth: {child.dateOfBirth}</p>}
+                    </li>
+                  ))}
+                </ul>
+              ))}
+
+              <form className="mt-5 space-y-3 border-t border-white/10 pt-5" onSubmit={createChildProfile}>
+                <h3 className="text-sm font-semibold text-zinc-200">Add a child profile</h3>
+                <div>
+                  <label className="mb-2 block text-sm text-zinc-300" htmlFor="child-display-name">Display name</label>
+                  <input
+                    autoComplete="off"
+                    className="w-full rounded-xl border border-white/15 bg-zinc-900 px-4 py-3 text-white outline-none focus-visible:border-white/50"
+                    id="child-display-name"
+                    maxLength={60}
+                    onChange={(event) => setChildDisplayName(event.target.value)}
+                    required
+                    value={childDisplayName}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-zinc-300" htmlFor="child-date-of-birth">Date of birth (optional)</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-zinc-900 px-4 py-3 text-white outline-none focus-visible:border-white/50"
+                    id="child-date-of-birth"
+                    onChange={(event) => setChildDateOfBirth(event.target.value)}
+                    type="date"
+                    value={childDateOfBirth}
+                  />
+                </div>
+                {childMessage && (
+                  <p className={`text-sm ${childMessage.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`} role={childMessage.type === 'error' ? 'alert' : 'status'}>
+                    {childMessage.text}
+                  </p>
+                )}
+                <button
+                  className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-zinc-950 hover:bg-zinc-200 disabled:cursor-wait disabled:opacity-60"
+                  disabled={creatingChild || children.state === 'loading'}
+                  type="submit"
+                >
+                  {creatingChild ? 'Saving…' : 'Add child profile'}
+                </button>
+              </form>
+            </section>
           </div>
         ) : auth.state === 'checking' ? (
           <p className="mt-8 text-sm text-zinc-400" role="status">Checking sign-in status…</p>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from './App.jsx';
 
 const parent = { id: 'parent-id', email: 'parent@example.com' };
@@ -47,8 +47,55 @@ describe('KidsGuard web foundation', () => {
     expect(await screen.findByLabelText('Email')).toBeInTheDocument();
   });
 
+  it('shows loading and empty child-profile states while authenticated', async () => {
+    let resolveChildren;
+    const childrenResponse = new Promise((resolve) => { resolveChildren = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith('/health')) return response(200, { ok: true, data: { status: 'ready' } });
+      if (path.endsWith('/auth/me')) return response(200, { ok: true, data: { parent } });
+      if (path.endsWith('/children')) return childrenResponse;
+      throw new Error(`Unexpected request: ${path}`);
+    }));
+
+    render(<App />);
+    expect(await screen.findByText('Loading child profiles…')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveChildren(response(200, { ok: true, data: { children: [] } }));
+      await childrenResponse;
+    });
+    expect(await screen.findByText('No child profiles yet.')).toBeInTheDocument();
+  });
+
+  it('shows child-profile API and validation failures without claiming success', async () => {
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith('/health')) return response(200, { ok: true, data: { status: 'ready' } });
+      if (path.endsWith('/auth/me')) return response(200, { ok: true, data: { parent } });
+      if (path.endsWith('/children') && options.method === 'GET') {
+        return response(503, { ok: false, error: { message: 'Child profiles are temporarily unavailable.' } });
+      }
+      if (path.endsWith('/children') && options.method === 'POST') {
+        return response(400, { ok: false, error: { message: 'Invalid request body.' } });
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Child profiles could not be loaded. Try again later.');
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Alex' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add child profile' }));
+
+    expect(await screen.findByText('Invalid request body.')).toBeInTheDocument();
+    expect(screen.queryByText('Child profile created.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Saved child profiles' })).not.toBeInTheDocument();
+  });
+
   it('registers, signs in with a cookie-backed request, and logs out', async () => {
     let signedIn = false;
+    let childProfiles = [];
     const fetchMock = vi.fn(async (url, options = {}) => {
       const path = new URL(String(url)).pathname;
       if (path.endsWith('/health')) {
@@ -76,6 +123,15 @@ describe('KidsGuard web foundation', () => {
         signedIn = false;
         return response(204);
       }
+      if (path.endsWith('/children') && options.method === 'GET') {
+        return response(200, { ok: true, data: { children: childProfiles } });
+      }
+      if (path.endsWith('/children') && options.method === 'POST') {
+        const input = JSON.parse(options.body);
+        const child = { id: 'child-1', ...input };
+        childProfiles = [...childProfiles, child];
+        return response(201, { ok: true, data: { child } });
+      }
       throw new Error(`Unexpected request: ${path}`);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -91,6 +147,11 @@ describe('KidsGuard web foundation', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secure parent password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await screen.findByText('parent@example.com')).toBeInTheDocument();
+    expect(await screen.findByText('No child profiles yet.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Alex' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add child profile' }));
+    expect(await screen.findByText('Alex')).toBeInTheDocument();
+    expect(await screen.findByText('Child profile created.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     await waitFor(() => expect(screen.getByLabelText('Email')).toBeInTheDocument());
 
@@ -102,6 +163,10 @@ describe('KidsGuard web foundation', () => {
       '/api/v1/auth/logout',
     ]);
     for (const [, options] of authCalls) expect(options.credentials).toBe('include');
+    const childCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/children'));
+    expect(childCalls.map(([, options]) => options.method)).toEqual(['GET', 'POST']);
+    for (const [, options] of childCalls) expect(options.credentials).toBe('include');
+    expect(JSON.parse(childCalls[1][1].body)).toEqual({ displayName: 'Alex' });
     expect(JSON.parse(authCalls[1][1].body)).toEqual({
       email: 'parent@example.com',
       password: 'secure parent password',

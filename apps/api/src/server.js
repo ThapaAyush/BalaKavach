@@ -5,6 +5,7 @@ import app from './app.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { env } from './config/env.js';
 import { ensureAuthIndexes } from './services/authRepository.js';
+import { ensureFamilyChildIndexes } from './services/familyChildRepository.js';
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 
@@ -18,6 +19,11 @@ export async function startServer() {
         await ensureAuthIndexes();
       } catch {
         console.warn('Authentication storage could not be initialized; authentication is unavailable.');
+      }
+      try {
+        await ensureFamilyChildIndexes();
+      } catch {
+        console.warn('Family and child storage could not be initialized; child profiles are unavailable.');
       }
     }
   } catch (error) {

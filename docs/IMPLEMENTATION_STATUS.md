@@ -23,9 +23,25 @@
 - [ ] Verify registration, index creation, session persistence, and expiry against a live MongoDB Atlas database; no live connection was attempted.
 - [ ] Verify production cookie behavior in a deployed HTTPS browser environment.
 
+## Stage 3 — family and child profiles
+
+- [x] Add one unique family owner per authenticated parent and immutable family ownership on child profiles.
+- [x] Add validated child-profile create, list, retrieve, update, and delete APIs scoped to the authenticated parent's family.
+- [x] Return the same not-found response for absent and other-family children; reject client-supplied parent/family ownership fields.
+- [x] Require exact Origin validation for child mutations and use no-store responses; fail closed when database/index storage is unavailable.
+- [x] Update the web app to load and create real child profiles without showing fabricated device or pairing state.
+- [x] Add API tests for full child CRUD, cross-parent read/update/delete isolation, input validation, origin checks, database-unavailable behavior, concurrent first-child requests, and owner-index-specific family-upsert recovery; cover child-profile loading, empty, validation-error, and API-failure states in the web tests.
+- [x] Run `npm test --workspace @kidsguard/api` (35 passed).
+- [x] Run `npm test` (40 passed: 35 API and 5 web tests).
+- [x] Run `npm run build` (Vite production build passed).
+- [x] Run `npm audit` (0 vulnerabilities reported).
+- [ ] Verify Family/ChildProfile index creation, CRUD persistence, and isolation against a live MongoDB Atlas database; no live connection was attempted.
+- [ ] Verify production session-cookie behavior in a deployed HTTPS browser environment.
+
+The family/child API tests use an isolated in-memory repository and do not use local `.env` credentials. They verify schema/index declarations, duplicate-key recovery behavior, concurrent service requests, and fail-closed behavior without MongoDB, but actual MongoDB query execution, index creation, connection recovery, and Atlas persistence remain unverified. Production HTTPS cookie behavior also remains unverified. Child profiles currently support one parent owner per family; multiple caregivers and child consent/retention controls are not implemented.
+
 ## Later stages
 
-- [ ] Stage 3 — parent dashboard and activity pages.
 - [ ] Stage 4 — rules, devices, and pairing.
 - [ ] Stage 5 — Chrome extension.
 - [ ] Stage 6 — Android pairing.
@@ -35,4 +51,4 @@
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 
-Email verification, password recovery, multi-factor authentication, shared rate-limit storage for multi-instance deployments, and production HTTPS deployment remain future security work. No Stage 3 implementation has started.
+Email verification, password recovery, multi-factor authentication, shared rate-limit storage for multi-instance deployments, multiple caregivers, child consent/retention controls, pairing/device management, and production HTTPS deployment remain future work. No Stage 4 implementation has started.

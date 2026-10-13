@@ -41,10 +41,38 @@ Deletes the session record and clears the cookie. Success returns `204`. The tok
 
 Auth operations return a generic `503` when MongoDB or the required auth indexes are unavailable. No local or live Atlas database is used by automated auth tests; tests inject an isolated in-memory repository.
 
+## Child profiles
+
+All child-profile routes require the authenticated parent session cookie. The family is resolved from that parent on the server; requests cannot select a `familyId`, `parentId`, or owner. The first successful child creation creates the parent's single Family record. Child responses contain `id`, `displayName`, `dateOfBirth`, `createdAt`, and `updatedAt`, without family or parent ownership fields. Responses use `Cache-Control: no-store`.
+
+Child mutations require an exact `Origin` match with `CLIENT_ORIGIN`. Inputs are validated; display names are trimmed, non-empty, and limited to 60 characters. Optional dates of birth use `YYYY-MM-DD` and cannot be in the future. Update accepts only `displayName` and/or `dateOfBirth` (use `null` to clear the date). Unknown ownership fields are rejected.
+
+### `GET /children`
+
+Returns `200` with `{ "children": [...] }` for the signed-in parent's family. If the family has not been created yet, the list is empty.
+
+### `POST /children`
+
+Creates a child profile and the parent's family if needed. Request fields are `displayName` (required) and `dateOfBirth` (optional). Returns `201` with `{ "child": {...} }`.
+
+### `GET /children/:childId`
+
+Returns `200` with `{ "child": {...} }` for a child in the signed-in parent's family. Missing, malformed, or other-family IDs all return the same `404` message.
+
+### `PATCH /children/:childId`
+
+Updates the provided profile fields within the signed-in parent's family. Returns `200` with `{ "child": {...} }`. A missing or other-family child returns the same `404`.
+
+### `DELETE /children/:childId`
+
+Deletes a child profile in the signed-in parent's family and returns `204`. A missing or other-family child returns the same `404`.
+
+Unauthenticated requests return `401`, invalid bodies return `400`, and unavailable MongoDB/index storage returns a generic `503`. Automated child API tests use an in-memory repository; live MongoDB persistence remains unverified. Child profiles do not create pairing codes or device records.
+
 ## Other behavior
 
 Responses include an `X-Request-Id` header. Unknown routes return a JSON 404. Unhandled server errors return a generic JSON 500.
 
 ## Planned, not implemented
 
-Email verification, password recovery, multi-factor authentication, family/child resources, devices, pairing codes, website and screen-time rules, usage, blocked events, and policy acknowledgements are deferred to later stages. Do not treat this document as evidence that those endpoints exist.
+Email verification, password recovery, multiple caregivers, devices, pairing codes, website and screen-time rules, usage, blocked events, and policy acknowledgements are deferred to later stages. Do not treat this document as evidence that those endpoints exist.

@@ -6,12 +6,18 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { env } from './config/env.js';
 import { authService as defaultAuthService } from './services/authService.js';
+import { familyChildService as defaultFamilyChildService } from './services/familyChildService.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
 import { createAuthRouter } from './routes/authRoutes.js';
+import { createChildRouter } from './routes/childRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 
-export function createApp({ authService = defaultAuthService, runtimeEnv = env } = {}) {
+export function createApp({
+  authService = defaultAuthService,
+  familyChildService = defaultFamilyChildService,
+  runtimeEnv = env,
+} = {}) {
   const logger = pino({ level: runtimeEnv.NODE_ENV === 'test' ? 'silent' : 'info' });
   const app = express();
 
@@ -42,6 +48,12 @@ export function createApp({ authService = defaultAuthService, runtimeEnv = env }
 
   app.use('/api/v1/auth', createAuthRouter({
     authService,
+    clientOrigin: runtimeEnv.CLIENT_ORIGIN,
+    nodeEnv: runtimeEnv.NODE_ENV,
+  }));
+  app.use('/api/v1/children', createChildRouter({
+    authService,
+    familyChildService,
     clientOrigin: runtimeEnv.CLIENT_ORIGIN,
     nodeEnv: runtimeEnv.NODE_ENV,
   }));
