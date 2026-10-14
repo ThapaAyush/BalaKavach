@@ -1,6 +1,6 @@
 # KidsGuard architecture
 
-## Stage 4 implementation
+## Current implementation (Stages 1–5)
 
 KidsGuard is a JavaScript monorepo managed with npm workspaces:
 
@@ -10,7 +10,11 @@ KidsGuard is a JavaScript monorepo managed with npm workspaces:
 - Pairing codes contain 128 bits of random material; only SHA-256 hashes are stored. A conditional atomic update claims a code once when it is unexpired and not revoked. Device credentials contain 256 random bits; only their hashes are stored, and the raw credential is returned once in the successful enrollment response.
 - API tests inject isolated in-memory repositories and do not connect to MongoDB. The earlier Atlas setup ensured the Stage 2/3 auth, family, and child indexes, but did not exercise CRUD persistence. Stage 4 index creation and MongoDB's actual atomic-redemption race still need integration testing; the single-document atomic update does not require a multi-document transaction.
 
-The API has separate config, controller, middleware, model, route, service, validator, and utility directories. Device registration is only an enrollment record: there is no heartbeat, activity collection, website/app blocking, browser extension, or Android monitoring in this stage.
+The API has separate config, controller, middleware, model, route, service, validator, and utility directories. Device registration is only an enrollment record: there is no heartbeat, activity collection, website/app blocking, or Android monitoring in this stage. The extension is a separate local-only component.
+
+## Chrome extension foundation (Stage 5)
+
+The extension is a separate Chrome Manifest V3 workspace. It stores a normalized local blocklist in `chrome.storage.local` and applies top-level navigation block rules through `declarativeNetRequest.updateDynamicRules()`. It requests only `declarativeNetRequest` and `storage`; it does not request host permissions, `tabs`, `webRequest`, or scripting access. Rules match each configured domain and its subdomains for `main_frame` requests. The list is capped at 100 entries and the extension modifies only its reserved dynamic-rule ID range. It has no allowlist, backend URL, account session, pairing flow, device credential, remote sync, or tamper resistance. Node tests with an injected API fake do not establish Chrome's actual enforcement behavior.
 
 ## Request path
 
@@ -18,4 +22,4 @@ The browser uses `apps/web/src/lib/api.js` to send credentialed requests to `VIT
 
 ## Next stages
 
-Multiple caregivers, device authentication/heartbeats, policy synchronization, browser enforcement, Android capabilities, and deployment remain unimplemented. Architecture decisions for those features must preserve server-side authorization, least data collection, and honest enforcement reporting.
+Multiple caregivers, device authentication/heartbeats, remote policy synchronization, extension-to-backend pairing, browser tamper resistance, Android capabilities, and deployment remain unimplemented. The extension provides local Chrome navigation filtering only. Architecture decisions for those features must preserve server-side authorization, least data collection, and honest enforcement reporting.

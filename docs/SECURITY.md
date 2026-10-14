@@ -1,6 +1,6 @@
 # Security status
 
-## Implemented in Stages 1–4
+## Implemented in Stages 1–5
 
 - Helmet security headers and disabled Express identification header.
 - Credentialed CORS restricted to the configured `CLIENT_ORIGIN`; authentication mutations require an exact matching `Origin`.
@@ -21,9 +21,14 @@
 - Device records distinguish `pairedAt`, nullable `lastSeenAt`, revocation state, and `enforcementStatus: not_implemented`. Pairing does not claim monitoring or website/app blocking.
 - Pairing code creation and redemption are rate limited to 10 requests per 15 minutes per IP in each API process. Counters reset on restart and are not shared across instances. The API does not enable Express proxy trust; deployments behind a reverse proxy must configure only trusted proxy hops before limits can use originating client IPs.
 - MongoDB configuration is backend-only; `.env` files are ignored by Git and examples contain placeholders only.
+- The Chrome MV3 extension uses `declarativeNetRequest` for blocking and `storage` for its local blocklist. It requests no site host permissions or page-content access. It has no backend URL, account/session access, pairing integration, or device credential handling.
+- Domain input is normalized to lower-case ASCII (including IDN-to-punycode conversion) and rejects credentials, ports, paths, queries, fragments, IP addresses, wildcard entries, and unsupported schemes. The blocklist is capped at 100 unique domains and applies to `main_frame` HTTP(S) navigations for each domain and its subdomains. Allowlist precedence is not supported.
+- Rule updates remove only the extension's reserved dynamic-rule ID range and use Chrome's atomic `updateDynamicRules` operation. A rejected update is reported as not applied and leaves the prior active rule set. Local Chrome enforcement was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode installation.
 
 ## Remaining security work
 
 Email verification, password recovery, multi-factor authentication, multiple caregivers, device credential authentication/rotation, audit logging, privacy/retention controls, and production security review remain unimplemented. Device pairing credentials are only enrolled and stored hashed; no device API currently authenticates them or checks `revokedAt`. A lost enrollment response after a committed insert can leave a registration without a delivered credential; parents must revoke it and pair again. Stage 4 Atlas indexes and atomic redemption have not been verified. Earlier auth/family/child indexes were ensured in Atlas, but live persistence remains unverified. Production HTTPS behavior and client secure storage of the one-time credential remain unverified. Do not expose this as a production parental-control service until these areas and deployment controls are complete.
+
+The extension's local rules are not protected from a user who can disable or remove the extension or change its settings. It does not authenticate devices, contact the API, receive server-authorized policy, or provide tamper resistance. Chrome profile behavior, the actual block-page experience, Chrome Web Store packaging/review, managed-browser policy, and enforcement in alternate browsers/apps have not been verified.
 
 KidsGuard is not intended to collect keystrokes, messages, passwords, screenshots, camera data, or microphone audio. Future activity collection must be necessary, disclosed, authorized, and documented.

@@ -58,9 +58,25 @@ The family/child API tests use an isolated in-memory repository and do not read 
 
 The Stage 4 API tests use in-memory repositories and do not connect to MongoDB. Single-use behavior and uncertain insert outcomes are simulated in memory; the production repository uses MongoDB's atomic conditional `findOneAndUpdate`, which still needs live database race testing. If device insertion fails after code claim, the code remains consumed. If a committed insert's response is lost, the parent must revoke the listed registration and issue a new pairing code. Code claim and insert are not a multi-document transaction.
 
+## Stage 5 — Chrome extension foundation
+
+- [x] Add an unpacked Chrome Manifest V3 extension with a local blocklist and popup interface.
+- [x] Use `declarativeNetRequest` dynamic rules for top-level navigations; reserve a dedicated rule ID range and cap the extension list at 100 domains.
+- [x] Normalize and validate bare domains/HTTP(S) origins, including IDN-to-punycode conversion; reject credentials, ports, paths, query/fragment values, IP addresses, malformed domains, and unsupported schemes.
+- [x] Persist only the local domain configuration in `chrome.storage.local`; request no host permissions or page-content access.
+- [x] Add pure Node tests for normalization, URL matching, rule generation, rule application/removal, update errors, and preservation of unrelated rules. Allowlist precedence is not supported.
+- [x] Run `npm test --workspace @kidsguard/extension` (12 passed).
+- [x] Run `npm test --workspace @kidsguard/api` (48 passed).
+- [x] Run `npm test` (65 passed: 48 API, 5 web, and 12 extension tests).
+- [x] Run `npm run build` (frontend production build passed).
+- [x] Run `npm audit` (0 vulnerabilities reported).
+- [x] Run `git diff --check`.
+- [x] Load the unpacked extension and verify blocking/removal and error reporting in a real Chrome browser.
+
+The extension is local-only. It has no backend authentication, pairing, device credentials, remote synchronization, tamper resistance, subresource filtering, or Android enforcement. Its Node tests use injected Chrome API fakes and do not exercise Chrome's actual rule engine. See [extension setup](../apps/extension/README.md) for manual steps.
+
 ## Later stages
 
-- [ ] Stage 5 — Chrome extension.
 - [ ] Stage 6 — Android pairing.
 - [ ] Stage 7 — Android enforcement.
 - [ ] Stage 8 — quality and security review.
@@ -68,4 +84,4 @@ The Stage 4 API tests use in-memory repositories and do not connect to MongoDB. 
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 
-Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, device authentication/heartbeats, enforcement, and production HTTPS deployment remain future work. No Stage 5 implementation has started.
+Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, device authentication/heartbeats, enforcement, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.

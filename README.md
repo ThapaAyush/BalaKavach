@@ -1,6 +1,6 @@
 # KidsGuard
 
-KidsGuard is a web-first parental-control platform. This repository currently contains **Stages 1–4: project foundation, parent authentication, child profiles, and a backend device-pairing foundation**. It includes a React/Vite/Tailwind web app, an Express API, MongoDB-backed parent accounts and sessions, parent-scoped family/child records, one-time pairing codes, device registration, and an honest API health check. Device monitoring, website or app blocking, browser extensions, Android enforcement, and deployment are not implemented yet.
+KidsGuard is a web-first parental-control project. This repository currently contains **Stages 1–5: project foundation, parent authentication, child profiles, a backend device-pairing foundation, and a local Chrome website-filter foundation**. It includes a React/Vite/Tailwind web app, an Express API, MongoDB-backed parent accounts and sessions, parent-scoped family/child records, one-time pairing codes, device registration, and a Chrome Manifest V3 extension with a locally configured domain blocklist. The extension is not connected to accounts or paired devices and does not provide remote policy synchronization, tamper resistance, or complete parental controls.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ Start the frontend in another terminal:
 npm run dev:web
 ```
 
-Open `http://localhost:5173` to register or sign in and manage child profiles. Device pairing is currently a backend API foundation with no device-monitoring UI. The API health endpoint is `http://localhost:5000/api/v1/health`; it reports whether the database is connected and never returns the connection string. Authentication, child-profile, pairing, and device operations require MongoDB; without it, the API returns a safe service-unavailable response.
+Open `http://localhost:5173` to register or sign in and manage child profiles. Device pairing is currently a backend API foundation with no device-monitoring UI. The local Chrome extension is a separate manual install; see [Extension setup](apps/extension/README.md). The API health endpoint is `http://localhost:5000/api/v1/health`; it reports whether the database is connected and never returns the connection string. Authentication, child-profile, pairing, and device operations require MongoDB; without it, the API returns a safe service-unavailable response.
 
 ## Tests and production build
 
@@ -43,16 +43,17 @@ npm test
 npm run build
 ```
 
-The API tests use Node's built-in test runner and Supertest. The web tests use Vitest and React Testing Library.
+The API tests use Node's built-in test runner and Supertest. The web tests use Vitest and React Testing Library. The extension workspace uses Node's built-in test runner for pure domain/rule logic; those tests do not verify actual browser enforcement.
 
 ## Current project map
 
 - `apps/web` — React, React Router, Vite, Tailwind CSS, and shared Fetch service.
 - `apps/api` — Express, Mongoose, validation/configuration, middleware, and API tests.
+- `apps/extension` — Chrome MV3 local blocklist interface and `declarativeNetRequest` rules; no backend connection.
 - `docs` — architecture, API, database, security, Android limitations, and deployment status.
 
 See [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [Database](docs/DATABASE.md), [Security](docs/SECURITY.md), [Android limitations](docs/ANDROID_LIMITATIONS.md), and [Deployment](docs/DEPLOYMENT.md).
 
 See [Implementation status](docs/IMPLEMENTATION_STATUS.md) for the staged progress checklist and verification blockers.
 
-The Chrome extension, Android Studio project, production services, and remaining parental-control features will be added in later stages. Live MongoDB Atlas registration, session persistence, family ownership, child-profile persistence, pairing, and device registration have not been integration-tested. Paired status does not mean a device is online or enforcing controls; no enforcement capability is claimed.
+The Android Studio project, production services, and remaining parental-control features will be added in later stages. Live MongoDB Atlas registration, session persistence, family ownership, child-profile persistence, pairing, and device registration have not been integration-tested. Paired status does not mean a device is online or enforcing controls; no backend enforcement capability is claimed. The extension applies only its local Chrome-profile navigation rules; basic navigation blocking and rule removal were manually verified in an unpacked Chrome profile.

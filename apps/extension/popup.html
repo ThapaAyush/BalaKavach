@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KidsGuard local filter</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <h1>Website filter</h1>
+      <p class="intro">This blocklist stays in this Chrome profile. It blocks top-level website navigations for each domain and its subdomains.</p>
+      <form id="domain-form">
+        <label for="domain-input">Domain or HTTP(S) origin</label>
+        <div class="form-row">
+          <input id="domain-input" name="domain" type="text" autocomplete="url" placeholder="example.com" maxlength="300" required>
+          <button type="submit">Add</button>
+        </div>
+        <p class="hint">No paths, ports, credentials, or query values. Up to 100 domains.</p>
+      </form>
+      <section aria-labelledby="list-title">
+        <h2 id="list-title">Configured domains</h2>
+        <ul id="domain-list"></ul>
+      </section>
+      <p id="status" class="status" role="status" aria-live="polite">Loading local rules…</p>
+      <p class="notice">This extension does not connect to KidsGuard accounts or devices. It does not provide remote sync or tamper resistance.</p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "apps/extension"
   ],
   "engines": {
     "node": ">=24 <25"
