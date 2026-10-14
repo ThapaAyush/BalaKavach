@@ -92,11 +92,32 @@ The extension is local-only. It has no backend authentication, pairing, device c
 
 The Stage 6 tests use in-memory repositories and simulate atomic operations and timing-safe secret comparisons. Live MongoDB Atlas multi-process parallel writes, reconnection races, index performance, and shared rate-limiting stores remain unverified. `enforcementStatus` is strictly `not_implemented` across all models and UI displays; no website blocking or device monitoring is enforced on child devices in this stage.
 
+## Stage 7 — Chrome extension device integration
+
+- [x] Integrate Chrome Manifest V3 extension with the device-authentication and heartbeat API (`@kidsguard/api`).
+- [x] Add extension device client (`apps/extension/src/device-client.js`) with configurable API base URL, local HTTP tolerance, and strict HTTPS requirement for non-local hosts.
+- [x] Strictly validate 22-character base64url pairing codes and 43-character base64url device credentials before storage; reject malformed server payloads safely.
+- [x] Securely encapsulate the 256-bit device credential inside the service worker boundary in `chrome.storage.local`; never expose raw credentials to the popup UI.
+- [x] Add minimum required `alarms` permission and narrowly scoped local development `host_permissions` (`http://localhost:5000/*` and `http://127.0.0.1:5000/*`); reject broad wildcards (`<all_urls>`, `*://*/*`).
+- [x] Schedule 15-minute background heartbeat alarm (`kidsguard_heartbeat`) using `chrome.alarms`; reconcile and recover idempotently on service worker boot, `onInstalled`, and `onStartup` without timer resets or duplicate alarms.
+- [x] Handle network offline states gracefully with retry tolerance; represent HTTP 401 neutrally as `invalid_session` without claiming parent revocation and halt heartbeat network requests until explicit re-pairing or reset.
+- [x] Isolate declarativeNetRequest rules and local domain filtering from backend availability, pairing errors, and heartbeat failures.
+- [x] Authorize internal runtime message senders (`sender.id === runtime.id`, rejecting web tabs and external origins) and strictly validate domain, pairing code, device name, and platform inputs.
+- [x] Integrate popup UI (`popup.html`, `popup.css`, `popup.js`) with pairing-code input, device name input, in-flight duplicate submission prevention, sanitized status badges (`Unpaired`, `Paired`, `Re-auth required`), heartbeat display with offline notice, and unpair action with confirmation.
+- [x] Disclose clearly in the popup that remote policy synchronization is not implemented yet; website filtering rules remain local to this Chrome profile.
+- [x] Add automated unit tests across device client (14 tests), manifest (1 test), service worker (11 tests), and popup UI (11 tests), totaling 48 passing extension tests.
+- [x] Run full test suite across API (68), web (14), and extension (48), totaling 130 passing tests.
+- [x] Run production build (`npm run build`) and security audit (`npm audit` with 0 vulnerabilities).
+- [ ] Verify live unpacked Chrome extension pairing, heartbeat alarm execution, and popup status against a running API backend in a physical Chrome browser.
+- [ ] Configure production HTTPS host permissions in `manifest.json` for deployed environments.
+
+The Stage 7 tests use isolated mocks for Chrome APIs (`chrome.alarms`, `chrome.storage.local`, `chrome.runtime`, `chrome.declarativeNetRequest`) and simulate DOM interaction in pure Node.js. Live unpacked Chrome extension pairing, alarm firing across browser sleep cycles, and physical UI interactions remain unverified in automated CI. `enforcementStatus` remains strictly `not_implemented` across the monorepo; device pairing registers and tracks presence only and does not distribute or enforce blocklist policies from the parent dashboard. Local website filtering rules remain profile-local.
+
 ## Later stages
 
-- [ ] Stage 7 — Android enforcement.
-- [ ] Stage 8 — quality and security review.
-- [ ] Stage 9 — deployment.
+- [ ] Stage 8 — Android enforcement and cross-platform policy integration.
+- [ ] Stage 9 — quality and security review.
+- [ ] Stage 10 — deployment hardening.
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 

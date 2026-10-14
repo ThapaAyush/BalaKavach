@@ -105,10 +105,12 @@ Device liveness endpoint authenticated by bearer token via the `Authorization: B
 
 MongoDB TTL cleanup removes expired pairing records eventually, but redemption checks expiry directly and does not rely on TTL timing. Rate limits use in-process IP storage: counters reset on restart and are independent per API process, so deployment needs a shared store. Express proxy trust is not enabled here; behind a reverse proxy, configure only the known trusted proxy hops before using originating client IPs for limits. API tests use in-memory repositories; real MongoDB Atlas multi-process parallel writes, reconnection races, and index performance remain unverified.
 
+The Chrome extension (`@kidsguard/extension`) integrates with `POST /device-pairing/redeem` and `POST /devices/heartbeat`. The extension service worker validates pairing codes, stores device credentials in extension storage, schedules 15-minute heartbeats via `chrome.alarms`, handles offline network retries, and interprets HTTP 401 neutrally as `invalid_session` without claiming definitive parent revocation. The extension manifest declares host permissions restricted to local development endpoints (`http://localhost:5000/*` and `http://127.0.0.1:5000/*`); deploying to production requires updating `manifest.json` host permissions to match the deployed HTTPS API origin.
+
 ## Other behavior
 
 Responses include an `X-Request-Id` header. Unknown routes return a JSON 404. Unhandled server errors return a generic JSON 500.
 
 ## Planned, not implemented
 
-Email verification, password recovery, multiple caregivers, remote website/app policy distribution, Android accessibility/VPN monitoring, live enforcement synchronization, and Chrome extension backend pairing are deferred to later stages. `enforcementStatus` is strictly `not_implemented` and does not enforce website blocking on child devices. Do not treat this document as evidence that those features exist.
+Email verification, password recovery, multiple caregivers, remote website/app policy distribution, Android accessibility/VPN monitoring, and live server-managed enforcement synchronization remain deferred to later stages. While device enrollment and heartbeat presence are implemented, `enforcementStatus` is strictly `not_implemented` and does not enforce website blocking on child devices from the parent dashboard. Do not treat this document as evidence that those features exist.

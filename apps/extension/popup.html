@@ -8,22 +8,97 @@
   </head>
   <body>
     <main>
-      <h1>Website filter</h1>
-      <p class="intro">This blocklist stays in this Chrome profile. It blocks top-level website navigations for each domain and its subdomains.</p>
-      <form id="domain-form">
-        <label for="domain-input">Domain or HTTP(S) origin</label>
-        <div class="form-row">
-          <input id="domain-input" name="domain" type="text" autocomplete="url" placeholder="example.com" maxlength="300" required>
-          <button type="submit">Add</button>
+      <h1>KidsGuard Filter &amp; Device</h1>
+      <p class="intro">Manage local website filtering rules and device pairing for this Chrome profile.</p>
+
+      <section id="device-section" class="card" aria-labelledby="device-title">
+        <div class="section-header">
+          <h2 id="device-title">Device status</h2>
+          <span id="device-status-badge" class="badge badge-unpaired" role="status">Unpaired</span>
         </div>
-        <p class="hint">No paths, ports, credentials, or query values. Up to 100 domains.</p>
-      </form>
-      <section aria-labelledby="list-title">
-        <h2 id="list-title">Configured domains</h2>
-        <ul id="domain-list"></ul>
+
+        <div id="device-details" class="device-details">
+          <p id="device-status-message" class="detail-text">This device is not paired to a parent account.</p>
+          <dl id="device-meta-list" class="meta-list" hidden>
+            <div class="meta-row">
+              <dt>Device name:</dt>
+              <dd id="device-name-display"></dd>
+            </div>
+            <div class="meta-row">
+              <dt>Device ID:</dt>
+              <dd id="device-id-display"></dd>
+            </div>
+            <div class="meta-row">
+              <dt>Platform:</dt>
+              <dd id="device-platform-display"></dd>
+            </div>
+            <div class="meta-row">
+              <dt>Heartbeat:</dt>
+              <dd id="device-heartbeat-display"></dd>
+            </div>
+          </dl>
+        </div>
+
+        <p id="device-error" class="error-banner" role="alert" aria-live="assertive" hidden></p>
+
+        <form id="pairing-form" novalidate>
+          <div class="form-group">
+            <label for="pairing-code-input">Pairing code</label>
+            <input
+              id="pairing-code-input"
+              name="code"
+              type="text"
+              maxlength="22"
+              autocomplete="off"
+              placeholder="22-character code"
+              required
+            >
+            <p class="hint">Enter the 22-character code from your parent dashboard.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="device-name-input">Device name</label>
+            <input
+              id="device-name-input"
+              name="deviceName"
+              type="text"
+              maxlength="60"
+              placeholder="e.g. Chrome Browser"
+              value="Chrome Browser"
+              required
+            >
+          </div>
+
+          <button id="pair-button" type="submit">Pair device</button>
+        </form>
+
+        <div id="unpair-container" class="unpair-row" hidden>
+          <button id="unpair-button" type="button" class="btn-secondary">Unpair device</button>
+          <p class="hint">Unpairing removes the device session. Local blocklist rules remain active.</p>
+        </div>
       </section>
-      <p id="status" class="status" role="status" aria-live="polite">Loading local rules…</p>
-      <p class="notice">This extension does not connect to KidsGuard accounts or devices. It does not provide remote sync or tamper resistance.</p>
+
+      <section class="card" aria-labelledby="filter-title">
+        <h2 id="filter-title">Local website filter</h2>
+        <form id="domain-form">
+          <label for="domain-input">Domain or HTTP(S) origin</label>
+          <div class="form-row">
+            <input id="domain-input" name="domain" type="text" autocomplete="url" placeholder="example.com" maxlength="300" required>
+            <button type="submit">Add</button>
+          </div>
+          <p class="hint">No paths, ports, credentials, or query values. Up to 100 domains.</p>
+        </form>
+
+        <section aria-labelledby="list-title">
+          <h3 id="list-title">Configured domains</h3>
+          <ul id="domain-list"></ul>
+        </section>
+        <p id="status" class="status" role="status" aria-live="polite">Loading local rules…</p>
+      </section>
+
+      <p class="notice">
+        Remote policy synchronization is not implemented yet; device pairing only registers and tracks device presence. Website filtering rules remain local to this Chrome profile.
+      </p>
     </main>
     <script type="module" src="popup.js"></script>
   </body>

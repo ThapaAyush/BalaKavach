@@ -5,8 +5,13 @@
   "description": "Apply a small, locally configured blocklist to website navigations.",
   "minimum_chrome_version": "101",
   "permissions": [
+    "alarms",
     "declarativeNetRequest",
     "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:5000/*",
+    "http://127.0.0.1:5000/*"
   ],
   "background": {
     "service_worker": "src/service-worker.js",
