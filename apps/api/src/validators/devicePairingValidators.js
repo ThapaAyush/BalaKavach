@@ -8,6 +8,8 @@ const displayNameSchema = z.string()
 
 export const createPairingCodeSchema = z.object({}).strict().optional();
 
+export const deviceHeartbeatSchema = z.object({}).strict().optional();
+
 export const redeemPairingCodeSchema = z.object({
   code: z.string().regex(/^[A-Za-z0-9_-]{22}$/),
   name: displayNameSchema,

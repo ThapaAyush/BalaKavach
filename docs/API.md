@@ -91,9 +91,19 @@ Requires the authenticated parent session and lists only registrations in that p
 
 ### `DELETE /devices/:deviceId`
 
-Requires the parent session and exact `Origin`; only a device in the parent's family can be revoked. Other-family and unknown device IDs return the same `404`. Revocation sets `revokedAt`; a future device-authentication endpoint must check this value and the credential hash. Device authentication, heartbeat, Android monitoring, and enforcement endpoints are not implemented.
+Requires the parent session and exact `Origin`; only a device in the parent's family can be revoked. Other-family and unknown device IDs return the same `404`. Revocation sets `revokedAt` and updates `pairingStatus` to `revoked`. Revoked devices are rejected by device authentication, and concurrent heartbeats are rejected atomically without updating `lastSeenAt`.
 
-MongoDB TTL cleanup removes expired pairing records eventually, but redemption checks expiry directly and does not rely on TTL timing. Rate limits use in-process IP storage: counters reset on restart and are independent per API process, so deployment needs a shared store. Express proxy trust is not enabled here; behind a reverse proxy, configure only the known trusted proxy hops before using originating client IPs for limits. The API pairing tests use an in-memory repository; real MongoDB atomic redemption and index behavior remain unverified.
+### `POST /devices/heartbeat`
+
+Device liveness endpoint authenticated by bearer token via the `Authorization: Bearer <deviceCredential>` header.
+- **Authentication**: `requireDeviceAuth` extracts the token, enforces a 256-byte header length guard, validates the 43-character base64url credential format, hashes it with SHA-256, and verifies the device is not revoked (`revokedAt: null`).
+- **Body Validation**: Uses a dedicated strict empty body schema (`deviceHeartbeatSchema`). Request bodies with client-supplied fields or attributes are rejected with `400`.
+- **Atomic Concurrency**: Updates `lastSeenAt` conditionally using `{ _id: deviceId, revokedAt: null }`. If revocation took effect concurrently between authentication and update, the update matches zero documents, `lastSeenAt` is preserved unmodified, and the endpoint fails with a generic `401`.
+- **Error Responses**: Invalid, missing, malformed, revoked, or racing-revoked credentials all receive generic `401` responses (`{ "ok": false, "error": { "message": "Device authentication failed." } }`). No credentials or credential hashes are exposed.
+- **Headers & Caching**: Responses use `Cache-Control: no-store` and return sanitized device fields (`id`, `childProfileId`, `name`, `platform`, `pairingStatus`, `enforcementStatus: "not_implemented"`, `pairedAt`, `lastSeenAt`).
+- **Rate Limiting**: Configurable via `rateLimitConfig.heartbeat` (defaults to 60 requests per 15 minutes per IP in memory). In-process rate limiting stores counters in memory; multi-instance production environments require injecting a shared store (e.g. Redis).
+
+MongoDB TTL cleanup removes expired pairing records eventually, but redemption checks expiry directly and does not rely on TTL timing. Rate limits use in-process IP storage: counters reset on restart and are independent per API process, so deployment needs a shared store. Express proxy trust is not enabled here; behind a reverse proxy, configure only the known trusted proxy hops before using originating client IPs for limits. API tests use in-memory repositories; real MongoDB Atlas multi-process parallel writes, reconnection races, and index performance remain unverified.
 
 ## Other behavior
 
@@ -101,4 +111,4 @@ Responses include an `X-Request-Id` header. Unknown routes return a JSON 404. Un
 
 ## Planned, not implemented
 
-Email verification, password recovery, multiple caregivers, device authentication, heartbeats, website and screen-time rules, usage, blocked events, and policy acknowledgements are deferred to later stages. Do not treat this document as evidence that those endpoints exist.
+Email verification, password recovery, multiple caregivers, remote website/app policy distribution, Android accessibility/VPN monitoring, live enforcement synchronization, and Chrome extension backend pairing are deferred to later stages. `enforcementStatus` is strictly `not_implemented` and does not enforce website blocking on child devices. Do not treat this document as evidence that those features exist.

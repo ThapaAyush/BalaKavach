@@ -65,6 +65,7 @@ export function createApp({
     devicePairingService,
     clientOrigin: runtimeEnv.CLIENT_ORIGIN,
     nodeEnv: runtimeEnv.NODE_ENV,
+    rateLimitConfig: runtimeEnv.rateLimitConfig,
   }));
   app.use('/api/v1', healthRoutes);
   app.use(notFoundHandler);

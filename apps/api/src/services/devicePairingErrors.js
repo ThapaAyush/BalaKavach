@@ -30,6 +30,15 @@ export class DevicePairingStorageUnavailableError extends Error {
   }
 }
 
+export class DeviceAuthenticationError extends Error {
+  constructor() {
+    super('Device authentication required.');
+    this.name = 'DeviceAuthenticationError';
+    this.status = 401;
+  }
+}
+
 export const invalidPairingCodeError = () => new InvalidPairingCodeError();
 export const pairingCodeNotFoundError = () => new PairingCodeNotFoundError();
 export const deviceNotFoundError = () => new DeviceNotFoundError();
+export const deviceAuthenticationError = () => new DeviceAuthenticationError();

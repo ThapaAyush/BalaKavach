@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 function createId() {
   return randomBytes(12).toString('hex');
@@ -77,6 +77,25 @@ export function createMemoryDevicePairingRepository() {
       if (!device || device.familyId !== familyId || device.revokedAt) return false;
       device.revokedAt = revokedAt;
       return true;
+    },
+
+    async findDeviceByCredentialHash(credentialHash) {
+      if (typeof credentialHash !== 'string' || !/^[0-9a-f]{64}$/.test(credentialHash)) return null;
+      const targetBuffer = Buffer.from(credentialHash, 'hex');
+      const device = [...devicesById.values()].find((candidate) => {
+        if (typeof candidate.credentialHash !== 'string') return false;
+        const candidateBuffer = Buffer.from(candidate.credentialHash, 'hex');
+        if (candidateBuffer.length !== targetBuffer.length) return false;
+        return timingSafeEqual(candidateBuffer, targetBuffer);
+      });
+      return copy(device);
+    },
+
+    async recordHeartbeat({ deviceId, lastSeenAt }) {
+      const device = devicesById.get(deviceId);
+      if (!device || device.revokedAt) return null;
+      device.lastSeenAt = lastSeenAt;
+      return copy(device);
     },
 
     getPairingCodeByHash(codeHash) {

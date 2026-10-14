@@ -75,13 +75,29 @@ The Stage 4 API tests use in-memory repositories and do not connect to MongoDB. 
 
 The extension is local-only. It has no backend authentication, pairing, device credentials, remote synchronization, tamper resistance, subresource filtering, or Android enforcement. Its Node tests use injected Chrome API fakes and do not exercise Chrome's actual rule engine. See [extension setup](../apps/extension/README.md) for manual steps.
 
+## Stage 6 — device authentication and secure pairing integration
+
+- [x] Add device bearer authentication middleware (`requireDeviceAuth`) validating 43-character base64url credentials, header length limits (<= 256 bytes), SHA-256 hash lookup, and revocation checks.
+- [x] Add device heartbeat endpoint (`POST /api/v1/devices/heartbeat`) with conditional atomic updates (`{ _id: deviceId, revokedAt: null }`), strict empty-body validation (`deviceHeartbeatSchema`), and `no-store` headers.
+- [x] Prevent heartbeat/revocation race conditions: heartbeats racing with or arriving after revocation are rejected with 401 without updating `lastSeenAt`.
+- [x] Add configurable rate limiting on device heartbeat routes (default 60 requests / 15 minutes per IP in memory) with support for shared production stores.
+- [x] Integrate parent web UI for ephemeral in-memory pairing code generation, clear countdown expiry display, and unredeemed code cancellation.
+- [x] Protect UI lifecycle with `AbortController` and active-child tracking to prevent late-arriving responses from displaying stale pairing codes after sign-out, child context switching, or component unmount.
+- [x] List family-scoped paired devices in the parent UI with child, platform, paired timestamp, last seen, and status badge; allow parent device revocation and list refresh.
+- [x] Keep `enforcementStatus` honestly declared as `not_implemented` across API responses, models, and UI displays.
+- [x] Add automated unit and integration tests across API (68 tests) and web (14 tests) covering device authentication, heartbeat, revocation races, rate limits, in-memory UI storage, lifecycle aborts, and error handling.
+- [ ] Integration-test Stage 6 conditional atomic updates and reconnection races against real MongoDB Atlas; automated tests use isolated in-memory repositories.
+- [ ] Verify production multi-instance rate limiting with a shared storage backend (e.g. Redis).
+- [ ] Verify production HTTPS deployment and client device storage of bearer credentials.
+
+The Stage 6 tests use in-memory repositories and simulate atomic operations and timing-safe secret comparisons. Live MongoDB Atlas multi-process parallel writes, reconnection races, index performance, and shared rate-limiting stores remain unverified. `enforcementStatus` is strictly `not_implemented` across all models and UI displays; no website blocking or device monitoring is enforced on child devices in this stage.
+
 ## Later stages
 
-- [ ] Stage 6 — Android pairing.
 - [ ] Stage 7 — Android enforcement.
 - [ ] Stage 8 — quality and security review.
 - [ ] Stage 9 — deployment.
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 
-Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, device authentication/heartbeats, enforcement, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.
+Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, Android enforcement, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.

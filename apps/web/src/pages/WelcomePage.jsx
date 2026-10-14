@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { apiGet, apiPost } from '../lib/api.js';
+import { useEffect, useRef, useState } from 'react';
+import { apiDelete, apiGet, apiPost } from '../lib/api.js';
 
 export default function WelcomePage() {
   const [health, setHealth] = useState({ state: 'loading', data: null });
@@ -14,6 +14,25 @@ export default function WelcomePage() {
   const [childDateOfBirth, setChildDateOfBirth] = useState('');
   const [childMessage, setChildMessage] = useState(null);
   const [creatingChild, setCreatingChild] = useState(false);
+  const [devices, setDevices] = useState({ state: 'idle', items: [] });
+  const [pairingCode, setPairingCode] = useState(null);
+  const [pairingAction, setPairingAction] = useState({ busyChildId: null, cancelling: false, message: null });
+  const [deviceAction, setDeviceAction] = useState({ busyId: null, message: null });
+
+  const pairingAbortRef = useRef(null);
+  const activePairingChildRef = useRef(null);
+  const authStateRef = useRef(auth.state);
+  authStateRef.current = auth.state;
+
+  useEffect(() => {
+    return () => {
+      if (pairingAbortRef.current) {
+        pairingAbortRef.current.abort();
+        pairingAbortRef.current = null;
+      }
+      activePairingChildRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -36,12 +55,23 @@ export default function WelcomePage() {
 
   useEffect(() => {
     if (auth.state !== 'authenticated') {
-      if (auth.state === 'signed-out') setChildren({ state: 'idle', items: [] });
+      if (pairingAbortRef.current) {
+        pairingAbortRef.current.abort();
+        pairingAbortRef.current = null;
+      }
+      activePairingChildRef.current = null;
+      setChildren({ state: 'idle', items: [] });
+      setDevices({ state: 'idle', items: [] });
+      setPairingCode(null);
+      setPairingAction({ busyChildId: null, cancelling: false, message: null });
+      setDeviceAction({ busyId: null, message: null });
       return undefined;
     }
 
     const controller = new AbortController();
     setChildren({ state: 'loading', items: [] });
+    setDevices({ state: 'loading', items: [] });
+
     apiGet('/children', { signal: controller.signal })
       .then((data) => setChildren({ state: 'ready', items: data.children }))
       .catch((error) => {
@@ -53,8 +83,47 @@ export default function WelcomePage() {
         setChildren({ state: 'error', items: [] });
       });
 
+    apiGet('/devices', { signal: controller.signal })
+      .then((data) => setDevices({ state: 'ready', items: data.devices }))
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        if (error.status === 401) {
+          setAuth({ state: 'signed-out', parent: null });
+          return;
+        }
+        setDevices({ state: 'error', items: [] });
+      });
+
     return () => controller.abort();
   }, [auth.state, auth.parent?.id]);
+
+  useEffect(() => {
+    if (!pairingCode || pairingCode.status !== 'active') return undefined;
+    const remainingMs = new Date(pairingCode.expiresAt).getTime() - Date.now();
+    if (remainingMs <= 0) {
+      setPairingCode((curr) => (curr ? { ...curr, code: null, status: 'expired' } : null));
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setPairingCode((curr) => (curr ? { ...curr, code: null, status: 'expired' } : null));
+    }, remainingMs);
+    return () => clearTimeout(timer);
+  }, [pairingCode?.id, pairingCode?.expiresAt, pairingCode?.status]);
+
+  async function loadDevices(signal) {
+    setDevices((curr) => ({ ...curr, state: 'loading' }));
+    try {
+      const data = await apiGet('/devices', { signal });
+      setDevices({ state: 'ready', items: data.devices });
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      if (error.status === 401) {
+        setAuth({ state: 'signed-out', parent: null });
+        return;
+      }
+      setDevices({ state: 'error', items: [] });
+    }
+  }
 
   async function submitCredentials(event) {
     event.preventDefault();
@@ -82,6 +151,12 @@ export default function WelcomePage() {
   }
 
   async function signOut() {
+    if (pairingAbortRef.current) {
+      pairingAbortRef.current.abort();
+      pairingAbortRef.current = null;
+    }
+    activePairingChildRef.current = null;
+    setPairingCode(null);
     setSubmitting(true);
     setFormMessage(null);
 
@@ -116,6 +191,84 @@ export default function WelcomePage() {
       setChildMessage({ type: 'error', text: error.message });
     } finally {
       setCreatingChild(false);
+    }
+  }
+
+  async function requestPairingCode(child) {
+    if (pairingAbortRef.current) {
+      pairingAbortRef.current.abort();
+      pairingAbortRef.current = null;
+    }
+    const controller = new AbortController();
+    pairingAbortRef.current = controller;
+    activePairingChildRef.current = child.id;
+
+    setPairingAction({ busyChildId: child.id, cancelling: false, message: null });
+    setPairingCode(null);
+
+    try {
+      const data = await apiPost(`/children/${child.id}/pairing-codes`, {}, { signal: controller.signal });
+      if (
+        controller.signal.aborted ||
+        authStateRef.current !== 'authenticated' ||
+        activePairingChildRef.current !== child.id
+      ) {
+        return;
+      }
+      setPairingCode({
+        childId: child.id,
+        childName: child.displayName,
+        id: data.pairingCode.id,
+        code: data.pairingCode.code,
+        expiresAt: data.pairingCode.expiresAt,
+        status: 'active',
+      });
+      setPairingAction({ busyChildId: null, cancelling: false, message: null });
+    } catch (error) {
+      if (
+        error.name === 'AbortError' ||
+        controller.signal.aborted ||
+        authStateRef.current !== 'authenticated' ||
+        activePairingChildRef.current !== child.id
+      ) {
+        return;
+      }
+      setPairingAction({ busyChildId: null, cancelling: false, message: { type: 'error', text: error.message } });
+    } finally {
+      if (pairingAbortRef.current === controller) {
+        pairingAbortRef.current = null;
+      }
+    }
+  }
+
+  async function cancelPairingCode() {
+    if (!pairingCode) return;
+    const target = pairingCode;
+    setPairingAction((curr) => ({ ...curr, cancelling: true, message: null }));
+    try {
+      await apiDelete(`/children/${target.childId}/pairing-codes/${target.id}`);
+      if (authStateRef.current !== 'authenticated') return;
+      setPairingCode(null);
+      setPairingAction({ busyChildId: null, cancelling: false, message: { type: 'success', text: 'Pairing code cancelled.' } });
+    } catch (error) {
+      if (authStateRef.current !== 'authenticated') return;
+      setPairingAction({ busyChildId: null, cancelling: false, message: { type: 'error', text: error.message } });
+    }
+  }
+
+  async function revokeDevice(deviceId) {
+    setDeviceAction({ busyId: deviceId, message: null });
+    try {
+      await apiDelete(`/devices/${deviceId}`);
+      if (authStateRef.current !== 'authenticated') return;
+      setDevices((curr) => ({
+        ...curr,
+        items: curr.items.map((d) => (d.id === deviceId ? { ...d, pairingStatus: 'revoked', revokedAt: new Date().toISOString() } : d)),
+      }));
+      setDeviceAction({ busyId: null, message: { type: 'success', text: 'Device access revoked.' } });
+    } catch (error) {
+      if (authStateRef.current !== 'authenticated') return;
+      setDeviceAction({ busyId: null, message: { type: 'error', text: error.message } });
     }
   }
 
@@ -175,15 +328,69 @@ export default function WelcomePage() {
               {children.state === 'ready' && (children.items.length === 0 ? (
                 <p className="mt-3 text-sm text-zinc-400">No child profiles yet.</p>
               ) : (
-                <ul className="mt-3 space-y-2" aria-label="Saved child profiles">
+                <ul className="mt-3 space-y-3" aria-label="Saved child profiles">
                   {children.items.map((child) => (
-                    <li className="rounded-xl border border-white/10 px-4 py-3" key={child.id}>
-                      <p className="font-medium text-zinc-100">{child.displayName}</p>
-                      {child.dateOfBirth && <p className="mt-1 text-sm text-zinc-400">Date of birth: {child.dateOfBirth}</p>}
+                    <li className="rounded-xl border border-white/10 p-4" key={child.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-zinc-100">{child.displayName}</p>
+                          {child.dateOfBirth && <p className="mt-1 text-sm text-zinc-400">Date of birth: {child.dateOfBirth}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                          disabled={pairingAction.busyChildId === child.id}
+                          onClick={() => requestPairingCode(child)}
+                          aria-label={`Pair a device for ${child.displayName}`}
+                        >
+                          {pairingAction.busyChildId === child.id ? 'Pairing…' : 'Pair device'}
+                        </button>
+                      </div>
+
+                      {pairingCode && pairingCode.childId === child.id && (
+                        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3" role="region" aria-label="Active pairing code">
+                          {pairingCode.status === 'active' ? (
+                            <>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">One-time pairing code</p>
+                              <div className="mt-1 flex items-center justify-between gap-2">
+                                <code className="font-mono text-xl font-bold tracking-widest text-white select-all">{pairingCode.code}</code>
+                                <button
+                                  type="button"
+                                  className="rounded border border-rose-500/40 px-2 py-1 text-xs text-rose-300 hover:bg-rose-950/40 disabled:opacity-50"
+                                  disabled={pairingAction.cancelling}
+                                  onClick={cancelPairingCode}
+                                >
+                                  {pairingAction.cancelling ? 'Cancelling…' : 'Cancel code'}
+                                </button>
+                              </div>
+                              <p className="mt-2 text-xs text-zinc-400">
+                                Expires at {new Date(pairingCode.expiresAt).toLocaleTimeString()}. Kept in memory only; not stored in browser storage.
+                              </p>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs text-amber-300">Pairing code expired.</p>
+                              <button
+                                type="button"
+                                className="rounded border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:bg-white/10"
+                                onClick={() => setPairingCode(null)}
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
               ))}
+
+              {pairingAction.message && (
+                <p className={`mt-3 text-sm ${pairingAction.message.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`} role={pairingAction.message.type === 'error' ? 'alert' : 'status'}>
+                  {pairingAction.message.text}
+                </p>
+              )}
 
               <form className="mt-5 space-y-3 border-t border-white/10 pt-5" onSubmit={createChildProfile}>
                 <h3 className="text-sm font-semibold text-zinc-200">Add a child profile</h3>
@@ -222,6 +429,75 @@ export default function WelcomePage() {
                   {creatingChild ? 'Saving…' : 'Add child profile'}
                 </button>
               </form>
+            </section>
+
+            <section aria-labelledby="devices-title" className="rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-white" id="devices-title">Paired devices</h2>
+                  <p className="mt-1 text-xs text-zinc-400">Device filtering enforcement is not implemented in this stage.</p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/15 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-white/10 disabled:opacity-50"
+                  disabled={devices.state === 'loading'}
+                  onClick={() => loadDevices()}
+                  aria-label="Refresh paired devices"
+                >
+                  {devices.state === 'loading' ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </div>
+
+              {deviceAction.message && (
+                <p className={`mt-3 text-sm ${deviceAction.message.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`} role={deviceAction.message.type === 'error' ? 'alert' : 'status'}>
+                  {deviceAction.message.text}
+                </p>
+              )}
+
+              {devices.state === 'loading' && devices.items.length === 0 && (
+                <p className="mt-3 text-sm text-zinc-400" role="status">Loading paired devices…</p>
+              )}
+              {devices.state === 'error' && (
+                <p className="mt-3 text-sm text-rose-300" role="alert">Paired devices could not be loaded. Try again later.</p>
+              )}
+              {devices.state === 'ready' && (devices.items.length === 0 ? (
+                <p className="mt-3 text-sm text-zinc-400">No paired devices yet.</p>
+              ) : (
+                <ul className="mt-3 space-y-2" aria-label="Paired devices">
+                  {devices.items.map((device) => {
+                    const childName = children.items.find((c) => c.id === device.childProfileId)?.displayName ?? 'Child';
+                    const isRevoked = device.pairingStatus === 'revoked' || Boolean(device.revokedAt);
+                    const pairedDate = device.pairedAt ? new Date(device.pairedAt).toLocaleString() : 'Unknown';
+                    const lastSeen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never seen';
+                    return (
+                      <li className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-4 py-3" key={device.id}>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-zinc-100">{device.name}</p>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${isRevoked ? 'bg-zinc-800 text-zinc-400' : 'border border-emerald-500/30 bg-emerald-950/60 text-emerald-400'}`}>
+                              {isRevoked ? 'Revoked' : 'Paired'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            Child: {childName} • Platform: {device.platform} • Paired: {pairedDate} • Last seen: {lastSeen}
+                          </p>
+                        </div>
+                        {!isRevoked && (
+                          <button
+                            type="button"
+                            className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-950/40 disabled:opacity-50"
+                            disabled={deviceAction.busyId === device.id}
+                            onClick={() => revokeDevice(device.id)}
+                            aria-label={`Revoke ${device.name}`}
+                          >
+                            {deviceAction.busyId === device.id ? 'Revoking…' : 'Revoke'}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ))}
             </section>
           </div>
         ) : auth.state === 'checking' ? (

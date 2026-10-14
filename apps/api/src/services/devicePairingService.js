@@ -2,6 +2,7 @@ import { mongoDevicePairingRepository } from './devicePairingRepository.js';
 import { mongoFamilyChildRepository } from './familyChildRepository.js';
 import { childProfileNotFoundError } from './familyChildErrors.js';
 import {
+  deviceAuthenticationError,
   deviceNotFoundError,
   invalidPairingCodeError,
   pairingCodeNotFoundError,
@@ -10,6 +11,7 @@ import {
   generateDeviceCredential,
   generatePairingCode,
   hashSecret,
+  isValidDeviceCredentialFormat,
   PAIRING_CODE_TTL_MS,
 } from '../utils/pairingCredentials.js';
 
@@ -123,6 +125,41 @@ export function createDevicePairingService({
         revokedAt: now(),
       });
       if (!revoked) throw deviceNotFoundError();
+    },
+
+    async authenticateDevice(credential) {
+      repository.assertAvailable?.();
+      if (!isValidDeviceCredentialFormat(credential)) return null;
+
+      const credentialHash = hashSecret(credential);
+      const device = await repository.findDeviceByCredentialHash(credentialHash);
+      if (!device || device.revokedAt) return null;
+
+      return {
+        id: idString(device),
+        familyId: device.familyId?.toString(),
+        childProfileId: device.childProfileId?.toString(),
+        name: device.name,
+        platform: device.platform,
+        pairingStatus: 'paired',
+        pairedAt: device.pairedAt,
+        lastSeenAt: device.lastSeenAt ?? null,
+        enforcementStatus: 'not_implemented',
+        revokedAt: null,
+      };
+    },
+
+    async recordHeartbeat(deviceId) {
+      repository.assertAvailable?.();
+      const heartbeatAt = now();
+      const device = await repository.recordHeartbeat({
+        deviceId,
+        lastSeenAt: heartbeatAt,
+      });
+      if (!device || device.revokedAt) {
+        throw deviceAuthenticationError();
+      }
+      return publicDevice(device);
     },
   });
 }

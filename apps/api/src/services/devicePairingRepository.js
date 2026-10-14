@@ -136,4 +136,36 @@ export const mongoDevicePairingRepository = Object.freeze({
       return result.matchedCount === 1;
     });
   },
+
+  findDeviceByCredentialHash(credentialHash) {
+    if (typeof credentialHash !== 'string' || !/^[0-9a-f]{64}$/.test(credentialHash)) {
+      return null;
+    }
+    return runDatabaseOperation(async () => {
+      const device = await DeviceRegistration.findOne({ credentialHash })
+        .select('_id familyId childProfileId name platform pairedAt lastSeenAt revokedAt')
+        .lean()
+        .exec();
+      return device;
+    });
+  },
+
+  recordHeartbeat({ deviceId, lastSeenAt }) {
+    return runDatabaseOperation(async () => {
+      const updated = await DeviceRegistration.findOneAndUpdate(
+        {
+          _id: deviceId,
+          revokedAt: null,
+        },
+        {
+          $set: { lastSeenAt },
+        },
+        {
+          new: true,
+          select: '_id childProfileId name platform pairedAt lastSeenAt revokedAt',
+        },
+      ).lean().exec();
+      return updated;
+    });
+  },
 });

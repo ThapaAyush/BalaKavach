@@ -1,6 +1,6 @@
 # Security status
 
-## Implemented in Stages 1–5
+## Implemented in Stages 1–6
 
 - Helmet security headers and disabled Express identification header.
 - Credentialed CORS restricted to the configured `CLIENT_ORIGIN`; authentication mutations require an exact matching `Origin`.
@@ -17,9 +17,12 @@
 - Family/child operations fail closed when MongoDB or the required indexes are unavailable. Expiry/TTL cleanup is not used for authorization decisions.
 - Parent-issued pairing codes use 128 random bits, are stored only as SHA-256 hashes, expire after 10 minutes, and can be revoked before redemption. Redemption checks expiry and revocation directly and atomically sets `redeemedAt` so only one concurrent request can claim a code.
 - Pairing-code issuance/revocation and device listing/revocation derive the family from the authenticated parent and constrain repository operations by family and child IDs. Redemption returns the same generic error for invalid, expired, revoked, or used codes.
-- Device credentials use 256 random bits; only a SHA-256 hash is stored and the raw token is returned once in the successful pairing response, which uses `Cache-Control: no-store`. It is not returned by parent APIs or logged. Device authentication does not yet exist.
+- Device credentials use 256 random bits (43-character base64url string); only their SHA-256 hashes are stored. The raw credential is returned once in the enrollment response, which uses `Cache-Control: no-store`. Raw credentials and credential hashes are never logged, returned by parent APIs, or exposed in the UI.
+- Device bearer authentication (`requireDeviceAuth`) validates token length (<= 256 bytes) and format, hashes the token with SHA-256 for lookup, and rejects revoked devices. Unit/integration test mocks use `crypto.timingSafeEqual` for constant-time comparisons.
+- The device heartbeat endpoint (`POST /devices/heartbeat`) uses a conditional atomic database update (`{ _id: deviceId, revokedAt: null }`) so a heartbeat cannot update `lastSeenAt` once revocation has taken effect. Invalid, malformed, revoked, or racing-revoked credentials return generic `401` errors. Request bodies strictly validate empty payloads to prevent client-injected fields.
+- Heartbeat rate limiting is configurable (defaults to 60 requests per 15 minutes per IP in memory). In-process limits reset on process restart; multi-instance production environments require injecting a shared store (e.g. Redis).
+- Parent web UI holds pairing codes strictly in memory (`useState`), never in `localStorage`, `sessionStorage`, cookies, or logs. Expiry timers immediately set `code: null` to purge the secret from state. `AbortController` and active-child tracking prevent late-arriving responses from displaying stale codes after sign-out, child context switching, or component unmount. Cancellation and device revocation handle API failures without false success.
 - Device records distinguish `pairedAt`, nullable `lastSeenAt`, revocation state, and `enforcementStatus: not_implemented`. Pairing does not claim monitoring or website/app blocking.
-- Pairing code creation and redemption are rate limited to 10 requests per 15 minutes per IP in each API process. Counters reset on restart and are not shared across instances. The API does not enable Express proxy trust; deployments behind a reverse proxy must configure only trusted proxy hops before limits can use originating client IPs.
 - MongoDB configuration is backend-only; `.env` files are ignored by Git and examples contain placeholders only.
 - The Chrome MV3 extension uses `declarativeNetRequest` for blocking and `storage` for its local blocklist. It requests no site host permissions or page-content access. It has no backend URL, account/session access, pairing integration, or device credential handling.
 - Domain input is normalized to lower-case ASCII (including IDN-to-punycode conversion) and rejects credentials, ports, paths, queries, fragments, IP addresses, wildcard entries, and unsupported schemes. The blocklist is capped at 100 unique domains and applies to `main_frame` HTTP(S) navigations for each domain and its subdomains. Allowlist precedence is not supported.
@@ -27,7 +30,7 @@
 
 ## Remaining security work
 
-Email verification, password recovery, multi-factor authentication, multiple caregivers, device credential authentication/rotation, audit logging, privacy/retention controls, and production security review remain unimplemented. Device pairing credentials are only enrolled and stored hashed; no device API currently authenticates them or checks `revokedAt`. A lost enrollment response after a committed insert can leave a registration without a delivered credential; parents must revoke it and pair again. Stage 4 Atlas indexes and atomic redemption have not been verified. Earlier auth/family/child indexes were ensured in Atlas, but live persistence remains unverified. Production HTTPS behavior and client secure storage of the one-time credential remain unverified. Do not expose this as a production parental-control service until these areas and deployment controls are complete.
+Email verification, password recovery, multi-factor authentication, multiple caregivers, device credential rotation, audit logging, privacy/retention controls, and production security review remain unimplemented. `enforcementStatus` remains `not_implemented` (no enforcement claimed in this stage). Real MongoDB Atlas multi-process parallel writes, reconnection races, and production shared rate-limit storage (e.g. Redis) remain unverified. Production HTTPS behavior and client secure storage of the one-time device credential remain unverified. Do not expose this as a production parental-control service until these areas and deployment controls are complete.
 
 The extension's local rules are not protected from a user who can disable or remove the extension or change its settings. It does not authenticate devices, contact the API, receive server-authorized policy, or provide tamper resistance. Chrome profile behavior, the actual block-page experience, Chrome Web Store packaging/review, managed-browser policy, and enforcement in alternate browsers/apps have not been verified.
 

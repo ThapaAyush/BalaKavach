@@ -48,5 +48,14 @@ export function createDevicePairingController({ devicePairingService }) {
         return next(error);
       }
     },
+
+    async recordHeartbeat(req, res, next) {
+      try {
+        const device = await devicePairingService.recordHeartbeat(req.device.id);
+        return res.status(200).json({ ok: true, data: { device } });
+      } catch (error) {
+        return next(error);
+      }
+    },
   });
 }
