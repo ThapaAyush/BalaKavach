@@ -39,6 +39,7 @@ function createMockElement(tagName = 'div', initial = {}) {
       function traverse(node) {
         if (!node) return;
         if (sel === 'button' && node.tagName === 'BUTTON') results.push(node);
+        if (sel === 'span' && node.tagName === 'SPAN') results.push(node);
         for (const child of node.children || []) traverse(child);
       }
       for (const child of children) traverse(child);
@@ -55,8 +56,6 @@ function createMockElement(tagName = 'div', initial = {}) {
 
 function createMockPopupDom() {
   const elements = {
-    '#domain-form': createMockElement('form'),
-    '#domain-input': createMockElement('input'),
     '#domain-list': createMockElement('ul'),
     '#status': createMockElement('p'),
     '#pairing-form': createMockElement('form'),
@@ -70,20 +69,15 @@ function createMockPopupDom() {
     '#device-id-display': createMockElement('dd'),
     '#device-platform-display': createMockElement('dd'),
     '#device-heartbeat-display': createMockElement('dd'),
+    '#device-policy-display': createMockElement('dd', { textContent: 'v0' }),
+    '#device-sync-display': createMockElement('dd', { textContent: 'Never' }),
+    '#sync-button': createMockElement('button', { textContent: 'Sync with parent policy', hidden: true }),
     '#device-error': createMockElement('p', { hidden: true }),
-    '#unpair-container': createMockElement('div', { hidden: true }),
-    '#unpair-button': createMockElement('button', { textContent: 'Unpair device' }),
   };
-
-  const domainSubmit = createMockElement('button', { textContent: 'Add' });
-  elements['#domain-form'].append(domainSubmit);
 
   const document = {
     createElement: (tag) => createMockElement(tag),
-    querySelector: (sel) => {
-      if (sel === '#domain-form button[type="submit"]') return domainSubmit;
-      return elements[sel] ?? null;
-    },
+    querySelector: (sel) => elements[sel] ?? null,
     elements,
   };
 
@@ -111,7 +105,7 @@ function createMockChrome(handler) {
   return chrome;
 }
 
-test('initial state renders unpaired status and domain list', async () => {
+test('initial state renders unpaired status and domain list without editing controls', async () => {
   const { document, elements } = createMockPopupDom();
   const chrome = createMockChrome(async (msg) => {
     if (msg.action === 'getState') {
@@ -136,11 +130,13 @@ test('initial state renders unpaired status and domain list', async () => {
   assert.equal(elements['#device-status-badge'].textContent, 'Unpaired');
   assert.equal(elements['#device-status-badge'].className, 'badge badge-unpaired');
   assert.equal(elements['#pairing-form'].hidden, false);
-  assert.equal(elements['#unpair-container'].hidden, true);
+  assert.equal(elements['#sync-button'].hidden, true);
   assert.equal(elements['#device-meta-list'].hidden, true);
 
-  // 2. Local blocklist is rendered
+  // 2. Parent-managed blocklist is rendered read-only
   assert.equal(elements['#domain-list'].children.length, 1);
+  const firstItem = elements['#domain-list'].children[0];
+  assert.equal(firstItem.querySelectorAll('button').length, 0, 'No remove buttons on domain items');
   assert.equal(elements['#status'].dataset.kind, 'success');
   assert.match(elements['#status'].textContent, /Rules applied for 1 domain/u);
 });
@@ -172,7 +168,7 @@ test('pairing code input validates 22-character base64url format client-side bef
   assert.match(elements['#device-error'].textContent, /Device name must be between 1 and 60 characters/u);
 });
 
-test('successful pairing updates UI, clears pairing code, and shows paired status', async () => {
+test('successful pairing updates UI, clears pairing code, and shows paired status with sync button', async () => {
   const { document, elements } = createMockPopupDom();
   const validCode = 'ABCDEFabcdef01234567-_';
 
@@ -189,6 +185,24 @@ test('successful pairing updates UI, clears pairing code, and shows paired statu
           pairedAt: '2026-10-14T10:00:00.000Z',
           lastSeenAt: '2026-10-14T10:00:00.000Z',
           lastHeartbeatStatus: 'ok',
+          acknowledgedPolicyVersion: 3,
+        },
+      };
+    }
+    if (msg.action === 'syncPolicy') {
+      return {
+        ok: true,
+        applied: true,
+        configuredDomains: ['blocked.example'],
+        appliedDomains: ['blocked.example'],
+        device: {
+          isPaired: true,
+          pairingStatus: 'paired',
+          deviceId: 'dev-999',
+          deviceName: 'Alex Chromebook',
+          platform: 'linux',
+          acknowledgedPolicyVersion: 3,
+          lastPolicySyncAt: '2026-10-14T10:05:00.000Z',
         },
       };
     }
@@ -202,7 +216,7 @@ test('successful pairing updates UI, clears pairing code, and shows paired statu
   await controller.handlePairingSubmit();
 
   // 1. Sent redeemPairingCode message
-  assert.equal(chrome.runtime.sentMessages.length, 1);
+  assert.ok(chrome.runtime.sentMessages.length >= 1);
   assert.deepEqual(chrome.runtime.sentMessages[0], {
     action: 'redeemPairingCode',
     code: validCode,
@@ -219,7 +233,7 @@ test('successful pairing updates UI, clears pairing code, and shows paired statu
   assert.equal(elements['#device-name-display'].textContent, 'Alex Chromebook');
   assert.equal(elements['#device-id-display'].textContent, 'dev-999');
   assert.equal(elements['#pairing-form'].hidden, true);
-  assert.equal(elements['#unpair-container'].hidden, false);
+  assert.equal(elements['#sync-button'].hidden, false);
   assert.equal(elements['#device-error'].hidden, true);
 });
 
@@ -259,6 +273,9 @@ test('prevents duplicate submissions while pairing request is in progress', asyn
         device: { isPaired: true, pairingStatus: 'paired', deviceId: 'dev-1' },
       };
     }
+    if (msg.action === 'syncPolicy') {
+      return { ok: true, applied: true, configuredDomains: [] };
+    }
     return { ok: false };
   });
 
@@ -294,6 +311,7 @@ test('renders invalid_session neutrally as re-auth required without claiming par
     deviceName: 'Alex Chromebook',
     platform: 'linux',
     lastHeartbeatStatus: 'invalid_session',
+    acknowledgedPolicyVersion: 2,
   });
 
   assert.equal(elements['#device-status-badge'].textContent, 'Re-auth required');
@@ -301,7 +319,8 @@ test('renders invalid_session neutrally as re-auth required without claiming par
   assert.match(elements['#device-status-message'].textContent, /invalid or expired\. Re-pairing is required/u);
   assert.doesNotMatch(elements['#device-status-message'].textContent, /revoked/iu);
   assert.equal(elements['#pairing-form'].hidden, false);
-  assert.equal(elements['#unpair-container'].hidden, false);
+  assert.equal(elements['#sync-button'].hidden, true);
+  assert.equal(elements['#device-policy-display'].textContent, 'v2');
 });
 
 test('heartbeat display shows offline state with local filtering notice', async () => {
@@ -316,66 +335,42 @@ test('heartbeat display shows offline state with local filtering notice', async 
     platform: 'linux',
     lastSeenAt: '2026-10-14T10:00:00.000Z',
     lastHeartbeatStatus: 'offline',
+    acknowledgedPolicyVersion: 5,
   });
 
   assert.match(elements['#device-heartbeat-display'].textContent, /offline - local rules active/u);
+  assert.equal(elements['#device-policy-display'].textContent, 'v5');
 });
 
-test('unpair action confirms with user, clears device session, and preserves local blocklist', async () => {
+test('sync button triggers policy sync and updates rule display', async () => {
   const { document, elements } = createMockPopupDom();
-  let confirmPrompt = null;
-  const mockConfirm = (msg) => {
-    confirmPrompt = msg;
-    return true; // user confirms
-  };
-
   const chrome = createMockChrome(async (msg) => {
-    if (msg.action === 'clearDeviceSession') {
+    if (msg.action === 'syncPolicy') {
       return {
         ok: true,
+        applied: true,
+        configuredDomains: ['youtube.com', 'tiktok.com'],
+        appliedDomains: ['youtube.com', 'tiktok.com'],
         device: {
-          isPaired: false,
-          pairingStatus: 'unpaired',
+          isPaired: true,
+          pairingStatus: 'paired',
+          deviceId: 'dev-123',
+          acknowledgedPolicyVersion: 4,
+          lastPolicySyncAt: '2026-10-14T12:00:00.000Z',
         },
       };
     }
     return { ok: false };
   });
 
-  const controller = createPopupController({ document, chrome, confirm: mockConfirm });
-  // Start in paired state
-  controller.renderDeviceStatus({
-    isPaired: true,
-    pairingStatus: 'paired',
-    deviceId: 'dev-123',
-    deviceName: 'Alex Chromebook',
-  });
+  const controller = createPopupController({ document, chrome });
+  await controller.handleSync();
 
-  await controller.handleUnpair();
-
-  // 1. Confirm dialog was prompted
-  assert.ok(confirmPrompt);
-  assert.match(confirmPrompt, /Local filtering rules will remain active/u);
-
-  // 2. Sent clearDeviceSession message
   assert.equal(chrome.runtime.sentMessages.length, 1);
-  assert.deepEqual(chrome.runtime.sentMessages[0], { action: 'clearDeviceSession' });
-
-  // 3. UI transitioned to unpaired
-  assert.equal(elements['#device-status-badge'].textContent, 'Unpaired');
-  assert.equal(elements['#pairing-form'].hidden, false);
-  assert.equal(elements['#unpair-container'].hidden, true);
-});
-
-test('unpair action is cancelled when user dismisses confirmation dialog', async () => {
-  const { document } = createMockPopupDom();
-  const mockConfirm = () => false; // user cancels
-  const chrome = createMockChrome(async () => ({ ok: true }));
-
-  const controller = createPopupController({ document, chrome, confirm: mockConfirm });
-  await controller.handleUnpair();
-
-  assert.equal(chrome.runtime.sentMessages.length, 0, 'No message sent when user cancels');
+  assert.deepEqual(chrome.runtime.sentMessages[0], { action: 'syncPolicy' });
+  assert.equal(elements['#domain-list'].children.length, 2);
+  assert.equal(elements['#device-policy-display'].textContent, 'v4');
+  assert.match(elements['#status'].textContent, /Rules applied for 2 domains/u);
 });
 
 test('credentials are never disclosed across popup DOM elements or state', async () => {
@@ -383,16 +378,15 @@ test('credentials are never disclosed across popup DOM elements or state', async
   const rawCredential = 'secret-device-credential-43chars-long-token';
   const controller = createPopupController({ document });
 
-  // Simulate rendering a status object
   controller.renderDeviceStatus({
     isPaired: true,
     pairingStatus: 'paired',
     deviceId: 'dev-123',
     deviceName: 'Alex Chromebook',
-    deviceCredential: rawCredential, // hypothetically present in dirty mock
+    deviceCredential: rawCredential,
+    acknowledgedPolicyVersion: 1,
   });
 
-  // Verify none of the elements contain the raw credential
   for (const [sel, el] of Object.entries(elements)) {
     assert.equal(
       (el.textContent || '').includes(rawCredential),
@@ -405,30 +399,4 @@ test('credentials are never disclosed across popup DOM elements or state', async
       `Element ${sel} value must not contain credential`,
     );
   }
-});
-
-test('local domain blocklist operations remain fully functional', async () => {
-  const { document, elements } = createMockPopupDom();
-  const chrome = createMockChrome(async (msg) => {
-    if (msg.action === 'addDomain') {
-      return {
-        ok: true,
-        applied: true,
-        configuredDomains: ['new-domain.com'],
-        appliedDomains: ['new-domain.com'],
-      };
-    }
-    return { ok: false };
-  });
-
-  const controller = createPopupController({ document, chrome });
-  elements['#domain-input'].value = 'new-domain.com';
-
-  await controller.changeDomain('addDomain', 'new-domain.com');
-
-  assert.equal(chrome.runtime.sentMessages.length, 1);
-  assert.deepEqual(chrome.runtime.sentMessages[0], { action: 'addDomain', domain: 'new-domain.com' });
-  assert.equal(elements['#domain-input'].value, '');
-  assert.equal(elements['#domain-list'].children.length, 1);
-  assert.match(elements['#status'].textContent, /Rules applied for 1 domain/u);
 });

@@ -3,17 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/api",
-    "apps/web",
+    "apps/backend",
+    "apps/frontend",
     "apps/extension"
   ],
   "engines": {
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev:api": "npm run dev --workspace @kidsguard/api",
-    "dev:web": "npm run dev --workspace @kidsguard/web",
-    "build": "npm run build --workspace @kidsguard/web",
+    "dev:backend": "npm run dev --workspace @kidsguard/backend",
+    "dev:api": "npm run dev --workspace @kidsguard/backend",
+    "dev:frontend": "npm run dev --workspace @kidsguard/frontend",
+    "dev:web": "npm run dev --workspace @kidsguard/frontend",
+    "build": "npm run build --workspace @kidsguard/frontend",
     "test": "npm run test --workspaces --if-present"
   },
   "allowScripts": {

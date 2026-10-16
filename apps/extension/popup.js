@@ -1,14 +1,9 @@
 export function createPopupController({
   document = globalThis.document,
   chrome = globalThis.chrome,
-  confirm = globalThis.confirm,
 } = {}) {
-  const domainForm = document.querySelector('#domain-form');
-  const domainInput = document.querySelector('#domain-input');
   const domainList = document.querySelector('#domain-list');
   const domainStatus = document.querySelector('#status');
-  const domainSubmitButton = domainForm?.querySelector?.('button[type="submit"]')
-    ?? document?.querySelector?.('#domain-form button[type="submit"]');
 
   const pairingForm = document.querySelector('#pairing-form');
   const pairingCodeInput = document.querySelector('#pairing-code-input');
@@ -22,24 +17,13 @@ export function createPopupController({
   const deviceIdDisplay = document.querySelector('#device-id-display');
   const devicePlatformDisplay = document.querySelector('#device-platform-display');
   const deviceHeartbeatDisplay = document.querySelector('#device-heartbeat-display');
+  const devicePolicyDisplay = document.querySelector('#device-policy-display');
+  const deviceSyncDisplay = document.querySelector('#device-sync-display');
+  const syncButton = document.querySelector('#sync-button');
   const deviceError = document.querySelector('#device-error');
 
-  const unpairContainer = document.querySelector('#unpair-container');
-  const unpairButton = document.querySelector('#unpair-button');
-
-  let domainBusy = false;
   let pairingBusy = false;
-  let unpairingBusy = false;
-
-  function setDomainBusy(value) {
-    domainBusy = value;
-    if (domainSubmitButton) domainSubmitButton.disabled = value;
-    if (domainList) {
-      for (const button of domainList.querySelectorAll('button')) {
-        button.disabled = value;
-      }
-    }
-  }
+  let syncBusy = false;
 
   function setPairingBusy(value) {
     pairingBusy = value;
@@ -49,6 +33,14 @@ export function createPopupController({
     }
     if (pairingCodeInput) pairingCodeInput.disabled = value;
     if (deviceNameInput) deviceNameInput.disabled = value;
+  }
+
+  function setSyncBusy(value) {
+    syncBusy = value;
+    if (syncButton) {
+      syncButton.disabled = value;
+      syncButton.textContent = value ? 'Syncing with parent…' : 'Sync with parent policy';
+    }
   }
 
   function setStatus(message, kind = '') {
@@ -81,7 +73,7 @@ export function createPopupController({
     });
   }
 
-  function renderDomainList(domains) {
+  function renderDomainList(domains = []) {
     if (!domainList) return;
     domainList.replaceChildren();
     if (!domains.length) {
@@ -96,14 +88,7 @@ export function createPopupController({
       const item = document.createElement('li');
       const label = document.createElement('span');
       label.textContent = domain;
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.textContent = 'Remove';
-      remove.setAttribute('aria-label', `Remove ${domain}`);
-      remove.addEventListener('click', () => {
-        void changeDomain('removeDomain', domain);
-      });
-      item.append(label, remove);
+      item.append(label);
       domainList.append(item);
     }
   }
@@ -121,6 +106,30 @@ export function createPopupController({
       if (deviceNameDisplay) deviceNameDisplay.textContent = device?.deviceName || 'Unnamed Device';
       if (deviceIdDisplay) deviceIdDisplay.textContent = device?.deviceId || 'Unknown';
       if (devicePlatformDisplay) devicePlatformDisplay.textContent = device?.platform || 'unknown';
+
+      if (devicePolicyDisplay) {
+        const ver = device?.acknowledgedPolicyVersion ?? device?.policyVersion ?? 0;
+        devicePolicyDisplay.textContent = `v${ver}`;
+      }
+
+      if (deviceSyncDisplay) {
+        if (device?.lastPolicySyncAt) {
+          const dateStr = new Date(device.lastPolicySyncAt).toLocaleString();
+          if (device.lastHeartbeatStatus === 'offline') {
+            deviceSyncDisplay.textContent = `${dateStr} (offline)`;
+          } else if (device.lastHeartbeatStatus === 'error') {
+            deviceSyncDisplay.textContent = `${dateStr} (sync error)`;
+          } else {
+            deviceSyncDisplay.textContent = dateStr;
+          }
+        } else if (device?.lastSeenAt) {
+          deviceSyncDisplay.textContent = new Date(device.lastSeenAt).toLocaleString();
+        } else if (device?.lastHeartbeatStatus === 'offline') {
+          deviceSyncDisplay.textContent = 'Offline (will retry)';
+        } else {
+          deviceSyncDisplay.textContent = 'Pending initial sync';
+        }
+      }
 
       if (deviceHeartbeatDisplay) {
         if (device?.lastSeenAt) {
@@ -140,7 +149,7 @@ export function createPopupController({
       }
 
       if (pairingForm) pairingForm.hidden = true;
-      if (unpairContainer) unpairContainer.hidden = false;
+      if (syncButton) syncButton.hidden = false;
     } else if (status === 'invalid_session') {
       if (deviceStatusBadge) {
         deviceStatusBadge.textContent = 'Re-auth required';
@@ -155,9 +164,14 @@ export function createPopupController({
       if (deviceIdDisplay) deviceIdDisplay.textContent = device?.deviceId || 'Unknown';
       if (devicePlatformDisplay) devicePlatformDisplay.textContent = device?.platform || 'unknown';
       if (deviceHeartbeatDisplay) deviceHeartbeatDisplay.textContent = 'Re-authentication required';
+      if (devicePolicyDisplay) {
+        const ver = device?.acknowledgedPolicyVersion ?? device?.policyVersion ?? 0;
+        devicePolicyDisplay.textContent = `v${ver}`;
+      }
+      if (deviceSyncDisplay) deviceSyncDisplay.textContent = 'Re-auth required';
 
       if (pairingForm) pairingForm.hidden = false;
-      if (unpairContainer) unpairContainer.hidden = false;
+      if (syncButton) syncButton.hidden = true;
     } else {
       // Unpaired default
       if (deviceStatusBadge) {
@@ -170,7 +184,7 @@ export function createPopupController({
       }
       if (deviceMetaList) deviceMetaList.hidden = true;
       if (pairingForm) pairingForm.hidden = false;
-      if (unpairContainer) unpairContainer.hidden = true;
+      if (syncButton) syncButton.hidden = true;
     }
   }
 
@@ -184,7 +198,7 @@ export function createPopupController({
       const count = response.appliedDomains?.length ?? 0;
       setStatus(`Rules applied for ${count} domain${count === 1 ? '' : 's'}.`, 'success');
     } else {
-      setStatus('The saved list does not match the active Chrome rules. Retry an update or inspect chrome://extensions.', 'error');
+      setStatus('The saved list does not match the active Chrome rules. Retry sync or inspect chrome://extensions.', 'error');
     }
 
     if (response.device !== undefined) {
@@ -201,21 +215,26 @@ export function createPopupController({
     }
   }
 
-  async function changeDomain(action, domain) {
-    if (domainBusy) return;
-    setDomainBusy(true);
-    setStatus('Updating the local list and Chrome rules…');
+  async function handleSync() {
+    if (syncBusy) return;
+    setSyncBusy(true);
+    setDeviceError(null);
+    setStatus('Syncing rules with parent policy…');
+
     try {
-      const response = await send({ action, domain });
-      showState(response);
-      if (response?.ok && action === 'addDomain' && domainInput) {
-        domainInput.value = '';
-        domainInput.focus();
+      const response = await send({ action: 'syncPolicy' });
+      if (!response?.ok) {
+        setDeviceError(response?.error ?? 'Policy synchronization failed.');
+        setStatus('Policy sync failed.', 'error');
+      } else {
+        showState(response);
+        setDeviceError(null);
       }
     } catch (error) {
+      setDeviceError(error.message || 'Unable to communicate with the extension service worker.');
       setStatus(error.message, 'error');
     } finally {
-      setDomainBusy(false);
+      setSyncBusy(false);
     }
   }
 
@@ -257,6 +276,8 @@ export function createPopupController({
         if (pairingCodeInput) pairingCodeInput.value = '';
         renderDeviceStatus(response.device);
         setDeviceError(null);
+        // Automatically sync policy after successful pairing
+        void handleSync();
       }
     } catch (error) {
       setDeviceError(error.message || 'Unable to communicate with the extension service worker.');
@@ -265,45 +286,13 @@ export function createPopupController({
     }
   }
 
-  async function handleUnpair() {
-    if (unpairingBusy) return;
-
-    if (confirm) {
-      const confirmed = confirm('Unpair this device from your KidsGuard account? Local filtering rules will remain active.');
-      if (!confirmed) return;
-    }
-
-    unpairingBusy = true;
-    if (unpairButton) unpairButton.disabled = true;
-
-    try {
-      const response = await send({ action: 'clearDeviceSession' });
-      if (!response?.ok) {
-        setDeviceError(response?.error ?? 'Failed to unpair device.');
-      } else {
-        renderDeviceStatus(response.device);
-        setDeviceError(null);
-      }
-    } catch (error) {
-      setDeviceError(error.message || 'Unable to unpair device.');
-    } finally {
-      unpairingBusy = false;
-      if (unpairButton) unpairButton.disabled = false;
-    }
-  }
-
   function init() {
-    domainForm?.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!domainBusy && domainInput) void changeDomain('addDomain', domainInput.value);
-    });
-
     pairingForm?.addEventListener('submit', (event) => {
       void handlePairingSubmit(event);
     });
 
-    unpairButton?.addEventListener('click', () => {
-      void handleUnpair();
+    syncButton?.addEventListener('click', () => {
+      void handleSync();
     });
 
     void loadState();
@@ -313,15 +302,15 @@ export function createPopupController({
     init,
     loadState,
     handlePairingSubmit,
-    handleUnpair,
-    changeDomain,
+    handleSync,
     renderDeviceStatus,
+    renderDomainList,
     showState,
     setDeviceError,
   };
 }
 
 if (typeof document !== 'undefined') {
-  const controller = createPopupController({ document, chrome, confirm: globalThis.confirm });
+  const controller = createPopupController({ document, chrome });
   controller.init();
 }

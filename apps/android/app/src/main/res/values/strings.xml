@@ -1,0 +1,77 @@
+<resources>
+    <string name="app_name">KidsGuard Child</string>
+    <string name="app_version_display">Version 0.2.0 (Parent-Managed)</string>
+
+    <!-- Navigation Tabs -->
+    <string name="tab_device">Device</string>
+    <string name="tab_screen_time">Screen Time</string>
+    <string name="tab_usage_access">Usage Access</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Pairing & Device Status -->
+    <string name="pairing_title">Pair This Device</string>
+    <string name="pairing_desc">Generate a 22-character pairing code in the KidsGuard Parent Dashboard, then enter it here to link this child device.</string>
+    <string name="pairing_code_label">Pairing Code</string>
+    <string name="pairing_code_hint">e.g. 22-character code</string>
+    <string name="device_name_label">Device Name</string>
+    <string name="device_name_hint">e.g. Ayush\'s Android Phone</string>
+    <string name="btn_pair_device">Pair Device</string>
+    <string name="pairing_in_progress">Pairing device with server…</string>
+
+    <string name="device_status_title">Device Connection</string>
+    <string name="status_label">Connection Status:</string>
+    <string name="status_unpaired">Unpaired</string>
+    <string name="status_paired">Paired &amp; Active</string>
+    <string name="status_offline">Offline (Retry Scheduled)</string>
+    <string name="status_invalid_session">Session Expired / Re-auth Required</string>
+    <string name="status_error">Connection Error</string>
+
+    <string name="device_id_label">Device ID:</string>
+    <string name="device_name_display_label">Device Name:</string>
+    <string name="platform_label">Platform: Android</string>
+    <string name="paired_at_label">Paired At:</string>
+    <string name="last_seen_label">Last Seen by Server:</string>
+    <string name="last_heartbeat_label">Last Heartbeat Sent:</string>
+    <string name="policy_version_label">Acknowledged Policy:</string>
+    <string name="last_policy_sync_label">Last Policy Sync:</string>
+    <string name="last_report_label">Last Usage Report:</string>
+
+    <string name="btn_sync_now">Sync With Server Now</string>
+    <string name="sync_in_progress">Synchronizing with KidsGuard server…</string>
+
+    <!-- Screen Time & Policy -->
+    <string name="screen_time_title">Today\'s Screen Time</string>
+    <string name="daily_limit_title">Parent Daily Limit</string>
+    <string name="quiet_hours_title">Quiet Hours Schedule</string>
+    <string name="top_apps_title">App Usage Breakdown</string>
+    <string name="no_limit_set">No daily limit set by parent</string>
+    <string name="limit_format">%1$d minutes daily budget</string>
+    <string name="screen_time_format">%1$d hr %2$d min</string>
+    <string name="screen_time_minutes_only">%1$d min</string>
+    <string name="screen_time_zero">0 minutes</string>
+    <string name="screen_time_unavailable">Unavailable — Usage Access Required</string>
+    <string name="quiet_hours_disabled">No quiet hours scheduled</string>
+    <string name="quiet_hours_format">Active: %1$s to %2$s</string>
+    <string name="no_apps_recorded">No foreground app activity recorded today.</string>
+    <string name="desktop_policy_note">Note: Website blocking rules are parent-managed and apply to desktop Chrome browsers with the KidsGuard extension.</string>
+
+    <!-- Usage Access Permission Guidance -->
+    <string name="usage_access_title">Usage Access Permission</string>
+    <string name="permission_granted_badge">Permission Status: Granted</string>
+    <string name="permission_denied_badge">Permission Status: Action Required</string>
+    <string name="btn_grant_usage_access">Open System Settings</string>
+    <string name="usage_access_desc">Android requires explicit Usage Access permission to measure screen time across installed apps accurately without invasive VPNs or root privileges.\n\nHow to enable:\n1. Tap \'Open System Settings\' below.\n2. Locate \'KidsGuard Child\' in the list.\n3. Turn ON \'Permit usage access\'.\n\nPrivacy Guarantee:\n• KidsGuard only measures foreground app durations.\n• No keystrokes, personal chats, photos, or browsing URLs are accessed or transmitted.\n• No background audio, camera, or covert monitoring.</string>
+
+    <!-- Settings & Platform Boundaries -->
+    <string name="settings_title">Configuration &amp; Disclosures</string>
+    <string name="api_url_label">Backend API Base URL</string>
+    <string name="api_url_hint">e.g. http://10.0.2.2:5000/api/v1</string>
+    <string name="btn_save_url">Save API URL</string>
+    <string name="btn_reset_url">Reset to Default</string>
+    <string name="url_saved_toast">API base URL updated successfully.</string>
+    <string name="network_guide_title">Developer &amp; Network Guide</string>
+    <string name="network_guide_body">• Android Emulator: Use http://10.0.2.2:5000/api/v1 to reach localhost:5000 on your development machine.\n• Physical Device on LAN: Use your development machine\'s Wi-Fi IP address (e.g. http://192.168.1.50:5000/api/v1).\n• Production: Requires HTTPS (e.g. https://api.kidsguard.example.com/api/v1).\n• Insecure HTTP is permitted only for local loopback addresses (10.0.2.2, 127.0.0.1, localhost).</string>
+
+    <string name="limitations_title">Platform Capabilities &amp; Limitations</string>
+    <string name="limitations_body">• KidsGuard operates transparently using standard Android APIs.\n• Ordinary Android apps cannot unilaterally block or close other applications.\n• Cannot enforce a hard system shutdown or lock the child out of settings.\n• Cannot prevent app uninstallation on unmanaged devices without Android Enterprise / MDM.\n• Website domain restrictions are managed by parents on the web dashboard and enforced on desktop Chrome browsers via the KidsGuard Extension.</string>
+</resources>

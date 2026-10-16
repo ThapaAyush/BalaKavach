@@ -5,6 +5,10 @@
   color: #18212f;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 360px;
   margin: 0;

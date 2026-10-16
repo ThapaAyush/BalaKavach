@@ -4,6 +4,7 @@ import {
   createServiceWorker,
   reconcileAlarm,
   executeHeartbeat,
+  executePolicySync,
   HEARTBEAT_ALARM_NAME,
   HEARTBEAT_INTERVAL_MINUTES,
 } from '../src/service-worker.js';
@@ -98,6 +99,19 @@ function createMockRuleManager(initialDomains = ['blocked.example']) {
         applied: true,
       };
     },
+    async syncParentPolicy(policy) {
+      if (policy?.webRestrictions?.enabled) {
+        domains = [...(policy.webRestrictions.blockedDomains || [])];
+      } else {
+        domains = [];
+      }
+      appliedRules = [...domains];
+      return {
+        configuredDomains: domains,
+        appliedDomains: appliedRules,
+        applied: true,
+      };
+    },
     async clearManagedRules() {
       clearCalled = true;
       appliedRules = [];
@@ -117,17 +131,24 @@ function createMockDeviceClient({
     lastSeenAt: null,
     lastHeartbeatAt: null,
     lastHeartbeatStatus: null,
+    acknowledgedPolicyVersion: 0,
+    policyVersion: null,
+    lastPolicySyncAt: null,
   },
   onHeartbeat,
+  onFetchPolicy,
+  onAcknowledgePolicy,
   onRedeem,
   onClear,
 } = {}) {
   let status = { ...initialStatus };
   const heartbeatCalls = [];
+  const ackCalls = [];
   return {
     get currentStatus() { return status; },
     set currentStatus(val) { status = val; },
     heartbeatCalls,
+    ackCalls,
     async getStatus() {
       return { ...status };
     },
@@ -143,6 +164,26 @@ function createMockDeviceClient({
         device: { ...status },
       };
     },
+    async fetchPolicy() {
+      if (onFetchPolicy) return onFetchPolicy(status);
+      return {
+        ok: true,
+        status: 'ok',
+        policy: {
+          version: 2,
+          webRestrictions: {
+            enabled: true,
+            blockedDomains: ['policy-blocked.example'],
+          },
+        },
+      };
+    },
+    async acknowledgePolicy(version) {
+      ackCalls.push(version);
+      if (onAcknowledgePolicy) return onAcknowledgePolicy(version);
+      status.acknowledgedPolicyVersion = version;
+      return { ok: true, status: 'ok' };
+    },
     async redeemPairingCode(params) {
       if (onRedeem) return onRedeem(params);
       status = {
@@ -156,6 +197,9 @@ function createMockDeviceClient({
         lastSeenAt: null,
         lastHeartbeatAt: null,
         lastHeartbeatStatus: null,
+        acknowledgedPolicyVersion: 0,
+        policyVersion: null,
+        lastPolicySyncAt: null,
       };
       return { ...status };
     },
@@ -172,6 +216,9 @@ function createMockDeviceClient({
         lastSeenAt: null,
         lastHeartbeatAt: null,
         lastHeartbeatStatus: null,
+        acknowledgedPolicyVersion: 0,
+        policyVersion: null,
+        lastPolicySyncAt: null,
       };
       return { ...status };
     },
@@ -237,10 +284,10 @@ test('service worker init sets up alarm, runtime listeners, and startup reconcil
   assert.equal(alarm.periodInMinutes, 15);
 });
 
-test('alarm trigger executes heartbeat when paired and leaves ruleManager untouched', async () => {
+test('alarm trigger executes heartbeat and synchronizes parent policy when paired', async () => {
   const alarms = createMockAlarms();
   const runtime = createMockRuntime();
-  const ruleManager = createMockRuleManager(['blocked.com']);
+  const ruleManager = createMockRuleManager(['initial.com']);
   const deviceClient = createMockDeviceClient();
 
   const sw = createServiceWorker({
@@ -257,9 +304,9 @@ test('alarm trigger executes heartbeat when paired and leaves ruleManager untouc
   assert.equal(deviceClient.heartbeatCalls.length, 1);
   assert.equal(deviceClient.currentStatus.lastHeartbeatStatus, 'ok');
 
-  // DNR rules untouched
-  assert.equal(ruleManager.clearCalled, false);
-  assert.deepEqual(ruleManager.appliedRules, ['blocked.com']);
+  // DNR rules synchronized from parent policy!
+  assert.deepEqual(ruleManager.appliedRules, ['policy-blocked.example']);
+  assert.equal(deviceClient.ackCalls[0], 2);
 
   // Unrelated alarm is ignored
   await alarms.trigger('unrelated_alarm');
@@ -341,7 +388,7 @@ test('HTTP 401 transitions session to invalid_session and skips subsequent heart
   assert.deepEqual(ruleManager.appliedRules, ['blocked.com']);
 });
 
-test('runtime message dispatch handles getState, getDeviceStatus, and DNR operations', async () => {
+test('runtime message dispatch handles getState, getDeviceStatus, and rejects child-side editing', async () => {
   const alarms = createMockAlarms();
   const runtime = createMockRuntime();
   const ruleManager = createMockRuleManager(['initial.com']);
@@ -369,13 +416,23 @@ test('runtime message dispatch handles getState, getDeviceStatus, and DNR operat
   assert.equal(devStatus.device.deviceId, 'dev-123');
   assert.equal(devStatus.device.deviceCredential, undefined);
 
-  // 3. Domain operations continue functioning
+  // 3. Child domain modification is rejected
   const addRes = await runtime.triggerMessage({ action: 'addDomain', domain: 'new.org' });
-  assert.equal(addRes.ok, true);
-  assert.deepEqual(addRes.configuredDomains, ['initial.com', 'new.org']);
+  assert.equal(addRes.ok, false);
+  assert.match(addRes.error, /parent-managed/u);
+
+  const removeRes = await runtime.triggerMessage({ action: 'removeDomain', domain: 'initial.com' });
+  assert.equal(removeRes.ok, false);
+  assert.match(removeRes.error, /parent-managed/u);
+
+  // 4. syncPolicy triggers dynamic rule sync
+  const syncRes = await runtime.triggerMessage({ action: 'syncPolicy' });
+  assert.equal(syncRes.ok, true);
+  assert.deepEqual(syncRes.configuredDomains, ['policy-blocked.example']);
+  assert.equal(deviceClient.ackCalls[0], 2);
 });
 
-test('runtime message dispatch validates input on redeemPairingCode and clearDeviceSession', async () => {
+test('runtime message dispatch validates input on redeemPairingCode and rejects clearDeviceSession', async () => {
   const alarms = createMockAlarms();
   const runtime = createMockRuntime();
   const ruleManager = createMockRuleManager();
@@ -418,11 +475,10 @@ test('runtime message dispatch validates input on redeemPairingCode and clearDev
   assert.equal(validRedeem.device.deviceId, 'dev-redeemed');
   assert.equal(validRedeem.device.deviceCredential, undefined);
 
-  // 4. clearDeviceSession resets pairing status
+  // 4. clearDeviceSession is rejected as parent-managed
   const cleared = await runtime.triggerMessage({ action: 'clearDeviceSession' });
-  assert.equal(cleared.ok, true);
-  assert.equal(cleared.device.isPaired, false);
-  assert.equal(cleared.device.pairingStatus, 'unpaired');
+  assert.equal(cleared.ok, false);
+  assert.match(cleared.error, /parent-managed/u);
 
   // 5. Unsupported request fails safely
   const unsupported = await runtime.triggerMessage({ action: 'unknownAction' });
@@ -441,7 +497,7 @@ test('secrets and device credentials are never disclosed through runtime message
       pairingStatus: 'paired',
       deviceId: 'dev-123',
       deviceName: 'Device',
-      deviceCredential: secret, // Raw credential in client boundary
+      deviceCredential: secret,
     },
   });
 
@@ -510,7 +566,7 @@ test('runtime messages reject unauthorized senders, web tabs, or mismatched exte
   assert.equal(okRes.ok, true);
 });
 
-test('runtime messages validate domain and platform inputs strictly', async () => {
+test('runtime messages reject modification requests with parent-managed guidance', async () => {
   const alarms = createMockAlarms();
   const runtime = createMockRuntime();
   const ruleManager = createMockRuleManager();
@@ -524,15 +580,15 @@ test('runtime messages validate domain and platform inputs strictly', async () =
   });
   sw.init();
 
-  // 1. Non-string domain rejected
-  const badDomain = await runtime.triggerMessage({ action: 'addDomain', domain: 12345 });
+  // 1. addDomain rejected
+  const badDomain = await runtime.triggerMessage({ action: 'addDomain', domain: 'example.com' });
   assert.equal(badDomain.ok, false);
-  assert.match(badDomain.error, /Domain must be a non-empty string/u);
+  assert.match(badDomain.error, /parent-managed from the KidsGuard web dashboard/u);
 
-  // 2. Empty domain rejected
-  const emptyDomain = await runtime.triggerMessage({ action: 'addDomain', domain: '   ' });
-  assert.equal(emptyDomain.ok, false);
-  assert.match(emptyDomain.error, /Domain must be a non-empty string/u);
+  // 2. removeDomain rejected
+  const removeRes = await runtime.triggerMessage({ action: 'removeDomain', domain: 'example.com' });
+  assert.equal(removeRes.ok, false);
+  assert.match(removeRes.error, /parent-managed from the KidsGuard web dashboard/u);
 
   // 3. Non-string platform rejected on redeemPairingCode
   const badPlatform = await runtime.triggerMessage({
@@ -544,4 +600,3 @@ test('runtime messages validate domain and platform inputs strictly', async () =
   assert.equal(badPlatform.ok, false);
   assert.match(badPlatform.error, /Platform must be a non-empty string/u);
 });
-

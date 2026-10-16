@@ -16,7 +16,7 @@
 - [x] Add parent registration/login/logout UI and automated auth/API tests.
 - [x] Remove registration account enumeration: new and duplicate addresses receive the same generic response.
 - [x] Reject missing, opaque, malformed, and untrusted Origins on authentication mutations; fail closed on database outages.
-- [x] Run `npm test --workspace @kidsguard/api` (21 passed).
+- [x] Run `npm test --workspace @kidsguard/backend` (21 passed).
 - [x] Run `npm test` (24 passed: 21 API and 3 web tests).
 - [x] Run `npm run build` (Vite production build passed).
 - [x] Run `npm audit` after the security review (0 vulnerabilities reported).
@@ -31,7 +31,7 @@
 - [x] Require exact Origin validation for child mutations and use no-store responses; fail closed when database/index storage is unavailable.
 - [x] Update the web app to load and create real child profiles without showing fabricated device or pairing state.
 - [x] Add API tests for full child CRUD, cross-parent read/update/delete isolation, input validation, origin checks, database-unavailable behavior, concurrent first-child requests, and owner-index-specific family-upsert recovery; cover child-profile loading, empty, validation-error, and API-failure states in the web tests.
-- [x] Run `npm test --workspace @kidsguard/api` (35 passed).
+- [x] Run `npm test --workspace @kidsguard/backend` (35 passed).
 - [x] Run `npm test` (40 passed: 35 API and 5 web tests).
 - [x] Run `npm run build` (Vite production build passed).
 - [x] Run `npm audit` (0 vulnerabilities reported).
@@ -48,7 +48,7 @@ The family/child API tests use an isolated in-memory repository and do not read 
 - [x] Add parent-authorized code issue/revocation and device list/revocation endpoints, plus rate-limited code redemption.
 - [x] Atomically claim a code only when its hash matches and it is unexpired, unused, and unrevoked; register a device only after the claim succeeds.
 - [x] Add tests for entropy/hash behavior, expiry, reuse, revocation, concurrent redemption, cross-family access, strict inputs, rate limits, database outages, uncertain enrollment outcomes, and honest device status.
-- [x] Run `npm test --workspace @kidsguard/api` (48 passed).
+- [x] Run `npm test --workspace @kidsguard/backend` (48 passed).
 - [x] Run `npm test` (53 passed: 48 API and 5 web tests).
 - [x] Run `npm run build` (Vite production build passed).
 - [x] Run `npm audit` (0 vulnerabilities reported).
@@ -66,7 +66,7 @@ The Stage 4 API tests use in-memory repositories and do not connect to MongoDB. 
 - [x] Persist only the local domain configuration in `chrome.storage.local`; request no host permissions or page-content access.
 - [x] Add pure Node tests for normalization, URL matching, rule generation, rule application/removal, update errors, and preservation of unrelated rules. Allowlist precedence is not supported.
 - [x] Run `npm test --workspace @kidsguard/extension` (12 passed).
-- [x] Run `npm test --workspace @kidsguard/api` (48 passed).
+- [x] Run `npm test --workspace @kidsguard/backend` (48 passed).
 - [x] Run `npm test` (65 passed: 48 API, 5 web, and 12 extension tests).
 - [x] Run `npm run build` (frontend production build passed).
 - [x] Run `npm audit` (0 vulnerabilities reported).
@@ -94,7 +94,7 @@ The Stage 6 tests use in-memory repositories and simulate atomic operations and 
 
 ## Stage 7 — Chrome extension device integration
 
-- [x] Integrate Chrome Manifest V3 extension with the device-authentication and heartbeat API (`@kidsguard/api`).
+- [x] Integrate Chrome Manifest V3 extension with the device-authentication and heartbeat API (`@kidsguard/backend`).
 - [x] Add extension device client (`apps/extension/src/device-client.js`) with configurable API base URL, local HTTP tolerance, and strict HTTPS requirement for non-local hosts.
 - [x] Strictly validate 22-character base64url pairing codes and 43-character base64url device credentials before storage; reject malformed server payloads safely.
 - [x] Securely encapsulate the 256-bit device credential inside the service worker boundary in `chrome.storage.local`; never expose raw credentials to the popup UI.
@@ -106,19 +106,54 @@ The Stage 6 tests use in-memory repositories and simulate atomic operations and 
 - [x] Integrate popup UI (`popup.html`, `popup.css`, `popup.js`) with pairing-code input, device name input, in-flight duplicate submission prevention, sanitized status badges (`Unpaired`, `Paired`, `Re-auth required`), heartbeat display with offline notice, and unpair action with confirmation.
 - [x] Disclose clearly in the popup that remote policy synchronization is not implemented yet; website filtering rules remain local to this Chrome profile.
 - [x] Add automated unit tests across device client (14 tests), manifest (1 test), service worker (11 tests), and popup UI (11 tests), totaling 48 passing extension tests.
-- [x] Run full test suite across API (68), web (14), and extension (48), totaling 130 passing tests.
+- [x] Run full test suite across backend (68), frontend (14), and extension (48), totaling 130 passing tests.
 - [x] Run production build (`npm run build`) and security audit (`npm audit` with 0 vulnerabilities).
 - [ ] Verify live unpacked Chrome extension pairing, heartbeat alarm execution, and popup status against a running API backend in a physical Chrome browser.
 - [ ] Configure production HTTPS host permissions in `manifest.json` for deployed environments.
 
 The Stage 7 tests use isolated mocks for Chrome APIs (`chrome.alarms`, `chrome.storage.local`, `chrome.runtime`, `chrome.declarativeNetRequest`) and simulate DOM interaction in pure Node.js. Live unpacked Chrome extension pairing, alarm firing across browser sleep cycles, and physical UI interactions remain unverified in automated CI. `enforcementStatus` remains strictly `not_implemented` across the monorepo; device pairing registers and tracks presence only and does not distribute or enforce blocklist policies from the parent dashboard. Local website filtering rules remain profile-local.
 
+## Stage 8 — Android child application foundation & policy integration
+
+- [x] Create Kotlin Android child application structure (`apps/android`) targeting API 34 (Android 14) with minimum API 26 (Android 8.0 Oreo), Gradle 8.7 wrapper, and Jetpack architecture components.
+- [x] Integrate with existing KidsGuard backend pairing endpoint (`POST /api/v1/device-pairing/redeem`) with strict 22-character base64url pairing code and device name validation.
+- [x] Implement secure credential storage using Android Keystore AES-256-GCM encryption (`androidx.security:security-crypto`); zero secrets in plain storage, logs, or error messages.
+- [x] Integrate with device heartbeat endpoint (`POST /api/v1/devices/heartbeat`) using Bearer token authentication and strict empty body validation; handle network offline conditions gracefully and transition HTTP 401 responses neutrally to `invalid_session` without claiming parent revocation.
+- [x] Implement background heartbeat execution via Android Jetpack `WorkManager` with `NetworkType.CONNECTED` constraint and 15-minute minimum periodic intervals.
+- [x] Implement domain normalization and URL matching engine in Kotlin (`DomainNormalizer`, `DomainRuleEngine`), faithfully reproducing Chrome extension semantics (bare domains/origins, lowercase, trailing dot removal, punycode IDN, label regex, max 100 limit, subdomain matching).
+- [x] Implement transparent local VPN filtering foundation (`KidsGuardVpnService`) using Android's supported `VpnService` API with foreground notification, explicit user consent, and honest documentation of limitations (no HTTPS decryption, private DNS / DoH bypass, single-VPN constraint).
+- [x] Create beginner-friendly Material UI with tabbed navigation: Device Pairing & Status, Local Domain Rules, VPN Filter, Server Settings (emulator 10.0.2.2 vs LAN/HTTPS guide), and Privacy & Permissions disclosures.
+- [x] Implement explicit unpairing flow with user confirmation dialog, clearing local credentials and WorkManager tasks while preserving local domain rules.
+- [x] Add automated unit tests in Kotlin (JUnit 4) covering domain normalization, matching rules, API client URL/payload validation, repository pairing/heartbeat/session flows, credential storage, and local policy storage.
+- [x] Add automated contract test suite (`apps/android/test/*.contract.test.js`) executed with Node.js test runner (9 passed).
+- [x] Run full project test suite across backend (68), frontend (14), extension (48), and android contract tests (9), totaling 139 passing tests.
+- [x] Run production build (`npm run build`) successfully.
+- [ ] Verify live Android app build and execution in Android Studio / Gradle on a workstation equipped with JDK 17 and Android SDK.
+- [ ] Verify live emulator / physical device pairing against running KidsGuard backend server.
+
+The Stage 8 Android implementation uses pure Kotlin and Android Jetpack standards. Gradle wrapper scripts and unit tests are configured; local workstation environment lacks installed JDK/Android SDK, so compilation and Gradle build commands could not execute directly in this shell. Contract tests verified domain normalization, URL parsing, credential bounds, and state machine transitions in Node.js. Remote policy synchronization is not implemented in the backend, so domain filtering is strictly local to the Android device.
+
+## Stage E — Chrome extension parent-managed policy synchronization
+
+- [x] Connect Chrome extension to parent-managed policy backend endpoints (`GET /api/v1/devices/policy` and `POST /api/v1/devices/policy/ack`).
+- [x] Enforce parent dashboard and backend as the single source of truth for website restrictions.
+- [x] Remove child-side domain editing (add/remove inputs and buttons), policy cancellation, and unpairing controls from popup UI and service worker runtime message handlers.
+- [x] Securely fetch the authenticated parent's policy using the device's 256-bit Bearer credential; synchronize supported domains into Chrome Declarative Net Request dynamic rules (`main_frame`, rule ID range 1000..1099).
+- [x] Clear Declarative Net Request rules when website restrictions are disabled by the parent.
+- [x] Acknowledge policy versions to the backend and reflect `acknowledgedPolicyVersion` and `lastPolicyAckAt` in the parent device list.
+- [x] Periodically synchronize policy during the 15-minute background heartbeat alarm cycle and support on-demand manual sync button in the popup.
+- [x] Preserve local rule enforcement when offline or during transient server errors; honestly report offline and sync status in the popup.
+- [x] Handle HTTP 401 neutrally as `invalid_session` without claiming parent revocation and pause heartbeat/sync requests until re-pairing.
+- [x] Enforce family/device ownership, preventing unauthorized policy retrieval or cross-family access.
+- [x] Add automated end-to-end integration test (`apps/extension/test/extension-policy.integration.test.js`) verifying live HTTP pairing, policy sync, rule activation, policy update, rule clearing, child-side mutation rejection, and device revocation.
+- [x] Run full test suite: 164 passing tests across backend (81), frontend (17), extension (52), and android contract tests (14).
+- [x] Run frontend production build (`npm run build`).
+
 ## Later stages
 
-- [ ] Stage 8 — Android enforcement and cross-platform policy integration.
 - [ ] Stage 9 — quality and security review.
 - [ ] Stage 10 — deployment hardening.
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 
-Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, Android enforcement, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.
+Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, cross-device remote policy distribution, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.

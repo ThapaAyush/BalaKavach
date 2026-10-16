@@ -48,6 +48,9 @@ export function sanitizeDeviceStatus(session) {
       lastSeenAt: null,
       lastHeartbeatAt: null,
       lastHeartbeatStatus: null,
+      acknowledgedPolicyVersion: 0,
+      lastPolicySyncAt: null,
+      policyVersion: null,
     };
   }
 
@@ -62,6 +65,9 @@ export function sanitizeDeviceStatus(session) {
     lastSeenAt: session.lastSeenAt ?? null,
     lastHeartbeatAt: session.lastHeartbeatAt ?? null,
     lastHeartbeatStatus: session.lastHeartbeatStatus ?? null,
+    acknowledgedPolicyVersion: session.acknowledgedPolicyVersion ?? 0,
+    lastPolicySyncAt: session.lastPolicySyncAt ?? null,
+    policyVersion: session.policyVersion ?? null,
   };
 }
 
@@ -160,6 +166,9 @@ export function createDeviceClient({
         pairingStatus: 'paired',
         lastHeartbeatAt: null,
         lastHeartbeatStatus: null,
+        acknowledgedPolicyVersion: 0,
+        lastPolicySyncAt: null,
+        policyVersion: null,
       };
 
       try {
@@ -270,6 +279,199 @@ export function createDeviceClient({
         ok: true,
         status: 'ok',
         device: sanitizeDeviceStatus(session),
+      };
+    },
+
+    async fetchPolicy() {
+      const session = await getStoredSession();
+      if (!session || !session.deviceCredential) {
+        return {
+          ok: false,
+          status: 'unpaired',
+          error: 'Device is not paired.',
+        };
+      }
+
+      if (session.pairingStatus === 'invalid_session') {
+        return {
+          ok: false,
+          status: 'invalid_session',
+          error: 'Device session is invalid or expired. Re-pairing is required.',
+        };
+      }
+
+      let response;
+      try {
+        response = await fetch(`${baseUrl}/devices/policy`, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${session.deviceCredential}`,
+          },
+        });
+      } catch {
+        return {
+          ok: false,
+          status: 'offline',
+          error: 'Network unavailable. Policy sync will retry later.',
+        };
+      }
+
+      if (response.status === 401) {
+        session.pairingStatus = 'invalid_session';
+        session.lastHeartbeatStatus = 'invalid_session';
+        try {
+          await saveStoredSession(session);
+        } catch {
+          // Ignore storage write failure on invalid session
+        }
+        return {
+          ok: false,
+          status: 'invalid_session',
+          error: 'Device session is invalid or expired. Re-pairing is required.',
+        };
+      }
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: 'error',
+          error: payload?.error?.message ?? `Policy fetch failed (${response.status}).`,
+        };
+      }
+
+      const data = payload?.data;
+      const policyVersion = typeof data?.policyVersion === 'number'
+        ? data.policyVersion
+        : (typeof data?.policy?.version === 'number' ? data.policy.version : null);
+
+      if (policyVersion === null) {
+        return {
+          ok: false,
+          status: 'error',
+          error: 'Malformed policy payload received from server.',
+        };
+      }
+
+      session.policyVersion = policyVersion;
+      session.lastPolicySyncAt = new Date().toISOString();
+      try {
+        await saveStoredSession(session);
+      } catch {
+        // Non-critical
+      }
+
+      const policy = data.policy ?? {
+        version: policyVersion,
+        screenTime: data.screenTime,
+        webRestrictions: data.webRestrictions,
+      };
+      if (typeof policy.version !== 'number') {
+        policy.version = policyVersion;
+      }
+
+      return {
+        ok: true,
+        status: 'ok',
+        policyVersion,
+        policy,
+      };
+    },
+
+    async acknowledgePolicy(version) {
+      if (typeof version !== 'number' || version < 1) {
+        throw new TypeError('Acknowledged version must be a positive integer.');
+      }
+
+      const session = await getStoredSession();
+      if (!session || !session.deviceCredential) {
+        return {
+          ok: false,
+          status: 'unpaired',
+          error: 'Device is not paired.',
+        };
+      }
+
+      if (session.pairingStatus === 'invalid_session') {
+        return {
+          ok: false,
+          status: 'invalid_session',
+          error: 'Device session is invalid or expired. Re-pairing is required.',
+        };
+      }
+
+      let response;
+      try {
+        response = await fetch(`${baseUrl}/devices/policy/ack`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.deviceCredential}`,
+          },
+          body: JSON.stringify({ acknowledgedVersion: version }),
+        });
+      } catch {
+        return {
+          ok: false,
+          status: 'offline',
+          error: 'Network unavailable. Policy acknowledgment will retry later.',
+        };
+      }
+
+      if (response.status === 401) {
+        session.pairingStatus = 'invalid_session';
+        session.lastHeartbeatStatus = 'invalid_session';
+        try {
+          await saveStoredSession(session);
+        } catch {
+          // Ignore storage write failure on invalid session
+        }
+        return {
+          ok: false,
+          status: 'invalid_session',
+          error: 'Device session is invalid or expired. Re-pairing is required.',
+        };
+      }
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: 'error',
+          error: payload?.error?.message ?? `Policy acknowledgment failed (${response.status}).`,
+        };
+      }
+
+      const ackData = payload?.data;
+      const now = new Date().toISOString();
+      session.acknowledgedPolicyVersion = ackData?.acknowledgedVersion ?? version;
+      session.lastPolicySyncAt = ackData?.syncedAt ?? now;
+
+      try {
+        await saveStoredSession(session);
+      } catch {
+        // Non-critical
+      }
+
+      return {
+        ok: true,
+        status: 'ok',
+        acknowledgedVersion: session.acknowledgedPolicyVersion,
+        syncedAt: session.lastPolicySyncAt,
       };
     },
 

@@ -80,6 +80,9 @@ test('getStatus returns unpaired status when storage is empty', async () => {
     lastSeenAt: null,
     lastHeartbeatAt: null,
     lastHeartbeatStatus: null,
+    policyVersion: null,
+    acknowledgedPolicyVersion: 0,
+    lastPolicySyncAt: null,
   });
   assert.equal(status.deviceCredential, undefined);
 });
@@ -495,4 +498,117 @@ test('secrets are not leaked through thrown errors, returned values, or status p
       return true;
     },
   );
+});
+
+test('fetchPolicy returns policy and updates lastPolicySyncAt and acknowledgedPolicyVersion', async () => {
+  const rawCredential = 'secret-device-credential-sample-token-43chr';
+  const initialSession = {
+    deviceId: 'dev-123',
+    deviceCredential: rawCredential,
+    deviceName: 'Alex Chromebook',
+    pairingStatus: 'paired',
+    acknowledgedPolicyVersion: 1,
+  };
+  const storage = createMockStorage({
+    [DEVICE_SESSION_STORAGE_KEY]: initialSession,
+  });
+
+  const mock = mockFetch(async () => {
+    return jsonResponse(200, {
+      ok: true,
+      data: {
+        policy: {
+          version: 3,
+          webRestrictions: {
+            enabled: true,
+            blockedDomains: ['bad.example', 'social.example'],
+          },
+        },
+      },
+    });
+  });
+
+  const client = createDeviceClient({ storage, fetch: mock.fn });
+  const result = await client.fetchPolicy();
+
+  // 1. Verify Bearer header and endpoint
+  assert.equal(mock.calls.length, 1);
+  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/policy');
+  assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
+
+  // 2. Verify returned result
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'ok');
+  assert.equal(result.policy.version, 3);
+  assert.deepEqual(result.policy.webRestrictions.blockedDomains, ['bad.example', 'social.example']);
+
+  // 3. Verify storage session updated
+  const stored = storage.store[DEVICE_SESSION_STORAGE_KEY];
+  assert.equal(stored.policyVersion, 3);
+  assert.ok(stored.lastPolicySyncAt);
+});
+
+test('fetchPolicy handles 401 neutrally as invalid_session and preserves credentials', async () => {
+  const credential = 'revoked-credential-43chars-long-base64url--';
+  const initialSession = {
+    deviceId: 'dev-123',
+    deviceCredential: credential,
+    pairingStatus: 'paired',
+  };
+  const storage = createMockStorage({
+    [DEVICE_SESSION_STORAGE_KEY]: initialSession,
+  });
+
+  const mock = mockFetch(async () => {
+    return jsonResponse(401, {
+      ok: false,
+      error: { message: 'Device authentication failed.' },
+    });
+  });
+
+  const client = createDeviceClient({ storage, fetch: mock.fn });
+  const result = await client.fetchPolicy();
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'invalid_session');
+  assert.match(result.error, /invalid or expired/u);
+
+  const stored = storage.store[DEVICE_SESSION_STORAGE_KEY];
+  assert.equal(stored.pairingStatus, 'invalid_session');
+  assert.equal(stored.deviceCredential, credential);
+});
+
+test('acknowledgePolicy sends version and updates session acknowledgedPolicyVersion', async () => {
+  const rawCredential = 'secret-device-credential-sample-token-43chr';
+  const initialSession = {
+    deviceId: 'dev-123',
+    deviceCredential: rawCredential,
+    pairingStatus: 'paired',
+    acknowledgedPolicyVersion: 1,
+  };
+  const storage = createMockStorage({
+    [DEVICE_SESSION_STORAGE_KEY]: initialSession,
+  });
+
+  const mock = mockFetch(async () => {
+    return jsonResponse(200, {
+      ok: true,
+      data: { acknowledged: true, version: 4 },
+    });
+  });
+
+  const client = createDeviceClient({ storage, fetch: mock.fn });
+  const result = await client.acknowledgePolicy(4);
+
+  assert.equal(mock.calls.length, 1);
+  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/policy/ack');
+  assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
+  const sent = JSON.parse(mock.calls[0].options.body);
+  assert.deepEqual(sent, { acknowledgedVersion: 4 });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'ok');
+
+  const stored = storage.store[DEVICE_SESSION_STORAGE_KEY];
+  assert.equal(stored.acknowledgedPolicyVersion, 4);
 });

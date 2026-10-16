@@ -13,13 +13,13 @@ function sameRule(actual, expected) {
   const sameKeys = (left, right) => left &&
     JSON.stringify(Object.keys(left).sort()) === JSON.stringify(Object.keys(right).sort());
   if (!sameKeys(actual, expected) || !sameKeys(actual.action, expected.action) || !sameKeys(actual.condition, expected.condition)) return false;
-  const actualDomains = actual.condition?.requestDomains;
-  const expectedDomains = expected.condition.requestDomains;
-  const actualTypes = actual.condition?.resourceTypes;
-  const expectedTypes = expected.condition.resourceTypes;
-  return Array.isArray(actualDomains) && Array.isArray(actualTypes) &&
-    actualDomains.length === expectedDomains.length && actualDomains.every((value, index) => value === expectedDomains[index]) &&
-    actualTypes.length === expectedTypes.length && actualTypes.every((value, index) => value === expectedTypes[index]);
+  if (actual.condition?.urlFilter !== expected.condition?.urlFilter) return false;
+  const sameArrays = (left, right) =>
+    Array.isArray(left) && Array.isArray(right) &&
+    left.length === right.length &&
+    JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
+  return sameArrays(actual.condition?.requestDomains, expected.condition?.requestDomains) &&
+    sameArrays(actual.condition?.resourceTypes, expected.condition?.resourceTypes);
 }
 
 export function createRuleManager({ declarativeNetRequest, storage, maxDomains = MAX_BLOCKED_DOMAINS }) {
@@ -80,6 +80,21 @@ export function createRuleManager({ declarativeNetRequest, storage, maxDomains =
     return status;
   }
 
+  /**
+   * Synchronizes parent-configured web policy:
+   * Saves normalized domains and updates Declarative Net Request dynamic rules.
+   */
+  async function syncParentPolicy(policy) {
+    const webRestrictions = policy?.webRestrictions;
+    const isEnabled = webRestrictions?.enabled !== false;
+    const rawDomains = isEnabled && Array.isArray(webRestrictions?.blockedDomains)
+      ? webRestrictions.blockedDomains
+      : [];
+    const normalized = normalizeDomainList(rawDomains, maxDomains);
+    await saveConfiguredDomains(normalized);
+    return await applyConfiguredRules();
+  }
+
   async function addDomain(value) {
     const domain = normalizeDomainInput(value);
     const domains = await getConfiguredDomains();
@@ -102,5 +117,14 @@ export function createRuleManager({ declarativeNetRequest, storage, maxDomains =
     }
   }
 
-  return { getConfiguredDomains, saveConfiguredDomains, getStatus, applyConfiguredRules, addDomain, removeDomain, clearManagedRules };
+  return {
+    getConfiguredDomains,
+    saveConfiguredDomains,
+    getStatus,
+    applyConfiguredRules,
+    syncParentPolicy,
+    addDomain,
+    removeDomain,
+    clearManagedRules
+  };
 }

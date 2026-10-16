@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>KidsGuard local filter</title>
+    <title>KidsGuard parent-managed filter</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main>
       <h1>KidsGuard Filter &amp; Device</h1>
-      <p class="intro">Manage local website filtering rules and device pairing for this Chrome profile.</p>
+      <p class="intro">Desktop browser companion enforcing parent-managed rules via Declarative Net Request.</p>
 
       <section id="device-section" class="card" aria-labelledby="device-title">
         <div class="section-header">
@@ -36,7 +36,16 @@
               <dt>Heartbeat:</dt>
               <dd id="device-heartbeat-display"></dd>
             </div>
+            <div class="meta-row">
+              <dt>Policy:</dt>
+              <dd id="device-policy-display">v0</dd>
+            </div>
+            <div class="meta-row">
+              <dt>Last synced:</dt>
+              <dd id="device-sync-display">Never</dd>
+            </div>
           </dl>
+          <button id="sync-button" type="button" class="btn-secondary" hidden>Sync with parent policy</button>
         </div>
 
         <p id="device-error" class="error-banner" role="alert" aria-live="assertive" hidden></p>
@@ -71,33 +80,21 @@
 
           <button id="pair-button" type="submit">Pair device</button>
         </form>
-
-        <div id="unpair-container" class="unpair-row" hidden>
-          <button id="unpair-button" type="button" class="btn-secondary">Unpair device</button>
-          <p class="hint">Unpairing removes the device session. Local blocklist rules remain active.</p>
-        </div>
       </section>
 
       <section class="card" aria-labelledby="filter-title">
-        <h2 id="filter-title">Local website filter</h2>
-        <form id="domain-form">
-          <label for="domain-input">Domain or HTTP(S) origin</label>
-          <div class="form-row">
-            <input id="domain-input" name="domain" type="text" autocomplete="url" placeholder="example.com" maxlength="300" required>
-            <button type="submit">Add</button>
-          </div>
-          <p class="hint">No paths, ports, credentials, or query values. Up to 100 domains.</p>
-        </form>
+        <h2 id="filter-title">Parent-managed website filter</h2>
+        <p class="hint">Website blocking rules are configured by parents in the KidsGuard web dashboard and enforced on this browser.</p>
 
         <section aria-labelledby="list-title">
-          <h3 id="list-title">Configured domains</h3>
+          <h3 id="list-title">Blocked domains</h3>
           <ul id="domain-list"></ul>
         </section>
-        <p id="status" class="status" role="status" aria-live="polite">Loading local rules…</p>
+        <p id="status" class="status" role="status" aria-live="polite">Loading rules…</p>
       </section>
 
       <p class="notice">
-        Remote policy synchronization is not implemented yet; device pairing only registers and tracks device presence. Website filtering rules remain local to this Chrome profile.
+        Rules are managed exclusively from the KidsGuard web dashboard. Dynamic filtering is enforced locally via Chrome Declarative Net Request.
       </p>
     </main>
     <script type="module" src="popup.js"></script>

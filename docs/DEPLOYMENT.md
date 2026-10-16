@@ -13,26 +13,26 @@ From the repository root:
 
 ```powershell
 npm install
-if (-not (Test-Path apps/api/.env)) { Copy-Item apps/api/.env.example apps/api/.env }
+if (-not (Test-Path apps/backend/.env)) { Copy-Item apps/backend/.env.example apps/backend/.env }
 ```
 
-Edit `apps/api/.env` locally and replace the MongoDB URI placeholders. Do not paste credentials into chat or commit `.env`.
+Edit `apps/backend/.env` locally and replace the MongoDB URI placeholders. Do not paste credentials into chat or commit `.env`.
 
 `AUTH_SESSION_TTL_HOURS` defaults to 168. Production must serve the app over HTTPS so the `Secure` session cookie is accepted. The frontend and API should share a site because sessions use `SameSite=Strict`; set `CLIENT_ORIGIN` to the exact frontend origin.
 
-In one terminal, start the API:
+In one terminal, start the backend (alias: `npm run dev:api`):
 
 ```powershell
-npm run dev:api
+npm run dev:backend
 ```
 
-In a second terminal, start the web app:
+In a second terminal, start the frontend app (alias: `npm run dev:web`):
 
 ```powershell
-npm run dev:web
+npm run dev:frontend
 ```
 
-The API listens on port 5000 and the web app on `http://localhost:5173`. Check `http://localhost:5000/api/v1/health` for the API and database connection state. To point the web app to another API URL, set `VITE_API_BASE_URL` in `apps/web/.env`.
+The API listens on port 5000 and the web app on `http://localhost:5173`. Check `http://localhost:5000/api/v1/health` for the API and database connection state. To point the web app to another API URL, set `VITE_API_BASE_URL` in `apps/frontend/.env`.
 
 ## Checks
 

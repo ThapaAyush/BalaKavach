@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  BLOCK_RESOURCE_TYPES,
   createBlockRules,
   matchesBlockedDomain,
   normalizeDomainInput,
@@ -11,6 +12,16 @@ test('normalizes bare domains, HTTP origins, trailing dots, and Unicode to ASCII
   assert.equal(normalizeDomainInput(' Example.COM. '), 'example.com');
   assert.equal(normalizeDomainInput('https://example.com/'), 'example.com');
   assert.equal(normalizeDomainInput('https://bücher.example'), 'xn--bcher-kva.example');
+});
+
+test('normalizes www. aliases to base domain while preserving distinct subdomains', () => {
+  assert.equal(normalizeDomainInput('youtube.com'), 'youtube.com');
+  assert.equal(normalizeDomainInput('www.youtube.com'), 'youtube.com');
+  assert.equal(normalizeDomainInput('https://www.youtube.com/'), 'youtube.com');
+  assert.equal(normalizeDomainInput('https://youtube.com/'), 'youtube.com');
+  assert.equal(normalizeDomainInput('https://m.youtube.com/'), 'm.youtube.com');
+  assert.equal(normalizeDomainInput('www.example.co.uk'), 'example.co.uk');
+  assert.equal(normalizeDomainInput('www.com'), 'www.com');
 });
 
 test('rejects malformed, unsupported, local, IP, credential, port, path, and query inputs', () => {
@@ -37,12 +48,51 @@ test('URL matching is exact or subdomain-only and handles HTTP(S) URLs', () => {
   assert.equal(matchesBlockedDomain('https://notexample.com', 'example.com'), false);
   assert.equal(matchesBlockedDomain('file:///example.com', 'example.com'), false);
   assert.equal(matchesBlockedDomain('not a URL', 'example.com'), false);
+
+  // Subdomain & www alias matching
+  assert.equal(matchesBlockedDomain('https://youtube.com', 'www.youtube.com'), true);
+  assert.equal(matchesBlockedDomain('https://www.youtube.com/', 'www.youtube.com'), true);
+  assert.equal(matchesBlockedDomain('https://m.youtube.com/', 'www.youtube.com'), true);
+  assert.equal(matchesBlockedDomain('https://youtube.com/', 'https://www.youtube.com/'), true);
+  assert.equal(matchesBlockedDomain('https://www.youtube.com/watch?v=123', 'youtube.com'), true);
+  assert.equal(matchesBlockedDomain('https://m.youtube.com', 'https://m.youtube.com/'), true);
+  assert.equal(matchesBlockedDomain('https://youtube.com', 'https://m.youtube.com/'), false);
 });
 
-test('creates only top-level navigation blocking rules with a dedicated ID range', () => {
+test('creates comprehensive blocking rules across resource types with a dedicated ID range', () => {
   assert.deepEqual(createBlockRules(['b.example', 'a.example']), [
-    { id: 1000, priority: 1, action: { type: 'block' }, condition: { requestDomains: ['a.example'], resourceTypes: ['main_frame'] } },
-    { id: 1001, priority: 1, action: { type: 'block' }, condition: { requestDomains: ['b.example'], resourceTypes: ['main_frame'] } }
+    {
+      id: 1000,
+      priority: 1,
+      action: { type: 'block' },
+      condition: {
+        urlFilter: '||a.example^',
+        requestDomains: ['a.example'],
+        resourceTypes: BLOCK_RESOURCE_TYPES
+      }
+    },
+    {
+      id: 1001,
+      priority: 1,
+      action: { type: 'block' },
+      condition: {
+        urlFilter: '||b.example^',
+        requestDomains: ['b.example'],
+        resourceTypes: BLOCK_RESOURCE_TYPES
+      }
+    }
+  ]);
+  assert.deepEqual(createBlockRules(['https://www.youtube.com/']), [
+    {
+      id: 1000,
+      priority: 1,
+      action: { type: 'block' },
+      condition: {
+        urlFilter: '||youtube.com^',
+        requestDomains: ['youtube.com'],
+        resourceTypes: BLOCK_RESOURCE_TYPES
+      }
+    }
   ]);
   assert.throws(() => createBlockRules(Array.from({ length: 101 }, (_, i) => `d${i}.example`)), { name: 'RangeError' });
 });

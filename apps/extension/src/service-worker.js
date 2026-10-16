@@ -18,7 +18,18 @@ export async function reconcileAlarm(alarms) {
   }
 }
 
-export async function executeHeartbeat({ deviceClient }) {
+export async function executeHeartbeat(clientOrOptions, maybeRuleManager) {
+  let deviceClient;
+  let ruleManager;
+
+  if (clientOrOptions && typeof clientOrOptions.getStatus === 'function') {
+    deviceClient = clientOrOptions;
+    ruleManager = maybeRuleManager;
+  } else if (clientOrOptions && typeof clientOrOptions === 'object') {
+    deviceClient = clientOrOptions.deviceClient;
+    ruleManager = clientOrOptions.ruleManager;
+  }
+
   if (!deviceClient?.getStatus || !deviceClient?.sendHeartbeat) {
     return { ok: false, status: 'error', error: 'Device client is unavailable.' };
   }
@@ -29,11 +40,95 @@ export async function executeHeartbeat({ deviceClient }) {
     return { ok: false, status: status.pairingStatus, skipped: true };
   }
 
-  const result = await deviceClient.sendHeartbeat();
-  if (result?.device) {
-    result.device = sanitizeDeviceStatus(result.device);
+  const hbResult = await deviceClient.sendHeartbeat();
+  if (!hbResult?.ok) {
+    return hbResult;
   }
-  return result;
+
+  // Synchronize parent policy during heartbeat cycle if available
+  if (ruleManager && typeof deviceClient.fetchPolicy === 'function') {
+    try {
+      const policyResult = await deviceClient.fetchPolicy();
+      if (policyResult?.ok && policyResult.policy) {
+        if (typeof ruleManager.syncParentPolicy === 'function') {
+          await ruleManager.syncParentPolicy(policyResult.policy);
+        }
+        const versionToAck = policyResult.policyVersion ?? policyResult.policy.version;
+        if (versionToAck && typeof deviceClient.acknowledgePolicy === 'function') {
+          await deviceClient.acknowledgePolicy(versionToAck);
+        }
+      }
+    } catch {
+      // Offline or network glitch during policy fetch: preserve existing active rules
+    }
+  }
+
+  const updatedRaw = await deviceClient.getStatus();
+  return {
+    ok: true,
+    status: 'ok',
+    device: sanitizeDeviceStatus(updatedRaw),
+  };
+}
+
+export async function executePolicySync(clientOrOptions, maybeRuleManager) {
+  let deviceClient;
+  let ruleManager;
+
+  if (clientOrOptions && typeof clientOrOptions.getStatus === 'function') {
+    deviceClient = clientOrOptions;
+    ruleManager = maybeRuleManager;
+  } else if (clientOrOptions && typeof clientOrOptions === 'object') {
+    deviceClient = clientOrOptions.deviceClient;
+    ruleManager = clientOrOptions.ruleManager;
+  }
+
+  if (!deviceClient || !ruleManager) {
+    return { ok: false, error: 'Device client or rule manager unavailable.' };
+  }
+
+  const rawStatus = await deviceClient.getStatus();
+  const status = sanitizeDeviceStatus(rawStatus);
+  if (!status.isPaired) {
+    return { ok: false, status: status.pairingStatus, error: 'Device is not paired.' };
+  }
+
+  const policyResult = await deviceClient.fetchPolicy();
+  if (!policyResult?.ok) {
+    const currentRuleStatus = await ruleManager.getStatus();
+    return {
+      ...policyResult,
+      ...currentRuleStatus,
+      device: status,
+    };
+  }
+
+  try {
+    if (typeof ruleManager.syncParentPolicy === 'function') {
+      await ruleManager.syncParentPolicy(policyResult.policy);
+    }
+    const versionToAck = policyResult.policyVersion ?? policyResult.policy.version;
+    if (versionToAck && typeof deviceClient.acknowledgePolicy === 'function') {
+      await deviceClient.acknowledgePolicy(versionToAck);
+    }
+  } catch (error) {
+    const currentRuleStatus = await ruleManager.getStatus();
+    return {
+      ok: false,
+      ...currentRuleStatus,
+      device: status,
+      error: error?.message || 'Failed to apply parent rules in Chrome.',
+    };
+  }
+
+  const ruleStatus = await ruleManager.getStatus();
+  const updatedDevice = sanitizeDeviceStatus(await deviceClient.getStatus());
+
+  return {
+    ok: true,
+    ...ruleStatus,
+    device: updatedDevice,
+  };
 }
 
 export function isAuthorizedSender(sender, runtime) {
@@ -109,46 +204,6 @@ export function createServiceWorker({
     }
   }
 
-  async function handleDomainChange(message) {
-    if (typeof message?.domain !== 'string' || !message.domain.trim()) {
-      return {
-        ...(await getPopupState()),
-        ok: false,
-        error: 'Domain must be a non-empty string.',
-      };
-    }
-
-    try {
-      return await serialize(async () => {
-        const configuredDomains = message.action === 'addDomain'
-          ? await manager.addDomain(message.domain)
-          : await manager.removeDomain(message.domain);
-        try {
-          const status = await manager.applyConfiguredRules();
-          return { ok: true, ...status };
-        } catch {
-          return {
-            ok: false,
-            configuredDomains,
-            appliedDomains: [],
-            applied: false,
-            error: 'The local list was saved, but Chrome did not apply the rules. Retry or inspect errors at chrome://extensions.',
-          };
-        }
-      });
-    } catch (error) {
-      return {
-        ...(await getPopupState()),
-        ok: false,
-        error: error instanceof RangeError
-          ? 'The local blocklist is limited to 100 unique domains.'
-          : error instanceof TypeError
-            ? error.message
-            : 'KidsGuard could not save the local list. Inspect the extension errors and try again.',
-      };
-    }
-  }
-
   async function handleMessage(message, sender) {
     if (!message || typeof message !== 'object') {
       return { ok: false, error: 'Unsupported request.' };
@@ -162,9 +217,8 @@ export function createServiceWorker({
       case 'getState':
         return await getPopupState();
 
-      case 'addDomain':
-      case 'removeDomain':
-        return await handleDomainChange(message);
+      case 'syncPolicy':
+        return await serialize(() => executePolicySync({ deviceClient: client, ruleManager: manager }));
 
       case 'getDeviceStatus':
         try {
@@ -191,6 +245,8 @@ export function createServiceWorker({
             name: name.trim(),
             platform,
           });
+          // Immediately perform initial policy synchronization upon pairing
+          void serialize(() => executePolicySync({ deviceClient: client, ruleManager: manager }));
           const device = sanitizeDeviceStatus(rawDevice);
           return { ok: true, device };
         } catch (error) {
@@ -203,7 +259,7 @@ export function createServiceWorker({
 
       case 'sendHeartbeat': {
         try {
-          const result = await executeHeartbeat({ deviceClient: client });
+          const result = await executeHeartbeat({ deviceClient: client, ruleManager: manager });
           return result;
         } catch (error) {
           return {
@@ -213,14 +269,14 @@ export function createServiceWorker({
         }
       }
 
-      case 'clearDeviceSession': {
-        try {
-          const device = sanitizeDeviceStatus(await client.clearSession());
-          return { ok: true, device };
-        } catch {
-          return { ok: false, error: 'KidsGuard could not clear device pairing session.' };
-        }
-      }
+      // Explicitly reject child-side policy mutation and unpairing
+      case 'addDomain':
+      case 'removeDomain':
+      case 'clearDeviceSession':
+        return {
+          ok: false,
+          error: 'Domain restrictions and device enrollment are parent-managed from the KidsGuard web dashboard.',
+        };
 
       default:
         return { ok: false, error: 'Unsupported request.' };
@@ -231,7 +287,6 @@ export function createServiceWorker({
     try {
       await serialize(() => manager.applyConfiguredRules());
     } catch {
-      // Avoid logging user-configured domains or browser error details.
       console.error('KidsGuard could not reconcile its local blocklist rules.');
     }
   }
@@ -239,7 +294,7 @@ export function createServiceWorker({
   async function handleAlarm(alarm) {
     if (alarm?.name !== HEARTBEAT_ALARM_NAME) return;
     try {
-      return await executeHeartbeat({ deviceClient: client });
+      return await executeHeartbeat({ deviceClient: client, ruleManager: manager });
     } catch {
       // Avoid logging device credentials or internals
     }
@@ -271,9 +326,7 @@ export function createServiceWorker({
     }
 
     if (alarms?.onAlarm?.addListener) {
-      alarms.onAlarm.addListener((alarm) => {
-        void handleAlarm(alarm);
-      });
+      alarms.onAlarm.addListener((alarm) => handleAlarm(alarm));
     }
 
     // Always reconcile alarm and rules on service worker boot
@@ -288,7 +341,8 @@ export function createServiceWorker({
     handleAlarm,
     reconcileRules,
     reconcileAlarm: () => reconcileAlarm(alarms),
-    executeHeartbeat: () => executeHeartbeat({ deviceClient: client }),
+    executeHeartbeat: () => executeHeartbeat({ deviceClient: client, ruleManager: manager }),
+    executePolicySync: () => executePolicySync({ deviceClient: client, ruleManager: manager }),
     init,
     get manager() { return manager; },
     get deviceClient() { return client; },

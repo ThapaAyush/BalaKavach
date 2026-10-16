@@ -1,0 +1,60 @@
+package com.kidsguard.child.data.repository
+
+import com.kidsguard.child.data.local.LocalPolicyStorage
+import com.kidsguard.child.data.model.ApiResult
+import com.kidsguard.child.data.model.DevicePolicyResponse
+import com.kidsguard.child.data.remote.KidsGuardApiClient
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Repository managing parent-configured policy on the child device.
+ * Read-only from the child interface; policies are received exclusively from the parent backend.
+ */
+class PolicyRepository(
+    private val localPolicyStorage: LocalPolicyStorage,
+    private val apiClient: KidsGuardApiClient
+) {
+    private val _cachedPolicy = MutableStateFlow(localPolicyStorage.getCachedPolicy())
+    val cachedPolicy: StateFlow<DevicePolicyResponse?> = _cachedPolicy.asStateFlow()
+
+    fun getPolicy(): DevicePolicyResponse? {
+        return _cachedPolicy.value
+    }
+
+    /**
+     * Synchronizes current policy from the server and sends version acknowledgment.
+     */
+    suspend fun syncPolicy(
+        baseUrl: String,
+        deviceCredential: String
+    ): ApiResult<DevicePolicyResponse> {
+        val fetchResult = apiClient.fetchPolicy(baseUrl, deviceCredential)
+        return when (fetchResult) {
+            is ApiResult.Success -> {
+                val policy = fetchResult.data
+                localPolicyStorage.savePolicy(policy)
+                _cachedPolicy.value = policy
+
+                // Automatically acknowledge policy version
+                apiClient.acknowledgePolicy(baseUrl, deviceCredential, policy.policyVersion)
+
+                ApiResult.Success(policy)
+            }
+            is ApiResult.Error -> {
+                ApiResult.Error(
+                    message = fetchResult.message,
+                    statusCode = fetchResult.statusCode,
+                    isNetworkError = fetchResult.isNetworkError,
+                    isAuthError = fetchResult.isAuthError
+                )
+            }
+        }
+    }
+
+    fun clearPolicy() {
+        localPolicyStorage.clearPolicy()
+        _cachedPolicy.value = null
+    }
+}

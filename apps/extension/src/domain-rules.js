@@ -57,6 +57,10 @@ export function normalizeDomainInput(input) {
     throw new TypeError('Enter a public-style domain name with at least two valid labels.');
   }
 
+  if (hostname.startsWith('www.') && labels.length > 2) {
+    hostname = hostname.slice(4);
+  }
+
   return hostname;
 }
 
@@ -86,9 +90,28 @@ export function matchesBlockedDomain(urlValue, domainValue) {
   } catch {
     return false;
   }
-  const hostname = url.hostname.toLowerCase().replace(/\.$/u, '');
+  let hostname = url.hostname.toLowerCase().replace(/\.$/u, '');
+  if (hostname.startsWith('www.') && hostname.split('.').length > 2) {
+    hostname = hostname.slice(4);
+  }
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
+
+export const BLOCK_RESOURCE_TYPES = [
+  'main_frame',
+  'sub_frame',
+  'stylesheet',
+  'script',
+  'image',
+  'font',
+  'object',
+  'xmlhttprequest',
+  'ping',
+  'csp_report',
+  'media',
+  'websocket',
+  'other'
+];
 
 export function createBlockRules(domains, maxDomains = MAX_BLOCKED_DOMAINS) {
   const normalized = normalizeDomainList(domains, maxDomains);
@@ -97,8 +120,9 @@ export function createBlockRules(domains, maxDomains = MAX_BLOCKED_DOMAINS) {
     priority: 1,
     action: { type: 'block' },
     condition: {
+      urlFilter: `||${domain}^`,
       requestDomains: [domain],
-      resourceTypes: ['main_frame']
+      resourceTypes: BLOCK_RESOURCE_TYPES
     }
   }));
 }

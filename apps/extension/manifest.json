@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KidsGuard Local Website Filter",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Apply a small, locally configured blocklist to website navigations.",
   "minimum_chrome_version": "101",
   "permissions": [

@@ -15,23 +15,23 @@ From the repository root in PowerShell:
 
 ```powershell
 npm install
-if (-not (Test-Path apps/api/.env)) { Copy-Item apps/api/.env.example apps/api/.env }
+if (-not (Test-Path apps/backend/.env)) { Copy-Item apps/backend/.env.example apps/backend/.env }
 ```
 
-Edit `apps/api/.env` on your machine and set `MONGODB_URI` to the rotated, least-privilege Atlas credential. Configure TLS and Atlas network access for the backend. Keep this value out of frontend variables and Git.
+Edit `apps/backend/.env` on your machine and set `MONGODB_URI` to the rotated, least-privilege Atlas credential. Configure TLS and Atlas network access for the backend. Keep this value out of frontend variables and Git.
 
 `AUTH_SESSION_TTL_HOURS` defaults to 168 (seven days) and can be set between 1 and 720 hours. No session-signing secret is needed because session cookies carry random opaque tokens whose hashes are stored in MongoDB.
 
-Start the backend in one terminal:
+Start the backend in one terminal (alias: `npm run dev:api`):
 
 ```powershell
-npm run dev:api
+npm run dev:backend
 ```
 
-Start the frontend in another terminal:
+Start the frontend in another terminal (alias: `npm run dev:web`):
 
 ```powershell
-npm run dev:web
+npm run dev:frontend
 ```
 
 Open `http://localhost:5173` to register or sign in and manage child profiles. Device pairing is currently a backend API foundation with no device-monitoring UI. The local Chrome extension is a separate manual install; see [Extension setup](apps/extension/README.md). The API health endpoint is `http://localhost:5000/api/v1/health`; it reports whether the database is connected and never returns the connection string. Authentication, child-profile, pairing, and device operations require MongoDB; without it, the API returns a safe service-unavailable response.
@@ -43,12 +43,12 @@ npm test
 npm run build
 ```
 
-The API tests use Node's built-in test runner and Supertest. The web tests use Vitest and React Testing Library. The extension workspace uses Node's built-in test runner for pure domain/rule logic; those tests do not verify actual browser enforcement.
+The API tests use Node's built-in test runner and Supertest. The frontend tests use Vitest and React Testing Library. The extension workspace uses Node's built-in test runner for pure domain/rule logic; those tests do not verify actual browser enforcement.
 
 ## Current project map
 
-- `apps/web` — React, React Router, Vite, Tailwind CSS, and shared Fetch service.
-- `apps/api` — Express, Mongoose, validation/configuration, middleware, and API tests.
+- `apps/frontend` — React, React Router, Vite, Tailwind CSS, and shared Fetch service.
+- `apps/backend` — Express, Mongoose, validation/configuration, middleware, and API tests.
 - `apps/extension` — Chrome MV3 local blocklist interface and `declarativeNetRequest` rules; no backend connection.
 - `docs` — architecture, API, database, security, Android limitations, and deployment status.
 

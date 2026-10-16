@@ -84,3 +84,39 @@ test('clears only owned rules and validates storage before creating rules', asyn
   h.values[BLOCKLIST_STORAGE_KEY] = ['bad/path'];
   await assert.rejects(h.manager.applyConfiguredRules(), { name: 'TypeError' });
 });
+
+test('syncParentPolicy applies parent blocked domains when web restrictions are enabled', async () => {
+  const h = harness();
+  const policy = {
+    version: 2,
+    webRestrictions: {
+      enabled: true,
+      blockedDomains: ['Gambling.Example', 'Gaming.Example'],
+    },
+  };
+  const result = await h.manager.syncParentPolicy(policy);
+  assert.equal(result.applied, true);
+  assert.deepEqual(result.configuredDomains, ['gambling.example', 'gaming.example']);
+  assert.deepEqual(h.rules.map(({ id }) => id), [50, 1000, 1001]);
+});
+
+test('syncParentPolicy clears rules when web restrictions are disabled', async () => {
+  const h = harness();
+  // First apply some rules
+  await h.manager.saveConfiguredDomains(['example.com']);
+  await h.manager.applyConfiguredRules();
+  assert.deepEqual(h.rules.map(({ id }) => id), [50, 1000]);
+
+  // Now sync disabled policy
+  const policy = {
+    version: 3,
+    webRestrictions: {
+      enabled: false,
+      blockedDomains: ['example.com'],
+    },
+  };
+  const result = await h.manager.syncParentPolicy(policy);
+  assert.equal(result.applied, true);
+  assert.deepEqual(result.configuredDomains, []);
+  assert.deepEqual(h.rules.map(({ id }) => id), [50]);
+});
