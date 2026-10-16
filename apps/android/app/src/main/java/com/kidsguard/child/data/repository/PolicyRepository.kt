@@ -19,6 +19,13 @@ class PolicyRepository(
     private val _cachedPolicy = MutableStateFlow(localPolicyStorage.getCachedPolicy())
     val cachedPolicy: StateFlow<DevicePolicyResponse?> = _cachedPolicy.asStateFlow()
 
+    /**
+     * Tracks whether the latest policy version acknowledgment succeeded.
+     * Prevents treating a policy fetch as an acknowledgment success if the ack request failed.
+     */
+    var lastAckSucceeded: Boolean = false
+        private set
+
     fun getPolicy(): DevicePolicyResponse? {
         return _cachedPolicy.value
     }
@@ -38,16 +45,33 @@ class PolicyRepository(
                 _cachedPolicy.value = policy
 
                 // Automatically acknowledge policy version
-                apiClient.acknowledgePolicy(baseUrl, deviceCredential, policy.policyVersion)
+                val ackResult = apiClient.acknowledgePolicy(baseUrl, deviceCredential, policy.policyVersion)
+                lastAckSucceeded = (ackResult is ApiResult.Success)
+
+                if (ackResult is ApiResult.Error && ackResult.isAuthError) {
+                    return ApiResult.Error(
+                        message = ackResult.message,
+                        statusCode = ackResult.statusCode,
+                        isNetworkError = ackResult.isNetworkError,
+                        isAuthError = true,
+                        isTimeout = ackResult.isTimeout,
+                        isServerError = ackResult.isServerError,
+                        isRateLimitError = ackResult.isRateLimitError
+                    )
+                }
 
                 ApiResult.Success(policy)
             }
             is ApiResult.Error -> {
+                lastAckSucceeded = false
                 ApiResult.Error(
                     message = fetchResult.message,
                     statusCode = fetchResult.statusCode,
                     isNetworkError = fetchResult.isNetworkError,
-                    isAuthError = fetchResult.isAuthError
+                    isAuthError = fetchResult.isAuthError,
+                    isTimeout = fetchResult.isTimeout,
+                    isServerError = fetchResult.isServerError,
+                    isRateLimitError = fetchResult.isRateLimitError
                 )
             }
         }

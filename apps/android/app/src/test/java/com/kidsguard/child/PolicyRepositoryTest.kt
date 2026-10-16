@@ -83,4 +83,40 @@ class PolicyRepositoryTest {
         assertEquals(1, repository.cachedPolicy.value?.policyVersion)
         Unit
     }
+
+    @Test
+    fun `syncPolicy saves policy but records lastAckSucceeded as false when ack request fails`(): Unit = runBlocking {
+        val mockClient = mock(KidsGuardApiClient::class.java)
+        val storage = MemoryPolicyStorage()
+        val repository = PolicyRepository(storage, mockClient)
+
+        val samplePolicy = DevicePolicyResponse(
+            policyVersion = 5,
+            dailyLimitMinutes = 60,
+            quietHoursEnabled = false,
+            quietHoursStart = "22:00",
+            quietHoursEnd = "06:00",
+            quietHoursDays = emptyList(),
+            webRestrictionsEnabled = true,
+            blockedDomains = listOf("blocked.com")
+        )
+
+        val baseUrl = "http://10.0.2.2:5000/api/v1"
+        val credential = "k".repeat(43)
+
+        `when`(mockClient.fetchPolicy(baseUrl, credential)).thenReturn(ApiResult.Success(samplePolicy))
+        `when`(mockClient.acknowledgePolicy(baseUrl, credential, 5)).thenReturn(
+            ApiResult.Error("Ack request failed: 504 Gateway Timeout", statusCode = 504, isServerError = true)
+        )
+
+        val result = repository.syncPolicy(baseUrl, credential)
+
+        assertTrue(result is ApiResult.Success)
+        assertEquals(5, (result as ApiResult.Success).data.policyVersion)
+        // Policy was saved locally
+        assertEquals(5, storage.getCachedPolicy()?.policyVersion)
+        // But ack was NOT successful
+        org.junit.Assert.assertFalse(repository.lastAckSucceeded)
+        Unit
+    }
 }

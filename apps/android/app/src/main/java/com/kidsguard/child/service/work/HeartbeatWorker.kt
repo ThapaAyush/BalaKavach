@@ -40,7 +40,7 @@ class HeartbeatWorker(
             is ApiResult.Error -> {
                 if (result.statusCode == 401 || result.isAuthError) {
                     Result.success()
-                } else if (result.isNetworkError) {
+                } else if (result.isNetworkError || result.isTemporaryFailure) {
                     Result.retry()
                 } else {
                     Result.failure()

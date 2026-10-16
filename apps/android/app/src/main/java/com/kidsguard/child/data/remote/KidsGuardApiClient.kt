@@ -20,13 +20,29 @@ import java.net.URL
 /**
  * Robust, safe HTTP API client communicating with KidsGuard backend.
  * Enforces explicit timeouts, safe JSON parsing, and zero secret leakage.
+ *
+ * Timeouts:
+ * - Connection timeout: 45 seconds (allows backend cold starts and TLS negotiation).
+ * - Read timeout: 45 seconds (maximum ceiling for server processing, not an artificial delay).
  */
 class KidsGuardApiClient(
-    private val connectTimeoutMs: Int = 15000,
-    private val readTimeoutMs: Int = 15000
+    val connectTimeoutMs: Int = DEFAULT_CONNECT_TIMEOUT_MS,
+    val readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS,
+    private val connectionFactory: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection }
 ) {
 
     companion object {
+        /**
+         * Default connection timeout: 45 seconds. Accommodates slow cold starts and TLS handshakes.
+         */
+        const val DEFAULT_CONNECT_TIMEOUT_MS = 45000
+
+        /**
+         * Default read timeout: 45 seconds. Maximum waiting ceiling for server responses.
+         * This does not add delay to fast responses; it simply prevents early aborts during cold starts.
+         */
+        const val DEFAULT_READ_TIMEOUT_MS = 45000
+
         private val PAIRING_CODE_REGEX = Regex("^[A-Za-z0-9_-]{22}$")
         private val DEVICE_CREDENTIAL_REGEX = Regex("^[A-Za-z0-9_-]{43}$")
         private val CONTROL_CHARS_REGEX = Regex("[\\u0000-\\u001f\\u007f]")
@@ -43,6 +59,82 @@ class KidsGuardApiClient(
 
         fun isValidDeviceCredential(credential: String?): Boolean {
             return !credential.isNullOrBlank() && DEVICE_CREDENTIAL_REGEX.matches(credential.trim())
+        }
+
+        /**
+         * Returns human-readable, safe error messages for standard HTTP status codes.
+         * Distinguishes auth (401, 403), rate limiting (429), and temporary gateway errors (502, 503, 504).
+         */
+        fun defaultErrorMessageForStatus(statusCode: Int): String {
+            return when (statusCode) {
+                400 -> "Invalid request parameters."
+                401 -> "Device authentication required or session expired."
+                403 -> "Access forbidden. Device not authorized."
+                404 -> "Requested resource not found on server."
+                409 -> "Request conflicted with current server state."
+                429 -> "Too many requests. Please wait and try again later."
+                502 -> "Bad Gateway: Server is temporarily unavailable. Try again shortly."
+                503 -> "Service Unavailable: Server is starting or temporarily overloaded. Try again shortly."
+                504 -> "Gateway Timeout: Backend did not respond in time. Try again shortly."
+                in 500..599 -> "Server error ($statusCode). Try again later."
+                else -> "Request failed with status $statusCode"
+            }
+        }
+
+        /**
+         * Parses error message from server JSON response, falling back gracefully to status-based message
+         * if the response is empty, malformed, or HTML (e.g. reverse proxy 502/503/504 pages).
+         */
+        fun parseErrorMessage(responseBody: String, statusCode: Int): String {
+            return try {
+                val json = JSONObject(responseBody)
+                val errorObj = json.optJSONObject("error")
+                val message = errorObj?.optString("message")
+                if (!message.isNullOrBlank()) {
+                    message
+                } else {
+                    defaultErrorMessageForStatus(statusCode)
+                }
+            } catch (_: Exception) {
+                defaultErrorMessageForStatus(statusCode)
+            }
+        }
+
+        /**
+         * Classifies lower-level network and I/O exceptions into structured ApiResult.Error objects,
+         * distinguishing socket timeouts, host resolution errors, and connection refusals.
+         */
+        fun classifyNetworkException(e: Exception, defaultFallbackMessage: String): ApiResult.Error {
+            return when (e) {
+                is java.net.SocketTimeoutException -> {
+                    ApiResult.Error(
+                        message = "Connection timed out waiting for server response. The server may be starting up; please retry.",
+                        isNetworkError = true,
+                        isTimeout = true
+                    )
+                }
+                is java.net.UnknownHostException -> {
+                    ApiResult.Error(
+                        message = "Unable to resolve server address. Check your network connection.",
+                        isNetworkError = true,
+                        isTimeout = false
+                    )
+                }
+                is java.net.ConnectException -> {
+                    ApiResult.Error(
+                        message = "Connection refused or server unreachable. Check your connection and retry.",
+                        isNetworkError = true,
+                        isTimeout = false
+                    )
+                }
+                else -> {
+                    ApiResult.Error(
+                        message = defaultFallbackMessage,
+                        isNetworkError = true,
+                        isTimeout = false
+                    )
+                }
+            }
         }
     }
 
@@ -73,7 +165,7 @@ class KidsGuardApiClient(
         var connection: HttpURLConnection? = null
         try {
             val url = URL(endpointUrl)
-            connection = (url.openConnection() as HttpURLConnection).apply {
+            connection = connectionFactory(url).apply {
                 requestMethod = "POST"
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
@@ -111,14 +203,13 @@ class KidsGuardApiClient(
                 ApiResult.Error(
                     message = errorMessage,
                     statusCode = statusCode,
-                    isAuthError = statusCode == 401 || statusCode == 403
+                    isAuthError = statusCode == 401 || statusCode == 403,
+                    isServerError = statusCode in 500..599,
+                    isRateLimitError = statusCode == 429
                 )
             }
         } catch (e: Exception) {
-            ApiResult.Error(
-                message = "Unable to contact the KidsGuard API. Check your connection and retry.",
-                isNetworkError = true
-            )
+            classifyNetworkException(e, "Unable to contact the KidsGuard API. Check your connection and retry.")
         } finally {
             connection?.disconnect()
         }
@@ -143,7 +234,7 @@ class KidsGuardApiClient(
 
         try {
             val url = URL(endpointUrl)
-            connection = (url.openConnection() as HttpURLConnection).apply {
+            connection = connectionFactory(url).apply {
                 requestMethod = "POST"
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
@@ -179,14 +270,13 @@ class KidsGuardApiClient(
                 ApiResult.Error(
                     message = errorMessage,
                     statusCode = statusCode,
-                    isAuthError = statusCode == 401
+                    isAuthError = statusCode == 401,
+                    isServerError = statusCode in 500..599,
+                    isRateLimitError = statusCode == 429
                 )
             }
         } catch (e: Exception) {
-            ApiResult.Error(
-                message = "Network unavailable. Heartbeat will retry later.",
-                isNetworkError = true
-            )
+            classifyNetworkException(e, "Network unavailable. Heartbeat will retry later.")
         } finally {
             connection?.disconnect()
         }
@@ -211,7 +301,7 @@ class KidsGuardApiClient(
 
         try {
             val url = URL(endpointUrl)
-            connection = (url.openConnection() as HttpURLConnection).apply {
+            connection = connectionFactory(url).apply {
                 requestMethod = "GET"
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
@@ -240,14 +330,13 @@ class KidsGuardApiClient(
                 ApiResult.Error(
                     message = errorMessage,
                     statusCode = statusCode,
-                    isAuthError = statusCode == 401
+                    isAuthError = statusCode == 401,
+                    isServerError = statusCode in 500..599,
+                    isRateLimitError = statusCode == 429
                 )
             }
         } catch (e: Exception) {
-            ApiResult.Error(
-                message = "Network unavailable. Policy sync will retry later.",
-                isNetworkError = true
-            )
+            classifyNetworkException(e, "Network unavailable. Policy sync will retry later.")
         } finally {
             connection?.disconnect()
         }
@@ -274,7 +363,7 @@ class KidsGuardApiClient(
 
         try {
             val url = URL(endpointUrl)
-            connection = (url.openConnection() as HttpURLConnection).apply {
+            connection = connectionFactory(url).apply {
                 requestMethod = "POST"
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
@@ -310,14 +399,13 @@ class KidsGuardApiClient(
                 ApiResult.Error(
                     message = errorMessage,
                     statusCode = statusCode,
-                    isAuthError = statusCode == 401
+                    isAuthError = statusCode == 401,
+                    isServerError = statusCode in 500..599,
+                    isRateLimitError = statusCode == 429
                 )
             }
         } catch (e: Exception) {
-            ApiResult.Error(
-                message = "Network unavailable. Policy ack will retry later.",
-                isNetworkError = true
-            )
+            classifyNetworkException(e, "Network unavailable. Policy ack will retry later.")
         } finally {
             connection?.disconnect()
         }
@@ -344,7 +432,7 @@ class KidsGuardApiClient(
 
         try {
             val url = URL(endpointUrl)
-            connection = (url.openConnection() as HttpURLConnection).apply {
+            connection = connectionFactory(url).apply {
                 requestMethod = "POST"
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
@@ -378,35 +466,15 @@ class KidsGuardApiClient(
                 ApiResult.Error(
                     message = errorMessage,
                     statusCode = statusCode,
-                    isAuthError = statusCode == 401
+                    isAuthError = statusCode == 401,
+                    isServerError = statusCode in 500..599,
+                    isRateLimitError = statusCode == 429
                 )
             }
         } catch (e: Exception) {
-            ApiResult.Error(
-                message = "Network unavailable. Screen-time report will retry later.",
-                isNetworkError = true
-            )
+            classifyNetworkException(e, "Network unavailable. Screen-time report will retry later.")
         } finally {
             connection?.disconnect()
-        }
-    }
-
-    private fun parseErrorMessage(responseBody: String, statusCode: Int): String {
-        return try {
-            val json = JSONObject(responseBody)
-            val errorObj = json.optJSONObject("error")
-            val message = errorObj?.optString("message")
-            if (!message.isNullOrBlank()) {
-                message
-            } else {
-                "Request failed with status $statusCode"
-            }
-        } catch (_: Exception) {
-            when (statusCode) {
-                401 -> "Device authentication required or session expired."
-                429 -> "Too many requests. Try again later."
-                else -> "Server error ($statusCode). Try again later."
-            }
         }
     }
 }

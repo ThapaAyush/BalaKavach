@@ -12,9 +12,28 @@ import com.kidsguard.child.data.repository.DeviceRepository
 import com.kidsguard.child.data.repository.PolicyRepository
 import com.kidsguard.child.service.usage.UsageStatsReader
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/**
+ * High-level connection states mapped from device session and network sync states:
+ * - UNPAIRED: Device is not yet linked to a parent account.
+ * - CONNECTING: Active pairing or background/manual synchronization in progress.
+ * - PAIRED: Active paired session with verified communication.
+ * - OFFLINE: Backend unreachable; last-known policies remain active.
+ * - NEEDS_ATTENTION: Session expired or revoked by parent; requires re-pairing.
+ */
+enum class ConnectionState {
+    UNPAIRED,
+    CONNECTING,
+    PAIRED,
+    OFFLINE,
+    NEEDS_ATTENTION
+}
 
 /**
  * ViewModel managing UI state for the KidsGuard child companion app.
@@ -35,6 +54,12 @@ class MainViewModel(
 
     private val _hasUsagePermission = MutableStateFlow(usageStatsReader.hasPermission())
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
+
+    private val _lastUsageRefreshTime = MutableStateFlow<Long?>(null)
+    val lastUsageRefreshTime: StateFlow<Long?> = _lastUsageRefreshTime.asStateFlow()
+
+    private val _lastSuccessfulMeasurementTime = MutableStateFlow<Long?>(null)
+    val lastSuccessfulMeasurementTime: StateFlow<Long?> = _lastSuccessfulMeasurementTime.asStateFlow()
 
     private val _pairingLoading = MutableStateFlow(false)
     val pairingLoading: StateFlow<Boolean> = _pairingLoading.asStateFlow()
@@ -57,6 +82,25 @@ class MainViewModel(
     private val _apiUrlSavedMessage = MutableStateFlow<String?>(null)
     val apiUrlSavedMessage: StateFlow<String?> = _apiUrlSavedMessage.asStateFlow()
 
+    /**
+     * Accurately maps existing session and network states to user-facing ConnectionState.
+     */
+    val connectionState: StateFlow<ConnectionState> = combine(
+        deviceSession,
+        pairingLoading,
+        syncLoading
+    ) { session, pairing, sync ->
+        computeConnectionState(session, pairing, sync)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = computeConnectionState(
+            deviceSession.value,
+            pairingLoading.value,
+            syncLoading.value
+        )
+    )
+
     init {
         refreshUsageData()
     }
@@ -64,7 +108,16 @@ class MainViewModel(
     fun refreshUsageData() {
         val permission = usageStatsReader.hasPermission()
         _hasUsagePermission.value = permission
-        _todayUsage.value = usageStatsReader.measureTodayUsage()
+        val usage = usageStatsReader.measureTodayUsage()
+        _todayUsage.value = usage
+        val now = System.currentTimeMillis()
+        _lastUsageRefreshTime.value = now
+        val isMeasured = usage.permissionGranted && usage.totalScreenTimeSeconds != null
+        if (isMeasured) {
+            _lastSuccessfulMeasurementTime.value = now
+        } else {
+            _lastSuccessfulMeasurementTime.value = null
+        }
     }
 
     fun clearPairingError() {
@@ -143,7 +196,37 @@ class MainViewModel(
         val defaultUrl = serverConfigStorage.resetToDefault()
         _apiUrl.value = defaultUrl
         _apiUrlError.value = null
-        _apiUrlSavedMessage.value = "Reset to default emulator URL ($defaultUrl)"
+        _apiUrlSavedMessage.value = "Reset to default URL ($defaultUrl)"
+    }
+
+    companion object {
+        fun computeConnectionState(
+            session: DeviceSession,
+            isPairingLoading: Boolean,
+            isSyncLoading: Boolean
+        ): ConnectionState {
+            if (isPairingLoading) {
+                return ConnectionState.CONNECTING
+            }
+            if (!session.isPaired) {
+                return ConnectionState.UNPAIRED
+            }
+            if (session.pairingStatus == DeviceSession.STATUS_INVALID_SESSION ||
+                session.lastHeartbeatStatus == DeviceSession.STATUS_INVALID_SESSION
+            ) {
+                return ConnectionState.NEEDS_ATTENTION
+            }
+            if (isSyncLoading) {
+                return ConnectionState.CONNECTING
+            }
+            if (session.lastHeartbeatStatus == "offline") {
+                return ConnectionState.OFFLINE
+            }
+            if (session.lastHeartbeatStatus == "error") {
+                return ConnectionState.OFFLINE
+            }
+            return ConnectionState.PAIRED
+        }
     }
 
     class Factory(

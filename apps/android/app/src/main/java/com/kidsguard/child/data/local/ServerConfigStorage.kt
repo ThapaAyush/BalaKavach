@@ -1,26 +1,49 @@
 package com.kidsguard.child.data.local
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import com.kidsguard.child.BuildConfig
 import java.net.URI
 import java.util.Locale
 
 /**
  * Stores and validates the backend API base URL configuration.
+ *
+ * Enforces build-variant separation:
+ * - Debug builds default to the local loopback (http://10.0.2.2:5000/api/v1) and permit developer overrides.
+ * - Release builds strictly require a valid remote HTTPS URL and reject localhost or debug-only overrides.
  */
-class ServerConfigStorage(private val context: Context) {
+class ServerConfigStorage(
+    private val context: Context,
+    private val defaultBaseUrl: String = BuildConfig.DEFAULT_API_BASE_URL,
+    private val isDebuggableProvider: () -> Boolean = {
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
+) {
 
     companion object {
         private const val PREFS_NAME = "kidsguard_config"
         private const val KEY_API_BASE_URL = "api_base_url"
 
         /**
-         * Default URL points to host machine loopback on Android emulator.
+         * Placeholder value indicating an unconfigured production URL.
          */
-        const val DEFAULT_API_BASE_URL = "http://10.0.2.2:5000/api/v1"
+        const val UNCONFIGURED_PLACEHOLDER = "UNCONFIGURED_PRODUCTION_URL"
 
         /**
-         * Normalizes and validates the API base URL.
+         * Standard emulator loopback URL for local backend development.
+         */
+        const val DEFAULT_DEBUG_API_BASE_URL = "http://10.0.2.2:5000/api/v1"
+
+        /**
+         * Backwards-compatible alias for default debug URL.
+         */
+        const val DEFAULT_API_BASE_URL = DEFAULT_DEBUG_API_BASE_URL
+
+        /**
+         * Normalizes and validates an API base URL.
          * Enforces HTTPS for all remote hosts; permits HTTP only for local loopback / emulator.
+         * Rejects unconfigured placeholders and credentials.
          */
         @Throws(IllegalArgumentException::class)
         fun normalizeApiBaseUrl(rawUrl: String?): String {
@@ -29,6 +52,10 @@ class ServerConfigStorage(private val context: Context) {
             }
 
             val trimmed = rawUrl.trim()
+            if (trimmed == UNCONFIGURED_PLACEHOLDER || trimmed.contains("UNCONFIGURED")) {
+                throw IllegalArgumentException("API base URL is unconfigured. A valid URL is required.")
+            }
+
             val uri: URI = try {
                 URI(trimmed)
             } catch (_: Exception) {
@@ -56,6 +83,27 @@ class ServerConfigStorage(private val context: Context) {
             val pathPart = uri.path?.trimEnd('/') ?: ""
             return "$scheme://$host$portPart$pathPart"
         }
+
+        /**
+         * Validates that the URL is suitable for production release builds:
+         * - Must be configured (not placeholder).
+         * - Must use HTTPS.
+         * - Must NOT be localhost or loopback.
+         */
+        @Throws(IllegalArgumentException::class)
+        fun validateReleaseApiBaseUrl(rawUrl: String?): String {
+            if (rawUrl.isNullOrBlank() || rawUrl == UNCONFIGURED_PLACEHOLDER || rawUrl.contains("UNCONFIGURED")) {
+                throw IllegalArgumentException("Release API base URL is unconfigured. A valid HTTPS production URL is required.")
+            }
+            val normalized = normalizeApiBaseUrl(rawUrl)
+            val uri = URI(normalized)
+            val host = uri.host?.lowercase(Locale.ROOT) ?: ""
+            val isLocalhost = host == "localhost" || host == "127.0.0.1" || host == "10.0.2.2" || host == "[::1]"
+            if (uri.scheme != "https" || isLocalhost) {
+                throw IllegalArgumentException("Release API base URL must use HTTPS and cannot use localhost ($normalized).")
+            }
+            return normalized
+        }
     }
 
     private val prefs by lazy {
@@ -63,23 +111,38 @@ class ServerConfigStorage(private val context: Context) {
     }
 
     fun getApiBaseUrl(): String {
+        val isDebuggable = isDebuggableProvider()
+        if (!isDebuggable) {
+            // Release builds strictly require and validate the production base URL;
+            // debug overrides are ignored to prevent release builds from connecting to localhost.
+            return validateReleaseApiBaseUrl(defaultBaseUrl)
+        }
         val stored = prefs.getString(KEY_API_BASE_URL, null)
         return try {
-            normalizeApiBaseUrl(stored ?: DEFAULT_API_BASE_URL)
+            normalizeApiBaseUrl(stored ?: defaultBaseUrl)
         } catch (_: Exception) {
-            DEFAULT_API_BASE_URL
+            normalizeApiBaseUrl(defaultBaseUrl)
         }
     }
 
-    @Throws(IllegalArgumentException::class)
+    @Throws(IllegalArgumentException::class, IllegalStateException::class)
     fun setApiBaseUrl(rawUrl: String): String {
+        val isDebuggable = isDebuggableProvider()
+        if (!isDebuggable) {
+            throw IllegalStateException("API base URL cannot be modified in release builds.")
+        }
         val normalized = normalizeApiBaseUrl(rawUrl)
         prefs.edit().putString(KEY_API_BASE_URL, normalized).apply()
         return normalized
     }
 
+    @Throws(IllegalStateException::class)
     fun resetToDefault(): String {
+        val isDebuggable = isDebuggableProvider()
+        if (!isDebuggable) {
+            throw IllegalStateException("API base URL cannot be modified in release builds.")
+        }
         prefs.edit().remove(KEY_API_BASE_URL).apply()
-        return DEFAULT_API_BASE_URL
+        return defaultBaseUrl
     }
 }

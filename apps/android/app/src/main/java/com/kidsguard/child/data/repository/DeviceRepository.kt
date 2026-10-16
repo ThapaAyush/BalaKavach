@@ -157,6 +157,9 @@ class DeviceRepository(
         if (policyResult is ApiResult.Error && policyResult.isAuthError) {
             return handleSyncError(policyResult, currentSession)
         }
+        val policySuccess = policyResult is ApiResult.Success
+        val ackSuccess = policySuccess && policyRepository.lastAckSucceeded
+        val policy = if (policySuccess) (policyResult as ApiResult.Success).data else null
 
         // 3. Measure and Report Screen-Time
         val usageReport = usageStatsReader.measureTodayUsage()
@@ -164,23 +167,34 @@ class DeviceRepository(
         if (reportResult is ApiResult.Error && reportResult.isAuthError) {
             return handleSyncError(reportResult, currentSession)
         }
+        val reportSuccess = reportResult is ApiResult.Success
 
-        val policy = policyRepository.getPolicy()
         val updatedSession = currentSession.copy(
             lastSeenAt = now,
             lastHeartbeatAt = now,
             lastHeartbeatStatus = "ok",
-            acknowledgedPolicyVersion = policy?.policyVersion ?: currentSession.acknowledgedPolicyVersion,
-            lastPolicySyncAt = now,
-            lastScreenTimeReportAt = now,
-            dailyLimitMinutes = policy?.dailyLimitMinutes,
-            quietHoursEnabled = policy?.quietHoursEnabled ?: false,
-            quietHoursRange = if (policy?.quietHoursEnabled == true) "${policy.quietHoursStart} - ${policy.quietHoursEnd}" else null
+            acknowledgedPolicyVersion = if (ackSuccess && policy != null) policy.policyVersion else currentSession.acknowledgedPolicyVersion,
+            lastPolicySyncAt = if (policySuccess) now else currentSession.lastPolicySyncAt,
+            lastScreenTimeReportAt = if (reportSuccess) now else currentSession.lastScreenTimeReportAt,
+            dailyLimitMinutes = if (policySuccess && policy != null) policy.dailyLimitMinutes else currentSession.dailyLimitMinutes,
+            quietHoursEnabled = if (policySuccess && policy != null) policy.quietHoursEnabled else currentSession.quietHoursEnabled,
+            quietHoursRange = if (policySuccess && policy != null) {
+                if (policy.quietHoursEnabled) "${policy.quietHoursStart} - ${policy.quietHoursEnd}" else null
+            } else {
+                currentSession.quietHoursRange
+            }
         )
 
         sessionStorage.saveSession(updatedSession)
         _deviceSession.value = updatedSession
-        return ApiResult.Success(updatedSession)
+
+        return if (!policySuccess) {
+            policyResult as ApiResult.Error
+        } else if (!reportSuccess) {
+            reportResult as ApiResult.Error
+        } else {
+            ApiResult.Success(updatedSession)
+        }
     }
 
     private fun handleSyncError(
@@ -198,20 +212,33 @@ class DeviceRepository(
             heartbeatScheduler?.cancelPeriodicHeartbeat()
 
             ApiResult.Error("Device session is invalid or expired. Re-pairing is required.", statusCode = 401, isAuthError = true)
-        } else if (result.isNetworkError) {
+        } else if (result.isNetworkError || result.isTemporaryFailure) {
             val offlineSession = currentSession.copy(
                 lastHeartbeatStatus = "offline"
             )
             sessionStorage.saveSession(offlineSession)
             _deviceSession.value = offlineSession
-            ApiResult.Error("Network unavailable. Sync will retry later.", isNetworkError = true)
+            ApiResult.Error(
+                message = result.message,
+                statusCode = result.statusCode,
+                isNetworkError = result.isNetworkError,
+                isTimeout = result.isTimeout,
+                isServerError = result.isServerError,
+                isRateLimitError = result.isRateLimitError
+            )
         } else {
             val errorSession = currentSession.copy(
                 lastHeartbeatStatus = "error"
             )
             sessionStorage.saveSession(errorSession)
             _deviceSession.value = errorSession
-            ApiResult.Error(result.message, statusCode = result.statusCode)
+            ApiResult.Error(
+                message = result.message,
+                statusCode = result.statusCode,
+                isNetworkError = false,
+                isServerError = result.isServerError,
+                isRateLimitError = result.isRateLimitError
+            )
         }
     }
 }

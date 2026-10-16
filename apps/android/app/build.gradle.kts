@@ -1,7 +1,15 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val releaseApiBaseUrl: String = (project.findProperty("KIDSGUARD_RELEASE_API_URL") as? String)
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+    ?: System.getenv("KIDSGUARD_RELEASE_API_URL")?.trim()?.takeIf { it.isNotEmpty() }
+    ?: "UNCONFIGURED_PRODUCTION_URL"
 
 android {
     namespace = "com.kidsguard.child"
@@ -24,10 +32,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "DEFAULT_API_BASE_URL", "\"$releaseApiBaseUrl\"")
         }
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            buildConfigField("String", "DEFAULT_API_BASE_URL", "\"http://10.0.2.2:5000/api/v1\"")
         }
     }
 
@@ -42,7 +52,42 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
+}
+
+tasks.register("validateReleaseApiUrl") {
+    description = "Validates that a production HTTPS API URL is configured for release builds."
+    doLast {
+        if (releaseApiBaseUrl == "UNCONFIGURED_PRODUCTION_URL" || releaseApiBaseUrl.isBlank()) {
+            throw GradleException(
+                "Release build blocked: Release API base URL is unconfigured. " +
+                "Provide a real HTTPS production URL via project property -PKIDSGUARD_RELEASE_API_URL=<url> " +
+                "or environment variable KIDSGUARD_RELEASE_API_URL=<url>. " +
+                "Release builds must never use or fall back to localhost."
+            )
+        }
+        if (!releaseApiBaseUrl.startsWith("https://")) {
+            throw GradleException(
+                "Release build blocked: Release API base URL must use HTTPS. Provided: '$releaseApiBaseUrl'"
+            )
+        }
+        val host = try {
+            URI(releaseApiBaseUrl).host?.lowercase() ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+        val isLocalhost = host == "localhost" || host == "127.0.0.1" || host == "10.0.2.2" || host == "[::1]" || host.isEmpty()
+        if (isLocalhost) {
+            throw GradleException(
+                "Release build blocked: Release API base URL cannot use localhost or loopback host '$host'."
+            )
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn("validateReleaseApiUrl")
 }
 
 dependencies {
