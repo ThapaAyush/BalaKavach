@@ -133,21 +133,70 @@ The Stage 7 tests use isolated mocks for Chrome APIs (`chrome.alarms`, `chrome.s
 
 The Stage 8 Android implementation uses pure Kotlin and Android Jetpack standards. Gradle wrapper scripts and unit tests are configured; local workstation environment lacks installed JDK/Android SDK, so compilation and Gradle build commands could not execute directly in this shell. Contract tests verified domain normalization, URL parsing, credential bounds, and state machine transitions in Node.js. Remote policy synchronization is not implemented in the backend, so domain filtering is strictly local to the Android device.
 
-## Stage E — Chrome extension parent-managed policy synchronization
+## Stage E — Chrome extension parent-managed policy synchronization (Approved / Complete)
 
+**Status:** Approved / Complete (Formally approved by project owner based on reported Stage E verification results).
+**Purpose:** Parent-managed Chrome website restrictions synchronized to the child device extension.
+
+### Delivered capabilities
 - [x] Connect Chrome extension to parent-managed policy backend endpoints (`GET /api/v1/devices/policy` and `POST /api/v1/devices/policy/ack`).
-- [x] Enforce parent dashboard and backend as the single source of truth for website restrictions.
+- [x] Parent dashboard and backend serve as the single source of truth for website restrictions.
 - [x] Remove child-side domain editing (add/remove inputs and buttons), policy cancellation, and unpairing controls from popup UI and service worker runtime message handlers.
-- [x] Securely fetch the authenticated parent's policy using the device's 256-bit Bearer credential; synchronize supported domains into Chrome Declarative Net Request dynamic rules (`main_frame`, rule ID range 1000..1099).
+- [x] Securely fetch the authenticated parent's policy using the device's 256-bit Bearer credential; synchronize supported domains into Chrome Declarative Net Request (DNR) dynamic rules across all standard resource types with anchored domain matching (`||domain^`, rule ID range 1000..1099).
 - [x] Clear Declarative Net Request rules when website restrictions are disabled by the parent.
 - [x] Acknowledge policy versions to the backend and reflect `acknowledgedPolicyVersion` and `lastPolicyAckAt` in the parent device list.
 - [x] Periodically synchronize policy during the 15-minute background heartbeat alarm cycle and support on-demand manual sync button in the popup.
-- [x] Preserve local rule enforcement when offline or during transient server errors; honestly report offline and sync status in the popup.
+- [x] Offline behavior preserves previously applied local rules during network failures or transient server errors; honestly report offline and sync status in the popup.
 - [x] Handle HTTP 401 neutrally as `invalid_session` without claiming parent revocation and pause heartbeat/sync requests until re-pairing.
 - [x] Enforce family/device ownership, preventing unauthorized policy retrieval or cross-family access.
 - [x] Add automated end-to-end integration test (`apps/extension/test/extension-policy.integration.test.js`) verifying live HTTP pairing, policy sync, rule activation, policy update, rule clearing, child-side mutation rejection, and device revocation.
-- [x] Run full test suite: 164 passing tests across backend (81), frontend (17), extension (52), and android contract tests (14).
+- [x] Automated test suite: 165 total passing tests across backend (81), frontend (17), extension (53), and Android contracts (14).
 - [x] Run frontend production build (`npm run build`).
+
+### Reported verification results and boundaries
+- **Reported Manual Verification in Chrome**:
+  - Chrome extension was paired with the child profile.
+  - Parent-managed website policies synchronized to the extension.
+  - Website blocking was manually verified in Chrome for `youtube.com`, `www.youtube.com`, and `m.youtube.com`.
+  - Allowed website `wikipedia.org` continued to load without interruption.
+  - Removing the test restriction restored access in Chrome.
+  - Previously applied local rules remained active during the reported offline test.
+- **Documented Boundaries and Limitations**:
+  - The Chrome extension enforces supported website-blocking behavior strictly within the Google Chrome installation/profile where it is loaded.
+  - Does not implement universal device-wide blocking, OS-level network interception, or filtering for other browsers or applications installed on the computer.
+  - Stage E introduces no changes or enforcement to the Android application (which maintains independent local VPN filtering architecture from Stage 8).
+  - Browser tamper resistance and process-level extension removal prevention remain out of scope.
+
+## Stage F — Website integration, security review, and release verification (Complete)
+
+**Status:** Complete
+**Purpose:** End-to-end integration of parent website controls, backend security verification, monorepo workspace test unification, and release readiness.
+
+### Delivered capabilities
+- [x] Unified npm monorepo workspaces: configured `apps/android` as an npm workspace alongside `apps/backend`, `apps/frontend`, and `apps/extension`, enabling unified root-level `npm test` across all four applications.
+- [x] Complete parent website integration:
+  - Wired `PolicyManager.jsx` with version update callbacks (`onPolicyVersionChange`, `onPolicySaved`) to instantly update state and trigger device list refreshes upon saving a policy.
+  - Connected `WelcomePage.jsx` to pass real child policy versions (`childPolicyVersions[selectedChild.id]`) to `DeviceStatusView.jsx`. This fixes an integration issue where devices defaulted to version 1 and falsely reported in-sync status when a newer parent policy was saved.
+  - Wired tab navigation to reload device status upon opening the "Devices & Sync" tab.
+  - Added acknowledged policy version tags (`• Policy: vX`) to the global device list.
+  - Preserved exact device filtering disclaimer text required by regression tests.
+  - Added automated integration regression test in `DashboardStageC.test.jsx` verifying live pending sync status transitions (`Sync Pending (v1 / v2)`).
+- [x] Comprehensive security review:
+  - Verified parent session cookies: `HttpOnly`, `SameSite=Strict`, `Path=/`, and production `Secure` with `__Host-` prefix.
+  - Verified CSRF/Origin enforcement: mutating cookie-authenticated endpoints require strict match with `CLIENT_ORIGIN`.
+  - Verified family and child ownership boundaries: all child, device, policy, and screen-time routes enforce parent family scoping, returning safe 404 responses for cross-family queries without disclosing record existence.
+  - Verified rate limiting: auth (10/15m), pairing redeem (10/15m), device heartbeat (60/15m), screen-time ingestion (60/15m).
+  - Verified device credential handling: 256-bit bearer tokens stored as SHA-256 hashes only; never returned in parent device lists or logs.
+  - Verified error handling: database connection strings, credentials, and stack traces are withheld from API responses.
+- [x] Multi-platform policy synchronization & boundaries:
+  - Chrome Extension: full parent-managed synchronization with DNR dynamic rules covering all 13 standard resource types, rule ID range 1000..1099, anchored pattern `||domain^`, offline rule preservation, and neutral 401 handling.
+  - Android Companion: Keystore-encrypted credentials, WorkManager heartbeats, contract tests for normalization and state transitions. Android limitations honestly documented (universal blocking requires MDM or local VPN; no remote policy sync is applied to Android companion yet).
+  - Domain normalization differences documented: Backend and Chrome Extension strip `www.` for domains with > 2 labels (allowing `||domain^` to match `www.` and other subdomains); Android companion normalizes without `www.` stripping.
+- [x] Monorepo verification results:
+  - Root `npm test`: 166 passing tests across 4 workspaces (Backend: 81, Frontend: 18, Extension: 53, Android contracts: 14).
+  - Production build: `npm run build` completed successfully (1.12s, 0 errors).
+  - Security audit: `npm audit` reported 0 vulnerabilities.
+  - Code hygiene: `git diff --check` passed cleanly.
 
 ## Later stages
 
@@ -156,4 +205,4 @@ The Stage 8 Android implementation uses pure Kotlin and Android Jetpack standard
 
 The Stage 2 API tests use an isolated in-memory auth repository; they do not load local `.env` credentials or connect to MongoDB. MongoDB schema/index declarations, direct session-expiry checks, fail-closed behavior, and simulated mid-operation network error mapping are covered, but real MongoDB writes, reconnect behavior, index creation, and Atlas persistence remain unverified. API tests require ephemeral loopback access, and Vitest needs permission to rename worker files in the sandbox temp directory; the checks passed with the required local permissions.
 
-Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, cross-device remote policy distribution, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.
+Email verification, password recovery, multi-factor authentication, shared rate-limit storage and trusted-proxy configuration for deployment, multiple caregivers, child consent/retention controls, cross-device remote policy distribution for Android, and production HTTPS deployment remain future work. Chrome browser enforcement for the local blocklist was manually verified for domain and subdomain navigation blocking and unblocking in an unpacked developer-mode profile.

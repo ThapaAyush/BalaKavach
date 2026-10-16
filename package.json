@@ -5,7 +5,8 @@
   "workspaces": [
     "apps/backend",
     "apps/frontend",
-    "apps/extension"
+    "apps/extension",
+    "apps/android"
   ],
   "engines": {
     "node": ">=24 <25"

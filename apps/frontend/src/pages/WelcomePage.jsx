@@ -27,6 +27,7 @@ export default function WelcomePage() {
   const [activeTab, setActiveTab] = useState('screentime'); // 'screentime' | 'policy' | 'devices'
   const [confirmDeleteChildId, setConfirmDeleteChildId] = useState(null);
   const [deletingChild, setDeletingChild] = useState(false);
+  const [childPolicyVersions, setChildPolicyVersions] = useState({});
 
   const pairingAbortRef = useRef(null);
   const activePairingChildRef = useRef(null);
@@ -121,6 +122,19 @@ export default function WelcomePage() {
     }, remainingMs);
     return () => clearTimeout(timer);
   }, [pairingCode?.id, pairingCode?.expiresAt, pairingCode?.status]);
+
+  useEffect(() => {
+    if (!selectedChildId) return undefined;
+    const controller = new AbortController();
+    apiGet(`/children/${selectedChildId}/policy`, { signal: controller.signal })
+      .then((data) => {
+        if (data?.policy?.version) {
+          setChildPolicyVersions((prev) => ({ ...prev, [selectedChildId]: data.policy.version }));
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [selectedChildId]);
 
   async function loadDevices(signal) {
     setDevices((curr) => ({ ...curr, state: 'loading' }));
@@ -396,7 +410,10 @@ export default function WelcomePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setActiveTab('devices')}
+                        onClick={() => {
+                          setActiveTab('devices');
+                          loadDevices();
+                        }}
                         className={`rounded px-3 py-1 font-medium transition ${
                           activeTab === 'devices'
                             ? 'bg-indigo-600 text-white'
@@ -418,11 +435,22 @@ export default function WelcomePage() {
                 </div>
 
                 {activeTab === 'screentime' && <ScreenTimeView child={selectedChild} />}
-                {activeTab === 'policy' && <PolicyManager child={selectedChild} />}
+                {activeTab === 'policy' && (
+                  <PolicyManager
+                    child={selectedChild}
+                    onPolicyVersionChange={(ver) => {
+                      setChildPolicyVersions((prev) => ({ ...prev, [selectedChild.id]: ver }));
+                    }}
+                    onPolicySaved={() => {
+                      loadDevices();
+                    }}
+                  />
+                )}
                 {activeTab === 'devices' && (
                   <DeviceStatusView
                     devices={devices.items}
                     activeChild={selectedChild}
+                    policyVersion={childPolicyVersions[selectedChild.id] ?? 1}
                     onRequestPairing={requestPairingCode}
                     onRevokeDevice={(d) => revokeDevice(d.id)}
                     revokingId={deviceAction.busyId}
@@ -641,6 +669,7 @@ export default function WelcomePage() {
                           </div>
                           <p className="mt-1 text-xs text-zinc-400">
                             Child: {childName} • Platform: {device.platform} • Paired: {pairedDate} • Last seen: {lastSeen}
+                            {device.acknowledgedPolicyVersion !== undefined && device.acknowledgedPolicyVersion !== null ? ` • Policy: v${device.acknowledgedPolicyVersion}` : ''}
                           </p>
                         </div>
                         {!isRevoked && (

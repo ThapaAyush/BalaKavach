@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPut } from '../lib/api.js';
 
-export default function PolicyManager({ child }) {
+export default function PolicyManager({ child, onPolicyVersionChange, onPolicySaved }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -40,7 +40,9 @@ export default function PolicyManager({ child }) {
         if (!active) return;
         const p = data?.policy;
         if (p) {
-          setPolicyVersion(p.version || 1);
+          const ver = p.version || 1;
+          setPolicyVersion(ver);
+          onPolicyVersionChange?.(ver);
           setDailyLimitMinutes(p.screenTime?.dailyLimitMinutes ?? '');
           setQuietHoursEnabled(p.screenTime?.quietHours?.enabled ?? false);
           setQuietHoursStart(p.screenTime?.quietHours?.start ?? '21:00');
@@ -113,8 +115,11 @@ export default function PolicyManager({ child }) {
 
     try {
       const data = await apiPut(`/children/${child.id}/policy`, payload);
-      setPolicyVersion(data.policy.version);
-      setSuccessMessage(`Policy saved successfully (Version ${data.policy.version}).`);
+      const ver = data.policy.version;
+      setPolicyVersion(ver);
+      onPolicyVersionChange?.(ver);
+      setSuccessMessage(`Policy saved successfully (Version ${ver}).`);
+      onPolicySaved?.(data.policy);
     } catch (err) {
       setError(err.message || 'Failed to save policy.');
     } finally {

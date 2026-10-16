@@ -23,7 +23,7 @@ Request:
 }
 ```
 
-Email is trimmed, validated, and lowercased. Passwords must contain 12–128 characters and cannot be all whitespace. Registration returns the same generic `202` response for a new or already registered address, so this endpoint does not reveal whether an account exists. It does not return a parent ID or automatically sign in.
+Email is trimmed, validated, and lowercased. Passwords must contain 8–128 characters and cannot be all whitespace. Registration returns the same generic `202` response for a new or already registered address, so this endpoint does not reveal whether an account exists. It does not return a parent ID or automatically sign in.
 
 ### `POST /auth/login`
 
@@ -87,7 +87,7 @@ A successful redemption returns a server-generated device ID and a 256-bit devic
 
 ### `GET /devices`
 
-Requires the authenticated parent session and lists only registrations in that parent's family. A device includes `pairingStatus` (`paired` or `revoked`), `pairedAt`, `lastSeenAt`, and `enforcementStatus`. At registration, `lastSeenAt` is null and `enforcementStatus` is `not_implemented`. Paired does not mean online, monitored, or blocking anything.
+Requires the authenticated parent session and lists only registrations in that parent's family. A device includes `id`, `childProfileId`, `name`, `platform`, `pairingStatus` (`paired` or `revoked`), `pairedAt`, `lastSeenAt`, `enforcementStatus`, `acknowledgedPolicyVersion`, and `lastPolicyAckAt`. At registration, `lastSeenAt` is null and `enforcementStatus` is `not_implemented`.
 
 ### `DELETE /devices/:deviceId`
 
@@ -105,12 +105,97 @@ Device liveness endpoint authenticated by bearer token via the `Authorization: B
 
 MongoDB TTL cleanup removes expired pairing records eventually, but redemption checks expiry directly and does not rely on TTL timing. Rate limits use in-process IP storage: counters reset on restart and are independent per API process, so deployment needs a shared store. Express proxy trust is not enabled here; behind a reverse proxy, configure only the known trusted proxy hops before using originating client IPs for limits. API tests use in-memory repositories; real MongoDB Atlas multi-process parallel writes, reconnection races, and index performance remain unverified.
 
-The Chrome extension (`@kidsguard/extension`) integrates with `POST /device-pairing/redeem` and `POST /devices/heartbeat`. The extension service worker validates pairing codes, stores device credentials in extension storage, schedules 15-minute heartbeats via `chrome.alarms`, handles offline network retries, and interprets HTTP 401 neutrally as `invalid_session` without claiming definitive parent revocation. The extension manifest declares host permissions restricted to local development endpoints (`http://localhost:5000/*` and `http://127.0.0.1:5000/*`); deploying to production requires updating `manifest.json` host permissions to match the deployed HTTPS API origin.
+The Chrome extension (`@kidsguard/extension`) integrates with `POST /device-pairing/redeem`, `POST /devices/heartbeat`, `GET /devices/policy`, and `POST /devices/policy/ack`. The extension service worker validates pairing codes, stores device credentials in extension storage, schedules 15-minute heartbeats via `chrome.alarms`, handles offline network retries, and interprets HTTP 401 neutrally as `invalid_session` without claiming definitive parent revocation. The extension manifest declares host permissions restricted to local development endpoints (`http://localhost:5000/*` and `http://127.0.0.1:5000/*`); deploying to production requires updating `manifest.json` host permissions to match the deployed HTTPS API origin.
+
+## Parent and device policy synchronization
+
+### `GET /children/:childId/policy`
+
+Requires authenticated parent session cookie. Scoped strictly to the parent's family. Returns `200` with:
+
+```json
+{
+  "policy": {
+    "version": 1,
+    "webRestrictions": {
+      "enabled": true,
+      "blockedDomains": ["youtube.com"]
+    },
+    "screenTime": {
+      "dailyLimitMinutes": 120,
+      "quietHours": {
+        "enabled": true,
+        "start": "21:00",
+        "end": "07:00",
+        "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+      }
+    }
+  }
+}
+```
+
+If no policy document exists yet for the child, returns a default policy with `version: 1` and empty settings. Other-family and absent IDs return `404`.
+
+### `PUT /children/:childId/policy`
+
+Requires authenticated parent session cookie and exact `Origin` match with `CLIENT_ORIGIN`. Accepts an update payload conforming to `updatePolicySchema`. Validates domains (normalized, Punycode, no IPv4, max 100), daily screen time (1-1440 minutes or null), and quiet hours (HH:mm and day enum list). Atomically increments the policy version integer and updates policy settings. Returns `200` with `{ "policy": {...} }`.
+
+### `GET /devices/policy`
+
+Device endpoint authenticated by bearer token via `Authorization: Bearer <deviceCredential>`.
+- Derives the child profile and family from the authenticated, unrevoked device registration.
+- Returns `200` with `{ "policy": {...} }` containing the child's active policy and current version integer.
+- Uses `Cache-Control: no-store`.
+
+### `POST /devices/policy/ack`
+
+Device endpoint authenticated by bearer token via `Authorization: Bearer <deviceCredential>`.
+- Request body: `{ "acknowledgedVersion": 2 }` (positive integer).
+- Updates the enrolled device's `acknowledgedPolicyVersion` and sets `lastPolicyAckAt` to the current timestamp.
+- Returns `200` with `{ "ok": true }`.
+- Revoked devices return `401`.
+
+## Screen time reporting
+
+### `POST /devices/screen-time`
+
+Device endpoint authenticated by bearer token via `Authorization: Bearer <deviceCredential>`.
+- Rate limited via `rateLimitConfig.screenTime` (default 60 requests per 15 minutes per IP).
+- Request body:
+  ```json
+  {
+    "date": "YYYY-MM-DD",
+    "totalScreenTimeSeconds": 3600,
+    "reportingPeriod": {
+      "start": "2026-10-16T08:00:00.000Z",
+      "end": "2026-10-16T17:00:00.000Z"
+    },
+    "permissionGranted": true,
+    "source": "measured",
+    "appUsage": [
+      {
+        "packageName": "org.wikipedia",
+        "appName": "Wikipedia",
+        "durationSeconds": 1200
+      }
+    ]
+  }
+  ```
+- **Zero Fabrication Rule**: If `permissionGranted` is `false`, `totalScreenTimeSeconds` MUST be `null`. Non-null values when permission is denied are rejected with `400`.
+- Upserts the daily usage record for the device and associated child profile. Returns `201` with `{ "screenTime": {...} }`.
+
+### `GET /children/:childId/screen-time`
+
+Requires authenticated parent session cookie. Query parameter: `?date=YYYY-MM-DD`. Scoped to the parent's family. Returns `200` with daily screen-time metrics and app usage records, or `{ "screenTime": null }` if no records exist for that date.
+
+### `GET /children/:childId/screen-time/history`
+
+Requires authenticated parent session cookie. Query parameters: `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`. Scoped to the parent's family. Returns `200` with `{ "history": [...] }` containing daily summaries.
 
 ## Other behavior
 
-Responses include an `X-Request-Id` header. Unknown routes return a JSON 404. Unhandled server errors return a generic JSON 500.
+Responses include an `X-Request-Id` header. Unknown routes return a JSON 404. Unhandled server errors return a generic JSON 500 without leaking stack traces or internal implementation details.
 
 ## Planned, not implemented
 
-Email verification, password recovery, multiple caregivers, remote website/app policy distribution, Android accessibility/VPN monitoring, and live server-managed enforcement synchronization remain deferred to later stages. While device enrollment and heartbeat presence are implemented, `enforcementStatus` is strictly `not_implemented` and does not enforce website blocking on child devices from the parent dashboard. Do not treat this document as evidence that those features exist.
+Email verification, password recovery, multi-factor authentication, multiple caregivers, remote policy push for Android (which maintains independent local filtering in Stage 8), universal Android browser blocking without device-owner/MDM enrollment, and live multi-process Atlas stress testing remain future work. Website policy synchronization and DNR enforcement are fully implemented for Chrome extension clients. Do not treat this document as evidence that unsupported platform capabilities exist.

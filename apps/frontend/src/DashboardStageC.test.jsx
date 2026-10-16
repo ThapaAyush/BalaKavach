@@ -218,4 +218,80 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
     expect(await screen.findByText('Child profile deleted.')).toBeInTheDocument();
     expect(screen.queryByText("Alex's Tablet")).not.toBeInTheDocument();
   });
+
+  it('reflects pending sync status when policy version is bumped past device acknowledgment', async () => {
+    let currentPolicy = {
+      version: 1,
+      screenTime: { dailyLimitMinutes: 60, quietHours: { enabled: false } },
+      webRestrictions: { enabled: true, blockedDomains: ['old-site.com'] },
+    };
+
+    const mockDevice = {
+      id: 'dev-2',
+      childProfileId: 'child-1',
+      name: "Alex's Chrome",
+      platform: 'windows',
+      pairedAt: new Date().toISOString(),
+      lastSeenAt: new Date().toISOString(),
+      pairingStatus: 'paired',
+      acknowledgedPolicyVersion: 1,
+    };
+
+    vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith('/health')) return response(200, { ok: true, data: { status: 'ready' } });
+      if (path.endsWith('/auth/me')) return response(200, { ok: true, data: { parent } });
+      if (path.endsWith('/children') && options.method === 'GET') {
+        return response(200, { ok: true, data: { children: [child] } });
+      }
+      if (path.endsWith('/devices') && options.method === 'GET') {
+        return response(200, { ok: true, data: { devices: [mockDevice] } });
+      }
+      if (path.endsWith('/children/child-1/policy') && options.method === 'GET') {
+        return response(200, { ok: true, data: { policy: currentPolicy } });
+      }
+      if (path.endsWith('/children/child-1/policy') && options.method === 'PUT') {
+        currentPolicy = { ...currentPolicy, version: 2 };
+        return response(200, { ok: true, data: { policy: currentPolicy } });
+      }
+      if (path.endsWith('/children/child-1/screen-time')) {
+        return response(200, {
+          ok: true,
+          data: {
+            date: '2026-10-15',
+            totalScreenTimeSeconds: 1200,
+            dailyLimitMinutes: 60,
+            limitExceeded: false,
+            permissionStatus: 'granted',
+            appUsage: [],
+          },
+        });
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByText('Alex')).toBeInTheDocument();
+    expect(await screen.findByText(/Policy: v1/)).toBeInTheDocument();
+
+    // Open control center and switch to devices tab
+    fireEvent.click(screen.getByRole('button', { name: 'Manage rules & screen time for Alex' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Devices & Sync' }));
+
+    // Initially in sync with policy v1
+    expect(await screen.findByText(/In Sync \(v1\)/)).toBeInTheDocument();
+
+    // Switch to Rules & Schedules and save updated policy
+    fireEvent.click(screen.getByRole('button', { name: 'Rules & Schedules' }));
+    expect(await screen.findByText('Policy v1')).toBeInTheDocument();
+
+    const saveButton = screen.getByRole('button', { name: 'Save Rules & Policy' });
+    fireEvent.click(saveButton);
+    expect(await screen.findByText('Policy saved successfully (Version 2).')).toBeInTheDocument();
+
+    // Switch back to Devices & Sync: status must now report Sync Pending (v1 / v2)
+    fireEvent.click(screen.getByRole('button', { name: 'Devices & Sync' }));
+    expect(await screen.findByText(/Sync Pending \(v1 \/ v2\)/)).toBeInTheDocument();
+  });
 });
