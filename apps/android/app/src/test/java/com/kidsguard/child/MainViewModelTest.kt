@@ -198,20 +198,18 @@ class MainViewModelTest {
             isDebuggable = true,
             tabDevice = "Connection",
             tabScreenTime = "Screen Time",
-            tabPermissions = "Permissions & Privacy",
             tabSettings = "Settings"
         )
-        assertEquals(4, debugTabs.size)
+        assertEquals(3, debugTabs.size)
         assertTrue(debugTabs.contains("Settings"))
 
         val releaseTabs = MainActivity.resolveTabTitles(
             isDebuggable = false,
             tabDevice = "Connection",
             tabScreenTime = "Screen Time",
-            tabPermissions = "Permissions & Privacy",
             tabSettings = "Settings"
         )
-        assertEquals(3, releaseTabs.size)
+        assertEquals(2, releaseTabs.size)
         assertFalse(releaseTabs.contains("Settings"))
     }
 
@@ -221,22 +219,20 @@ class MainViewModelTest {
             isDebuggable = true,
             tabDevice = "Connection",
             tabScreenTime = "Screen Time",
-            tabPermissions = "Permissions & Privacy",
             tabSettings = "Settings"
         )
         assertFalse("Debug tabs must not contain BLOCKED DOMAINS", debugTabs.any { it.contains("BLOCKED", ignoreCase = true) || it.contains("DOMAIN", ignoreCase = true) })
-        assertEquals(4, debugTabs.size)
+        assertEquals(3, debugTabs.size)
 
         val releaseTabs = MainActivity.resolveTabTitles(
             isDebuggable = false,
             tabDevice = "Connection",
             tabScreenTime = "Screen Time",
-            tabPermissions = "Permissions & Privacy",
             tabSettings = "Settings"
         )
         assertFalse("Release tabs must not contain BLOCKED DOMAINS", releaseTabs.any { it.contains("BLOCKED", ignoreCase = true) || it.contains("DOMAIN", ignoreCase = true) })
-        assertEquals(3, releaseTabs.size)
-        assertEquals(listOf("Connection", "Screen Time", "Permissions & Privacy"), releaseTabs)
+        assertEquals(2, releaseTabs.size)
+        assertEquals(listOf("Connection", "Screen Time"), releaseTabs)
     }
 
     @Test

@@ -87,7 +87,6 @@ class MainActivity : AppCompatActivity() {
             isDebuggable = isDebuggable,
             tabDevice = getString(R.string.tab_device),
             tabScreenTime = getString(R.string.tab_screen_time),
-            tabPermissions = getString(R.string.tab_usage_access),
             tabSettings = getString(R.string.tab_settings)
         )
 
@@ -100,8 +99,7 @@ class MainActivity : AppCompatActivity() {
                 when (tab?.position) {
                     0 -> showSection(binding.sectionDevice)
                     1 -> showSection(binding.sectionScreenTime)
-                    2 -> showSection(binding.sectionUsageAccess)
-                    3 -> if (isDebuggable) showSection(binding.sectionSettings)
+                    2 -> if (isDebuggable) showSection(binding.sectionSettings)
                 }
             }
 
@@ -113,7 +111,6 @@ class MainActivity : AppCompatActivity() {
     private fun showSection(targetSection: View) {
         binding.sectionDevice.visibility = View.GONE
         binding.sectionScreenTime.visibility = View.GONE
-        binding.sectionUsageAccess.visibility = View.GONE
         binding.sectionSettings.visibility = View.GONE
 
         if (targetSection == binding.sectionSettings && !isDebuggable) {
@@ -146,11 +143,7 @@ class MainActivity : AppCompatActivity() {
             viewModel.pairDevice(code, name)
         }
 
-        // Grant Usage Access buttons (from Permissions tab and Screen Time banner)
-        binding.btnGrantUsageAccess.setOnClickListener {
-            openUsageSettings()
-        }
-
+        // Grant Usage Access button from Screen Time banner
         binding.btnGrantPermissionFromScreenTime.setOnClickListener {
             openUsageSettings()
         }
@@ -399,14 +392,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun updatePermissionUi(hasPermission: Boolean) {
         if (hasPermission) {
-            binding.textPermissionBadge.text = getString(R.string.permission_granted_badge)
-            binding.textPermissionBadge.setTextColor(ContextCompat.getColor(this, R.color.status_green))
-            binding.btnGrantUsageAccess.visibility = View.GONE
             binding.cardUsageMissingBanner.visibility = View.GONE
         } else {
-            binding.textPermissionBadge.text = getString(R.string.permission_denied_badge)
-            binding.textPermissionBadge.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
-            binding.btnGrantUsageAccess.visibility = View.VISIBLE
             binding.cardUsageMissingBanner.visibility = View.VISIBLE
         }
     }
@@ -1024,10 +1011,9 @@ class MainActivity : AppCompatActivity() {
             isDebuggable: Boolean,
             tabDevice: String,
             tabScreenTime: String,
-            tabPermissions: String,
             tabSettings: String
         ): List<String> {
-            val tabs = mutableListOf(tabDevice, tabScreenTime, tabPermissions)
+            val tabs = mutableListOf(tabDevice, tabScreenTime)
             if (isDebuggable) {
                 tabs.add(tabSettings)
             }
