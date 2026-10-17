@@ -37,6 +37,15 @@ const policySchema = new Schema({
       },
     },
   },
+  appRestrictions: {
+    enabled: { type: Boolean, default: false },
+    blockedApps: [
+      {
+        packageName: { type: String, required: true },
+        appName: { type: String, default: '' },
+      },
+    ],
+  },
   webRestrictions: {
     enabled: { type: Boolean, default: false },
     enforcementPlatform: { type: String, default: 'desktop_chrome' },

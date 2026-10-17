@@ -1,12 +1,14 @@
 package com.kidsguard.child
 
 import com.kidsguard.child.data.local.ServerConfigStorage
+import com.kidsguard.child.data.model.DevicePolicyResponse
 import com.kidsguard.child.data.model.DeviceSession
 import com.kidsguard.child.data.model.ReportingPeriodDto
 import com.kidsguard.child.data.model.ScreenTimeReportRequest
 import com.kidsguard.child.data.repository.DeviceRepository
 import com.kidsguard.child.data.repository.PolicyRepository
 import com.kidsguard.child.service.usage.UsageStatsReader
+import java.util.Calendar
 import com.kidsguard.child.ui.ConnectionState
 import com.kidsguard.child.ui.MainActivity
 import com.kidsguard.child.ui.MainViewModel
@@ -214,6 +216,30 @@ class MainViewModelTest {
     }
 
     @Test
+    fun `navigation strictly excludes blocked domains tab and local domain blocklist`() {
+        val debugTabs = MainActivity.resolveTabTitles(
+            isDebuggable = true,
+            tabDevice = "Connection",
+            tabScreenTime = "Screen Time",
+            tabPermissions = "Permissions & Privacy",
+            tabSettings = "Settings"
+        )
+        assertFalse("Debug tabs must not contain BLOCKED DOMAINS", debugTabs.any { it.contains("BLOCKED", ignoreCase = true) || it.contains("DOMAIN", ignoreCase = true) })
+        assertEquals(4, debugTabs.size)
+
+        val releaseTabs = MainActivity.resolveTabTitles(
+            isDebuggable = false,
+            tabDevice = "Connection",
+            tabScreenTime = "Screen Time",
+            tabPermissions = "Permissions & Privacy",
+            tabSettings = "Settings"
+        )
+        assertFalse("Release tabs must not contain BLOCKED DOMAINS", releaseTabs.any { it.contains("BLOCKED", ignoreCase = true) || it.contains("DOMAIN", ignoreCase = true) })
+        assertEquals(3, releaseTabs.size)
+        assertEquals(listOf("Connection", "Screen Time", "Permissions & Privacy"), releaseTabs)
+    }
+
+    @Test
     fun `unavailable usage is not classified as measured using production isScreenTimeSuccessfullyMeasured`() {
         val nullUsage: ScreenTimeReportRequest? = null
         val deniedUsage = ScreenTimeReportRequest(
@@ -358,6 +384,175 @@ class MainViewModelTest {
         // Refresh time was updated again, but successful measurement time resets to null
         assertNotNull(vm.lastUsageRefreshTime.value)
         assertNull(vm.lastSuccessfulMeasurementTime.value)
+    }
+
+    @Test
+    fun `isQuietHoursCurrentlyActive accurately evaluates daytime windows`() {
+        val policy = DevicePolicyResponse(
+            policyVersion = 3,
+            dailyLimitMinutes = null,
+            quietHoursEnabled = true,
+            quietHoursStart = "09:00",
+            quietHoursEnd = "13:00",
+            quietHoursDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
+            webRestrictionsEnabled = true,
+            blockedDomains = emptyList()
+        )
+
+        // Inside window at 11:30 AM on Saturday
+        val calInside = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.SATURDAY)
+            set(Calendar.HOUR_OF_DAY, 11)
+            set(Calendar.MINUTE, 30)
+        }
+        assertTrue(MainActivity.isQuietHoursCurrentlyActive(policy, calInside))
+
+        // Right at start time 09:00 AM
+        val calStart = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.SATURDAY)
+            set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0)
+        }
+        assertTrue(MainActivity.isQuietHoursCurrentlyActive(policy, calStart))
+
+        // Outside window at 08:59 AM
+        val calBefore = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.SATURDAY)
+            set(Calendar.HOUR_OF_DAY, 8)
+            set(Calendar.MINUTE, 59)
+        }
+        assertFalse(MainActivity.isQuietHoursCurrentlyActive(policy, calBefore))
+
+        // Outside window at 01:00 PM (13:00)
+        val calAfter = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.SATURDAY)
+            set(Calendar.HOUR_OF_DAY, 13)
+            set(Calendar.MINUTE, 0)
+        }
+        assertFalse(MainActivity.isQuietHoursCurrentlyActive(policy, calAfter))
+
+        // When quietHoursEnabled is false
+        val disabledPolicy = policy.copy(quietHoursEnabled = false)
+        assertFalse(MainActivity.isQuietHoursCurrentlyActive(disabledPolicy, calInside))
+    }
+
+    @Test
+    fun `isQuietHoursCurrentlyActive accurately evaluates overnight windows`() {
+        val policy = DevicePolicyResponse(
+            policyVersion = 1,
+            dailyLimitMinutes = null,
+            quietHoursEnabled = true,
+            quietHoursStart = "21:00",
+            quietHoursEnd = "07:00",
+            quietHoursDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
+            webRestrictionsEnabled = true,
+            blockedDomains = emptyList()
+        )
+
+        // Late evening at 22:30
+        val calEvening = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 22)
+            set(Calendar.MINUTE, 30)
+        }
+        assertTrue(MainActivity.isQuietHoursCurrentlyActive(policy, calEvening))
+
+        // Early morning at 05:00
+        val calEarlyMorning = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.TUESDAY)
+            set(Calendar.HOUR_OF_DAY, 5)
+            set(Calendar.MINUTE, 0)
+        }
+        assertTrue(MainActivity.isQuietHoursCurrentlyActive(policy, calEarlyMorning))
+
+        // Daytime outside window at 14:00
+        val calAfternoon = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.TUESDAY)
+            set(Calendar.HOUR_OF_DAY, 14)
+            set(Calendar.MINUTE, 0)
+        }
+        assertFalse(MainActivity.isQuietHoursCurrentlyActive(policy, calAfternoon))
+    }
+
+    @Test
+    fun `formatTime12Hour converts 24-hour time to friendly 12-hour AM-PM format`() {
+        assertEquals("9:00 AM", MainActivity.formatTime12Hour("09:00"))
+        assertEquals("1:00 PM", MainActivity.formatTime12Hour("13:00"))
+        assertEquals("12:00 AM", MainActivity.formatTime12Hour("00:00"))
+        assertEquals("12:00 PM", MainActivity.formatTime12Hour("12:00"))
+        assertEquals("9:05 PM", MainActivity.formatTime12Hour("21:05"))
+        assertEquals("—", MainActivity.formatTime12Hour(null))
+    }
+
+    @Test
+    fun `formatActiveDays formats active day lists into readable strings`() {
+        val allDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+        assertEquals("Every day (Mon – Sun)", MainActivity.formatActiveDays(allDays))
+        assertEquals("Every day (Mon – Sun)", MainActivity.formatActiveDays(emptyList()))
+
+        val weekdays = listOf("monday", "tuesday", "wednesday", "thursday", "friday")
+        assertEquals("Mon, Tue, Wed, Thu, Fri", MainActivity.formatActiveDays(weekdays))
+    }
+
+    @Test
+    fun `DevicePolicyResponse correctly serializes and deserializes appRestrictions`() {
+        val jsonString = """
+            {
+                "data": {
+                    "policyVersion": 4,
+                    "policy": {
+                        "screenTime": {
+                            "dailyLimitMinutes": 120,
+                            "quietHours": { "enabled": true, "start": "21:00", "end": "07:00" }
+                        },
+                        "appRestrictions": {
+                            "enabled": true,
+                            "blockedApps": [
+                                { "packageName": "com.zhiliaoapp.musically", "appName": "TikTok" },
+                                { "packageName": "com.roblox.client", "appName": "Roblox" }
+                            ]
+                        },
+                        "webRestrictions": {
+                            "enabled": false,
+                            "blockedDomains": []
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val parsed = DevicePolicyResponse.fromJson(org.json.JSONObject(jsonString))
+        assertEquals(4, parsed.policyVersion)
+        assertTrue(parsed.appRestrictions.enabled)
+        assertEquals(2, parsed.appRestrictions.blockedApps.size)
+        assertEquals("com.zhiliaoapp.musically", parsed.appRestrictions.blockedApps[0].packageName)
+        assertEquals("TikTok", parsed.appRestrictions.blockedApps[0].appName)
+        assertEquals("com.roblox.client", parsed.appRestrictions.blockedApps[1].packageName)
+        assertEquals("Roblox", parsed.appRestrictions.blockedApps[1].appName)
+
+        // Serialize back to JSON and re-parse
+        val serialized = parsed.toJson()
+        val reParsed = DevicePolicyResponse.fromJson(org.json.JSONObject(serialized))
+        assertEquals(4, reParsed.policyVersion)
+        assertTrue(reParsed.appRestrictions.enabled)
+        assertEquals(2, reParsed.appRestrictions.blockedApps.size)
+        assertEquals("com.zhiliaoapp.musically", reParsed.appRestrictions.blockedApps[0].packageName)
+        assertEquals("TikTok", reParsed.appRestrictions.blockedApps[0].appName)
+    }
+
+    @Test
+    fun `formatMinutesHuman correctly formats minutes into friendly hours and minutes`() {
+        assertEquals("0m", MainActivity.formatMinutesHuman(0))
+        assertEquals("0m", MainActivity.formatMinutesHuman(-5))
+        assertEquals("30m", MainActivity.formatMinutesHuman(30))
+        assertEquals("1h", MainActivity.formatMinutesHuman(60))
+        assertEquals("1h 30m", MainActivity.formatMinutesHuman(90))
+        assertEquals("2h", MainActivity.formatMinutesHuman(120))
+        assertEquals("2h 15m", MainActivity.formatMinutesHuman(135))
+        // Long overload test
+        assertEquals("0m", MainActivity.formatMinutesHuman(0L))
+        assertEquals("45m", MainActivity.formatMinutesHuman(45L))
+        assertEquals("3h 10m", MainActivity.formatMinutesHuman(190L))
     }
 }
 

@@ -178,6 +178,28 @@ class MainViewModel(
         }
     }
 
+    private var isAutoSyncing = false
+
+    /**
+     * Seamlessly and automatically synchronizes parental policy changes without user intervention.
+     * Operates silently without setting syncLoading, preserving continuous Paired & Active status.
+     */
+    fun autoSync() {
+        val session = deviceSession.value
+        if (!session.isPaired || isAutoSyncing || _syncLoading.value) return
+        isAutoSyncing = true
+
+        viewModelScope.launch {
+            try {
+                deviceRepository.syncPolicyOnly(policyRepository)
+            } catch (_: Exception) {
+                // Background auto-sync handles transient network failures silently
+            } finally {
+                isAutoSyncing = false
+            }
+        }
+    }
+
     fun saveApiUrl(url: String): Boolean {
         _apiUrlError.value = null
         _apiUrlSavedMessage.value = null

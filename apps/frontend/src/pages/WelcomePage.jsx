@@ -443,6 +443,8 @@ export default function WelcomePage() {
                     }}
                     onPolicySaved={() => {
                       loadDevices();
+                      setTimeout(() => loadDevices(), 2500);
+                      setTimeout(() => loadDevices(), 5000);
                     }}
                   />
                 )}

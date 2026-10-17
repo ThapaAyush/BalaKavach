@@ -41,23 +41,30 @@ class PolicyRepository(
         return when (fetchResult) {
             is ApiResult.Success -> {
                 val policy = fetchResult.data
+                val cached = _cachedPolicy.value
+                val needsAck = !lastAckSucceeded || cached == null || policy.policyVersion != cached.policyVersion
+
                 localPolicyStorage.savePolicy(policy)
                 _cachedPolicy.value = policy
 
-                // Automatically acknowledge policy version
-                val ackResult = apiClient.acknowledgePolicy(baseUrl, deviceCredential, policy.policyVersion)
-                lastAckSucceeded = (ackResult is ApiResult.Success)
+                if (needsAck) {
+                    // Automatically acknowledge policy version
+                    val ackResult = apiClient.acknowledgePolicy(baseUrl, deviceCredential, policy.policyVersion)
+                    lastAckSucceeded = (ackResult is ApiResult.Success)
 
-                if (ackResult is ApiResult.Error && ackResult.isAuthError) {
-                    return ApiResult.Error(
-                        message = ackResult.message,
-                        statusCode = ackResult.statusCode,
-                        isNetworkError = ackResult.isNetworkError,
-                        isAuthError = true,
-                        isTimeout = ackResult.isTimeout,
-                        isServerError = ackResult.isServerError,
-                        isRateLimitError = ackResult.isRateLimitError
-                    )
+                    if (ackResult is ApiResult.Error && ackResult.isAuthError) {
+                        return ApiResult.Error(
+                            message = ackResult.message,
+                            statusCode = ackResult.statusCode,
+                            isNetworkError = ackResult.isNetworkError,
+                            isAuthError = true,
+                            isTimeout = ackResult.isTimeout,
+                            isServerError = ackResult.isServerError,
+                            isRateLimitError = ackResult.isRateLimitError
+                        )
+                    }
+                } else {
+                    lastAckSucceeded = true
                 }
 
                 ApiResult.Success(policy)

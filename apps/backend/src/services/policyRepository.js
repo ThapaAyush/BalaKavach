@@ -73,6 +73,7 @@ export const mongoPolicyRepository = Object.freeze({
           childProfileId,
           version: 1,
           screenTime: policyData.screenTime ?? {},
+          appRestrictions: policyData.appRestrictions ?? {},
           webRestrictions: policyData.webRestrictions ?? {},
         });
         return created.toObject();
@@ -82,6 +83,12 @@ export const mongoPolicyRepository = Object.freeze({
         existing.screenTime = {
           ...existing.screenTime?.toObject?.() ?? existing.screenTime,
           ...policyData.screenTime,
+        };
+      }
+      if (policyData.appRestrictions) {
+        existing.appRestrictions = {
+          ...existing.appRestrictions?.toObject?.() ?? existing.appRestrictions,
+          ...policyData.appRestrictions,
         };
       }
       if (policyData.webRestrictions) {

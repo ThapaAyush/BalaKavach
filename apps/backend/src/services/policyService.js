@@ -3,6 +3,19 @@ import { mongoFamilyChildRepository } from './familyChildRepository.js';
 import { mongoDevicePairingRepository } from './devicePairingRepository.js';
 import { childProfileNotFoundError } from './familyChildErrors.js';
 
+function normalizeBlockedApps(rawList) {
+  if (!Array.isArray(rawList)) return [];
+  return rawList.map((item) => {
+    if (typeof item === 'string') {
+      return { packageName: item, appName: item };
+    }
+    return {
+      packageName: item.packageName || '',
+      appName: item.appName || item.packageName || '',
+    };
+  }).filter((app) => app.packageName.length > 0);
+}
+
 function publicPolicy(policy, childProfileId) {
   if (!policy) {
     return {
@@ -16,6 +29,10 @@ function publicPolicy(policy, childProfileId) {
           end: '07:00',
           days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
         },
+      },
+      appRestrictions: {
+        enabled: false,
+        blockedApps: [],
       },
       webRestrictions: {
         enabled: false,
@@ -37,6 +54,10 @@ function publicPolicy(policy, childProfileId) {
         end: policy.screenTime?.quietHours?.end ?? '07:00',
         days: policy.screenTime?.quietHours?.days ?? ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
       },
+    },
+    appRestrictions: {
+      enabled: policy.appRestrictions?.enabled ?? false,
+      blockedApps: normalizeBlockedApps(policy.appRestrictions?.blockedApps),
     },
     webRestrictions: {
       enabled: policy.webRestrictions?.enabled ?? false,
@@ -92,6 +113,7 @@ export function createPolicyService({
         policyVersion: pub.version,
         policy: {
           screenTime: pub.screenTime,
+          appRestrictions: pub.appRestrictions,
           webRestrictions: pub.webRestrictions,
         },
       };

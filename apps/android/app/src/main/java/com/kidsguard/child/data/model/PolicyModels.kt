@@ -3,6 +3,16 @@ package com.kidsguard.child.data.model
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class BlockedAppDto(
+    val packageName: String = "",
+    val appName: String = ""
+)
+
+data class AppRestrictionsDto(
+    val enabled: Boolean = false,
+    val blockedApps: List<BlockedAppDto> = emptyList()
+)
+
 /**
  * Public policy structure received from GET /api/v1/devices/policy
  */
@@ -13,6 +23,7 @@ data class DevicePolicyResponse(
     val quietHoursStart: String?,
     val quietHoursEnd: String?,
     val quietHoursDays: List<String>,
+    val appRestrictions: AppRestrictionsDto = AppRestrictionsDto(),
     val webRestrictionsEnabled: Boolean,
     val blockedDomains: List<String>
 ) {
@@ -25,6 +36,7 @@ data class DevicePolicyResponse(
                 quietHoursStart = "21:00",
                 quietHoursEnd = "07:00",
                 quietHoursDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
+                appRestrictions = AppRestrictionsDto(enabled = false, blockedApps = emptyList()),
                 webRestrictionsEnabled = true,
                 blockedDomains = emptyList()
             )
@@ -58,6 +70,29 @@ data class DevicePolicyResponse(
                 quietHoursDays.addAll(listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"))
             }
 
+            // App restrictions
+            val appRestrictionsObj = policyObj.optJSONObject("appRestrictions")
+            val appRestrictionsEnabled = appRestrictionsObj?.optBoolean("enabled", false) ?: false
+            val blockedApps = mutableListOf<BlockedAppDto>()
+            val blockedAppsArray = appRestrictionsObj?.optJSONArray("blockedApps")
+            if (blockedAppsArray != null) {
+                for (i in 0 until blockedAppsArray.length()) {
+                    val item = blockedAppsArray.optJSONObject(i)
+                    if (item != null) {
+                        val pkg = item.optString("packageName")
+                        val name = item.optString("appName", pkg)
+                        if (pkg.isNotBlank()) {
+                            blockedApps.add(BlockedAppDto(packageName = pkg, appName = name))
+                        }
+                    } else {
+                        val str = blockedAppsArray.optString(i)
+                        if (str.isNotBlank()) {
+                            blockedApps.add(BlockedAppDto(packageName = str, appName = str))
+                        }
+                    }
+                }
+            }
+
             // Web restrictions
             val webRestrictionsObj = policyObj.optJSONObject("webRestrictions")
             val webRestrictionsEnabled = webRestrictionsObj?.optBoolean("enabled", true) ?: true
@@ -76,6 +111,10 @@ data class DevicePolicyResponse(
                 quietHoursStart = quietHoursStart,
                 quietHoursEnd = quietHoursEnd,
                 quietHoursDays = quietHoursDays,
+                appRestrictions = AppRestrictionsDto(
+                    enabled = appRestrictionsEnabled,
+                    blockedApps = blockedApps
+                ),
                 webRestrictionsEnabled = webRestrictionsEnabled,
                 blockedDomains = blockedDomains
             )
@@ -104,6 +143,18 @@ data class DevicePolicyResponse(
         quietHoursObj.put("days", daysArray)
         screenTimeObj.put("quietHours", quietHoursObj)
         policyObj.put("screenTime", screenTimeObj)
+
+        val appRestObj = JSONObject()
+        appRestObj.put("enabled", appRestrictions.enabled)
+        val appsArray = JSONArray()
+        appRestrictions.blockedApps.forEach { app ->
+            val item = JSONObject()
+            item.put("packageName", app.packageName)
+            item.put("appName", app.appName)
+            appsArray.put(item)
+        }
+        appRestObj.put("blockedApps", appsArray)
+        policyObj.put("appRestrictions", appRestObj)
 
         val webObj = JSONObject()
         webObj.put("enabled", webRestrictionsEnabled)

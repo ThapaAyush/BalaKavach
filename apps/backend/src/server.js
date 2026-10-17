@@ -47,7 +47,7 @@ export async function startServer() {
     console.warn(`${error.message} Starting API in degraded mode.`);
   }
 
-  return app.listen(env.PORT, () => {
+  return app.listen(env.PORT, '0.0.0.0', () => {
     console.info(`KidsGuard API listening on port ${env.PORT}.`);
   });
 }

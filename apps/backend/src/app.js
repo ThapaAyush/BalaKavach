@@ -30,6 +30,11 @@ export function createApp({
   const logger = pino({ level: runtimeEnv.NODE_ENV === 'test' ? 'silent' : 'info' });
   const app = express();
 
+  const trustProxyHops = runtimeEnv.TRUST_PROXY ?? (runtimeEnv.NODE_ENV === 'production' ? 1 : 0);
+  if (trustProxyHops > 0) {
+    app.set('trust proxy', trustProxyHops);
+  }
+
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cors({
@@ -59,6 +64,7 @@ export function createApp({
     authService,
     clientOrigin: runtimeEnv.CLIENT_ORIGIN,
     nodeEnv: runtimeEnv.NODE_ENV,
+    sameSite: runtimeEnv.SESSION_COOKIE_SAME_SITE ?? 'strict',
   }));
   app.use('/api/v1/children', createChildRouter({
     authService,

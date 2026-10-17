@@ -4,6 +4,7 @@ import com.kidsguard.child.data.local.SecureCredentialStorage
 import com.kidsguard.child.data.local.ServerConfigStorage
 import com.kidsguard.child.data.local.SessionStorage
 import com.kidsguard.child.data.model.ApiResult
+import com.kidsguard.child.data.model.DevicePolicyResponse
 import com.kidsguard.child.data.model.DeviceSession
 import com.kidsguard.child.data.model.PairingRequest
 import com.kidsguard.child.data.remote.KidsGuardApiClient
@@ -124,6 +125,53 @@ class DeviceRepository(
                 handleSyncError(result, currentSession)
             }
         }
+    }
+
+    /**
+     * Synchronizes parental policies from the server and updates local device session.
+     * Designed for automated, continuous synchronization without invoking rate-limited heartbeat or screen-time endpoints.
+     */
+    suspend fun syncPolicyOnly(policyRepository: PolicyRepository): ApiResult<DevicePolicyResponse> {
+        val currentSession = _deviceSession.value
+        if (!currentSession.isPaired || !secureStorage.hasDeviceCredential()) {
+            return ApiResult.Error("Device is not paired.")
+        }
+
+        if (currentSession.pairingStatus == DeviceSession.STATUS_INVALID_SESSION) {
+            return ApiResult.Error("Device session is invalid or expired. Re-pairing is required.", isAuthError = true)
+        }
+
+        val credential = secureStorage.getDeviceCredential() ?: return ApiResult.Error("Missing device credential.")
+        val baseUrl = serverConfigStorage.getApiBaseUrl()
+        val now = currentIsoTimestamp()
+
+        val policyResult = policyRepository.syncPolicy(baseUrl, credential)
+        if (policyResult is ApiResult.Error && policyResult.isAuthError) {
+            handleSyncError(policyResult, currentSession)
+            return policyResult
+        }
+
+        if (policyResult is ApiResult.Success) {
+            val policy = policyResult.data
+            val ackSuccess = policyRepository.lastAckSucceeded
+
+            val updatedSession = currentSession.copy(
+                lastSeenAt = now,
+                lastHeartbeatAt = now,
+                lastHeartbeatStatus = "ok",
+                acknowledgedPolicyVersion = if (ackSuccess) policy.policyVersion else currentSession.acknowledgedPolicyVersion,
+                lastPolicySyncAt = now,
+                dailyLimitMinutes = policy.dailyLimitMinutes,
+                quietHoursEnabled = policy.quietHoursEnabled,
+                quietHoursRange = if (policy.quietHoursEnabled) {
+                    "${policy.quietHoursStart} - ${policy.quietHoursEnd}"
+                } else null
+            )
+
+            sessionStorage.saveSession(updatedSession)
+            _deviceSession.value = updatedSession
+        }
+        return policyResult
     }
 
     /**

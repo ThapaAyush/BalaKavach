@@ -70,10 +70,37 @@
     <string name="daily_limit_title">Parent Daily Budget</string>
     <string name="limit_format">%1$d minutes daily budget</string>
     <string name="no_limit_set">No daily limit configured by parent</string>
+    <string name="daily_limit_reached_title">Daily Screen-Time Limit Reached</string>
+    <string name="daily_limit_reached_body">You have reached your daily budget of %1$s (%2$s used today). Please take a break from the screen.</string>
+    <string name="daily_limit_reached_badge">LIMIT REACHED</string>
+    <string name="daily_limit_near_title">Almost at Daily Limit</string>
+    <string name="daily_limit_near_body">You have used %1$s of your %2$s budget (%3$s remaining).</string>
+    <string name="daily_limit_near_badge">NEAR LIMIT</string>
+    <string name="daily_limit_active_title">Daily Screen-Time Budget Active</string>
+    <string name="daily_limit_active_body">%1$s remaining of today\'s %2$s allowance (%3$s used).</string>
+    <string name="daily_limit_badge_on_track">ON TRACK</string>
+    <string name="daily_limit_badge_no_limit">NO LIMIT</string>
+    <string name="daily_limit_remaining_format">Remaining today: %1$s (%2$s used of %3$s budget)</string>
+    <string name="daily_limit_exceeded_format">Over budget by %1$s (%2$s used of %3$s budget)</string>
     <string name="quiet_hours_title">Parent Quiet Hours</string>
     <string name="quiet_hours_disabled">No quiet hours scheduled</string>
     <string name="quiet_hours_format">Active: %1$s to %2$s</string>
-    <string name="read_only_policy_note">Parental budgets and quiet hours are configured on the web dashboard. This companion app measures usage but does not forcibly block device applications.</string>
+    <string name="quiet_hours_active_title">Quiet Hours / Bedtime Active</string>
+    <string name="quiet_hours_active_body">Parental quiet hours are currently in effect. Device access is restricted for sleep, study, or family time.</string>
+    <string name="quiet_hours_in_effect_badge">IN EFFECT NOW</string>
+    <string name="quiet_hours_scheduled_badge">SCHEDULED</string>
+    <string name="read_only_policy_note">Parental budgets, quiet hours, and app restrictions are configured on the web dashboard. This companion app transparently monitors usage and enforces parental policy without VPN redirection.</string>
+
+    <!-- App Restrictions (No VPN) -->
+    <string name="app_restrictions_active_title">Parental App Restrictions Active</string>
+    <string name="app_restrictions_active_body">Your parent has restricted %1$d application(s) on this device. Monitored transparently via Android Usage Supervision without a VPN.</string>
+    <string name="app_restrictions_title">Restricted Apps</string>
+    <string name="app_restrictions_note">Configured on the parent web dashboard. Supervised transparently on this Android device using Usage Access without VPN network interception.</string>
+    <string name="app_restrictions_empty">No specific applications restricted by parent.</string>
+    <string name="app_restrictions_badge_active">%1$d RESTRICTED</string>
+    <string name="app_restrictions_badge_none">NONE RESTRICTED</string>
+    <string name="badge_blocked">BLOCKED</string>
+    <string name="blocked_app_detected_warning">⚠️ Restricted App Activity: %1$s was launched today. Parental policy restricts this application.</string>
 
     <string name="top_apps_title">Foreground App Activity Today</string>
     <string name="no_apps_recorded">No foreground app activity recorded for today.</string>

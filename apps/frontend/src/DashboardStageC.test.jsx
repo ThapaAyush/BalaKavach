@@ -49,6 +49,7 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
         savedPolicy = {
           version: 2,
           screenTime: body.screenTime,
+          appRestrictions: body.appRestrictions,
           webRestrictions: body.webRestrictions,
         };
         return response(200, { ok: true, data: { policy: savedPolicy } });

@@ -7,10 +7,10 @@ import { validateBody } from '../middleware/validateBody.js';
 import { getSessionCookieName } from '../utils/sessionCookie.js';
 import { loginSchema, registrationSchema } from '../validators/authValidators.js';
 
-export function createAuthRouter({ authService, clientOrigin, nodeEnv }) {
+export function createAuthRouter({ authService, clientOrigin, nodeEnv, sameSite = 'strict' }) {
   const router = Router();
   const cookieName = getSessionCookieName(nodeEnv);
-  const controller = createAuthController({ authService, cookieName, nodeEnv });
+  const controller = createAuthController({ authService, cookieName, nodeEnv, sameSite });
   const requireAuth = requireParentAuth(authService, { cookieName, nodeEnv });
   const sameOrigin = requireSameOrigin(clientOrigin);
   const credentialRateLimit = rateLimit({

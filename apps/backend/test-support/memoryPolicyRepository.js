@@ -39,6 +39,10 @@ export function createMemoryPolicyRepository() {
               days: policyData.screenTime?.quietHours?.days ?? ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
             },
           },
+          appRestrictions: {
+            enabled: policyData.appRestrictions?.enabled ?? false,
+            blockedApps: policyData.appRestrictions?.blockedApps ?? [],
+          },
           webRestrictions: {
             enabled: policyData.webRestrictions?.enabled ?? false,
             enforcementPlatform: 'desktop_chrome',
@@ -61,6 +65,10 @@ export function createMemoryPolicyRepository() {
             ...existing.screenTime?.quietHours,
             ...(policyData.screenTime?.quietHours || {}),
           },
+        },
+        appRestrictions: {
+          ...existing.appRestrictions,
+          ...(policyData.appRestrictions || {}),
         },
         webRestrictions: {
           ...existing.webRestrictions,

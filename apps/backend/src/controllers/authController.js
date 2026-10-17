@@ -4,7 +4,7 @@ import {
   setSessionCookie,
 } from '../utils/sessionCookie.js';
 
-export function createAuthController({ authService, cookieName, nodeEnv }) {
+export function createAuthController({ authService, cookieName, nodeEnv, sameSite = 'strict' }) {
   return Object.freeze({
     async register(req, res, next) {
       try {
@@ -27,6 +27,7 @@ export function createAuthController({ authService, cookieName, nodeEnv }) {
           session.token,
           Math.max(0, session.expiresAt.getTime() - Date.now()),
           nodeEnv,
+          sameSite,
         );
         return res.status(200).json({ ok: true, data: { parent: session.parent } });
       } catch (error) {
@@ -37,7 +38,7 @@ export function createAuthController({ authService, cookieName, nodeEnv }) {
     async logout(req, res, next) {
       try {
         await authService.logout(readSessionToken(req, cookieName));
-        clearSessionCookie(res, cookieName, nodeEnv);
+        clearSessionCookie(res, cookieName, nodeEnv, sameSite);
         return res.status(204).end();
       } catch (error) {
         return next(error);

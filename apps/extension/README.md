@@ -62,7 +62,7 @@ npm run dev:frontend
 
 ### 6. Verify policy synchronization and enforcement in the extension
 
-1. In the Chrome extension popup, click **Sync with parent policy** (or wait for the 15-minute heartbeat cycle).
+1. Observe the Chrome extension popup: the extension automatically synchronizes with parent policy in the background without needing manual sync button clicks.
 2. Verify that `example.com` appears under **Blocked domains** and the status reports `Rules applied for 1 domain.`.
 3. Open a new tab in Chrome and navigate to `https://example.com` or `https://www.example.com`.
 4. Confirm Chrome blocks the navigation with `ERR_BLOCKED_BY_CLIENT`.
@@ -71,7 +71,7 @@ npm run dev:frontend
 ### 7. Verify policy update and rule removal
 
 1. In the parent dashboard, remove `example.com` or disable Web Restrictions, then save.
-2. In the extension popup, click **Sync with parent policy**.
+2. In the extension popup, observe that the policy updates automatically in real time (live auto-sync).
 3. Verify the domain list is cleared and status confirms `Rules applied for 0 domains.`.
 4. Refresh `https://example.com` in Chrome and verify the site now loads.
 

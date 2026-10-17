@@ -275,6 +275,44 @@ describe('Policy Management API (/api/v1/children/:childId/policy & /api/v1/devi
     assert.equal(ackRes.status, 401);
   });
 
+  it('supports appRestrictions for mobile companion apps without VPN', async () => {
+    const updateRes = await request(app)
+      .put(`/api/v1/children/${childIdParentOne}/policy`)
+      .set('Cookie', cookieFor(TOKEN_PARENT_ONE))
+      .set('Origin', CLIENT_ORIGIN)
+      .send({
+        appRestrictions: {
+          enabled: true,
+          blockedApps: [
+            { packageName: 'com.zhiliaoapp.musically', appName: 'TikTok' },
+            { packageName: 'com.roblox.client', appName: 'Roblox' },
+            'com.google.android.youtube',
+          ],
+        },
+      });
+
+    assert.equal(updateRes.status, 200);
+    assert.equal(updateRes.body.data.policy.appRestrictions.enabled, true);
+    assert.equal(updateRes.body.data.policy.appRestrictions.blockedApps.length, 3);
+    assert.deepEqual(updateRes.body.data.policy.appRestrictions.blockedApps[0], {
+      packageName: 'com.zhiliaoapp.musically',
+      appName: 'TikTok',
+    });
+    assert.deepEqual(updateRes.body.data.policy.appRestrictions.blockedApps[2], {
+      packageName: 'com.google.android.youtube',
+      appName: 'com.google.android.youtube',
+    });
+
+    // Device fetches policy with appRestrictions
+    const deviceRes = await request(app)
+      .get('/api/v1/devices/policy')
+      .set('Authorization', `Bearer ${deviceCredential}`);
+
+    assert.equal(deviceRes.status, 200);
+    assert.equal(deviceRes.body.data.policy.appRestrictions.enabled, true);
+    assert.equal(deviceRes.body.data.policy.appRestrictions.blockedApps.length, 3);
+  });
+
   it('fails closed with 503 when policy storage is unavailable', async () => {
     const unavailableService = createPolicyService({
       repository: {

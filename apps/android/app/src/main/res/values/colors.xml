@@ -16,4 +16,10 @@
     <color name="status_red">#EF4444</color>
     <color name="status_gray">#94A3B8</color>
     <color name="status_blue">#0284C7</color>
+    <color name="status_purple">#7C3AED</color>
+    <color name="status_purple_light">#F5F3FF</color>
+    <color name="status_red_light">#FEF2F2</color>
+    <color name="status_red_border">#FECACA</color>
+    <color name="status_yellow_light">#FEFCE8</color>
+    <color name="status_yellow_border">#FEF08A</color>
 </resources>

@@ -71,6 +71,7 @@ function createMockPopupDom() {
     '#device-heartbeat-display': createMockElement('dd'),
     '#device-policy-display': createMockElement('dd', { textContent: 'v0' }),
     '#device-sync-display': createMockElement('dd', { textContent: 'Never' }),
+    '#device-sync-mode': createMockElement('dd', { textContent: 'Automatic (live)' }),
     '#sync-button': createMockElement('button', { textContent: 'Sync with parent policy', hidden: true }),
     '#device-error': createMockElement('p', { hidden: true }),
   };
@@ -233,7 +234,8 @@ test('successful pairing updates UI, clears pairing code, and shows paired statu
   assert.equal(elements['#device-name-display'].textContent, 'Alex Chromebook');
   assert.equal(elements['#device-id-display'].textContent, 'dev-999');
   assert.equal(elements['#pairing-form'].hidden, true);
-  assert.equal(elements['#sync-button'].hidden, false);
+  assert.equal(elements['#sync-button'].hidden, true, 'Manual sync button is hidden/removed');
+  assert.equal(elements['#device-sync-mode'].textContent, 'Automatic (live)');
   assert.equal(elements['#device-error'].hidden, true);
 });
 
@@ -342,7 +344,7 @@ test('heartbeat display shows offline state with local filtering notice', async 
   assert.equal(elements['#device-policy-display'].textContent, 'v5');
 });
 
-test('sync button triggers policy sync and updates rule display', async () => {
+test('automatic policy sync triggers policy sync and updates rule display without manual clicks', async () => {
   const { document, elements } = createMockPopupDom();
   const chrome = createMockChrome(async (msg) => {
     if (msg.action === 'syncPolicy') {
@@ -364,13 +366,63 @@ test('sync button triggers policy sync and updates rule display', async () => {
   });
 
   const controller = createPopupController({ document, chrome });
-  await controller.handleSync();
+  await controller.autoSync();
 
   assert.equal(chrome.runtime.sentMessages.length, 1);
   assert.deepEqual(chrome.runtime.sentMessages[0], { action: 'syncPolicy' });
   assert.equal(elements['#domain-list'].children.length, 2);
   assert.equal(elements['#device-policy-display'].textContent, 'v4');
   assert.match(elements['#status'].textContent, /Rules applied for 2 domains/u);
+});
+
+test('automatic policy synchronization runs on init when device is paired and live timer polls', async () => {
+  const { document, elements } = createMockPopupDom();
+  let syncCount = 0;
+  const chrome = createMockChrome(async (msg) => {
+    if (msg.action === 'getState') {
+      return {
+        ok: true,
+        applied: true,
+        configuredDomains: ['initial.com'],
+        appliedDomains: ['initial.com'],
+        device: {
+          isPaired: true,
+          pairingStatus: 'paired',
+          deviceId: 'dev-123',
+          acknowledgedPolicyVersion: 1,
+        },
+      };
+    }
+    if (msg.action === 'syncPolicy') {
+      syncCount++;
+      return {
+        ok: true,
+        applied: true,
+        configuredDomains: ['initial.com', 'updated-by-parent.com'],
+        appliedDomains: ['initial.com', 'updated-by-parent.com'],
+        device: {
+          isPaired: true,
+          pairingStatus: 'paired',
+          deviceId: 'dev-123',
+          acknowledgedPolicyVersion: 2,
+          lastPolicySyncAt: '2026-10-17T12:00:00.000Z',
+        },
+      };
+    }
+    return { ok: false };
+  });
+
+  const controller = createPopupController({ document, chrome, autoSyncIntervalMs: 50 });
+  controller.init();
+
+  // Wait briefly for init and timer promises to resolve
+  await new Promise((r) => setTimeout(r, 120));
+  controller.stopAutoSync();
+
+  assert.ok(syncCount >= 1, 'autoSync should have been executed automatically without user interaction');
+  assert.equal(elements['#device-policy-display'].textContent, 'v2');
+  assert.equal(elements['#domain-list'].children.length, 2);
+  assert.equal(elements['#device-sync-mode'].textContent, 'Automatic (live)');
 });
 
 test('credentials are never disclosed across popup DOM elements or state', async () => {

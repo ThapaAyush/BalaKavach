@@ -14,22 +14,22 @@ export function readSessionToken(req, cookieName) {
   }
 }
 
-function sessionCookieOptions(nodeEnv) {
+export function sessionCookieOptions(nodeEnv, sameSite = 'strict') {
   return {
     httpOnly: true,
-    secure: nodeEnv === 'production',
-    sameSite: 'strict',
+    secure: nodeEnv === 'production' || sameSite === 'none',
+    sameSite,
     path: '/',
   };
 }
 
-export function setSessionCookie(res, cookieName, token, maxAgeMs, nodeEnv) {
+export function setSessionCookie(res, cookieName, token, maxAgeMs, nodeEnv, sameSite = 'strict') {
   res.cookie(cookieName, token, {
-    ...sessionCookieOptions(nodeEnv),
+    ...sessionCookieOptions(nodeEnv, sameSite),
     maxAge: maxAgeMs,
   });
 }
 
-export function clearSessionCookie(res, cookieName, nodeEnv) {
-  res.clearCookie(cookieName, sessionCookieOptions(nodeEnv));
+export function clearSessionCookie(res, cookieName, nodeEnv, sameSite = 'strict') {
+  res.clearCookie(cookieName, sessionCookieOptions(nodeEnv, sameSite));
 }

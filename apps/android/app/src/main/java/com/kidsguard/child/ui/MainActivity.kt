@@ -16,13 +16,17 @@ import com.google.android.material.tabs.TabLayout
 import com.kidsguard.child.KidsGuardApp
 import com.kidsguard.child.R
 import com.kidsguard.child.data.model.AppUsageItemDto
+import com.kidsguard.child.data.model.BlockedAppDto
 import com.kidsguard.child.data.model.DevicePolicyResponse
 import com.kidsguard.child.data.model.DeviceSession
 import com.kidsguard.child.data.model.ScreenTimeReportRequest
 import com.kidsguard.child.databinding.ActivityMainBinding
 import com.kidsguard.child.service.usage.UsageStatsHelper
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -64,6 +68,14 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Refresh usage permission status and measured stats when returning to the app
         viewModel.refreshUsageData()
+        // Automatically synchronize any policy changes made from the website
+        viewModel.autoSync()
+        // Update quiet hours alert status for current time
+        updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
+        // Update app restrictions alert banner
+        updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
+        // Update daily limit alert banner
+        updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
     }
 
     private fun setupTabs() {
@@ -128,11 +140,6 @@ class MainActivity : AppCompatActivity() {
             binding.textPairingError.visibility = View.GONE
             viewModel.clearPairingError()
             viewModel.pairDevice(code, name)
-        }
-
-        // Sync Now button
-        binding.btnSyncNow.setOnClickListener {
-            viewModel.syncNow()
         }
 
         // Grant Usage Access buttons (from Permissions tab and Screen Time banner)
@@ -211,7 +218,19 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     viewModel.syncLoading.collect { loading ->
                         binding.syncProgressBar.visibility = if (loading) View.VISIBLE else View.GONE
-                        binding.btnSyncNow.isEnabled = !loading
+                    }
+                }
+
+                // Continuous automatic synchronization while activity is in foreground
+                launch {
+                    while (isActive) {
+                        delay(AUTO_SYNC_INTERVAL_MS)
+                        if (viewModel.deviceSession.value.isPaired) {
+                            viewModel.autoSync()
+                        }
+                        updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
+                        updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
+                        updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
                     }
                 }
 
@@ -242,6 +261,7 @@ class MainActivity : AppCompatActivity() {
                             policy = viewModel.cachedPolicy.value,
                             lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
                         )
+                        updateDailyLimitAlertUi(viewModel.cachedPolicy.value, usage)
                     }
                 }
 
@@ -252,6 +272,9 @@ class MainActivity : AppCompatActivity() {
                             policy = policy,
                             lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
                         )
+                        updateQuietHoursAlertUi(policy)
+                        updateAppRestrictionsAlertUi(policy)
+                        updateDailyLimitAlertUi(policy, viewModel.todayUsage.value)
                     }
                 }
 
@@ -433,41 +456,117 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // 3. Parent Daily Limit & Quiet Hours (Read-Only)
+        // 3. Parent Daily Limit (Read-Only)
         val dailyLimitMin = policy?.dailyLimitMinutes
+        val usedMinutes = if (usage?.totalScreenTimeSeconds != null) {
+            usage.totalScreenTimeSeconds / 60
+        } else {
+            0
+        }
+
         if (dailyLimitMin != null && dailyLimitMin > 0) {
-            binding.textDailyLimitBudget.text = getString(R.string.limit_format, dailyLimitMin)
+            val formattedBudget = formatMinutesHuman(dailyLimitMin)
+            binding.textDailyLimitBudget.text = "$formattedBudget daily allowance"
             binding.progressDailyLimit.visibility = View.VISIBLE
 
-            val usedMinutes = if (usage?.totalScreenTimeSeconds != null) {
-                usage.totalScreenTimeSeconds / 60
-            } else {
-                0
-            }
             val percent = ((usedMinutes.toDouble() / dailyLimitMin) * 100).toInt().coerceIn(0, 100)
             binding.progressDailyLimit.progress = percent
 
+            binding.textDailyLimitBadge.visibility = View.VISIBLE
+            binding.textDailyLimitRemaining.visibility = View.VISIBLE
+
             if (usedMinutes >= dailyLimitMin) {
+                val overMinutes = usedMinutes - dailyLimitMin
+                binding.textDailyLimitBadge.text = getString(R.string.daily_limit_reached_badge)
+                binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+
+                binding.textDailyLimitRemaining.text = getString(
+                    R.string.daily_limit_exceeded_format,
+                    formatMinutesHuman(overMinutes),
+                    formatMinutesHuman(usedMinutes),
+                    formattedBudget
+                )
+                binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.status_red))
                 binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
+            } else if (percent >= 80) {
+                val remainingMinutes = dailyLimitMin - usedMinutes
+                binding.textDailyLimitBadge.text = getString(R.string.daily_limit_near_badge)
+                binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_yellow)
+
+                binding.textDailyLimitRemaining.text = getString(
+                    R.string.daily_limit_remaining_format,
+                    formatMinutesHuman(remainingMinutes),
+                    formatMinutesHuman(usedMinutes),
+                    formattedBudget
+                )
+                binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
+                binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
             } else {
+                val remainingMinutes = dailyLimitMin - usedMinutes
+                binding.textDailyLimitBadge.text = getString(R.string.daily_limit_badge_on_track)
+                binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_green)
+
+                binding.textDailyLimitRemaining.text = getString(
+                    R.string.daily_limit_remaining_format,
+                    formatMinutesHuman(remainingMinutes),
+                    formatMinutesHuman(usedMinutes),
+                    formattedBudget
+                )
+                binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
                 binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.accent)
             }
         } else {
             binding.textDailyLimitBudget.text = getString(R.string.no_limit_set)
+            binding.textDailyLimitBadge.visibility = View.VISIBLE
+            binding.textDailyLimitBadge.text = getString(R.string.daily_limit_badge_no_limit)
+            binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+            binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.border)
+            binding.textDailyLimitRemaining.visibility = View.GONE
             binding.progressDailyLimit.visibility = View.GONE
         }
 
+        val isQuietActive = isQuietHoursCurrentlyActive(policy)
         if (policy?.quietHoursEnabled == true) {
-            binding.textQuietHoursSchedule.text = getString(
-                R.string.quiet_hours_format,
-                policy.quietHoursStart ?: "21:00",
-                policy.quietHoursEnd ?: "07:00"
-            )
+            val formattedRange = "${formatTime12Hour(policy.quietHoursStart)} – ${formatTime12Hour(policy.quietHoursEnd)}"
+            val formattedDays = formatActiveDays(policy.quietHoursDays)
+
+            binding.textQuietHoursDays.text = formattedDays
+            binding.textQuietHoursDays.visibility = View.VISIBLE
+
+            if (isQuietActive) {
+                binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_in_effect_badge)
+                binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textQuietHoursBadge.background = ContextCompat.getDrawable(this, R.color.status_purple)
+                binding.textQuietHoursBadge.visibility = View.VISIBLE
+
+                binding.textQuietHoursSchedule.text = "Active Now: $formattedRange"
+                binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
+            } else {
+                binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_scheduled_badge)
+                binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
+                binding.textQuietHoursBadge.background = ContextCompat.getDrawable(this, R.color.status_purple_light)
+                binding.textQuietHoursBadge.visibility = View.VISIBLE
+
+                binding.textQuietHoursSchedule.text = "Scheduled: $formattedRange"
+                binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+            }
         } else {
+            binding.textQuietHoursBadge.visibility = View.GONE
+            binding.textQuietHoursDays.visibility = View.GONE
             binding.textQuietHoursSchedule.text = getString(R.string.quiet_hours_disabled)
+            binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }
 
-        // 4. Foreground App Usage Breakdown
+        // 4. Parental App Restrictions (Read-Only)
+        updateAppRestrictionsSectionUi(policy, usage)
+
+        // 5. Foreground App Usage Breakdown
+        val blockedPkgSet = policy?.appRestrictions?.takeIf { it.enabled }
+            ?.blockedApps?.map { it.packageName.lowercase() }?.toSet() ?: emptySet()
+
         val appList = usage?.appUsage ?: emptyList()
         binding.containerAppUsageList.removeAllViews()
 
@@ -480,13 +579,14 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.textEmptyApps.visibility = View.GONE
             for (app in appList.take(25)) {
-                val rowView = createAppUsageRow(app)
+                val isBlocked = blockedPkgSet.contains(app.packageName.lowercase())
+                val rowView = createAppUsageRow(app, isBlocked)
                 binding.containerAppUsageList.addView(rowView)
             }
         }
     }
 
-    private fun createAppUsageRow(app: AppUsageItemDto): View {
+    private fun createAppUsageRow(app: AppUsageItemDto, isBlocked: Boolean): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 8, 0, 8)
@@ -494,13 +594,24 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
+            if (isBlocked) {
+                background = ContextCompat.getDrawable(this@MainActivity, R.color.status_red_light)
+            }
         }
 
         val nameView = TextView(this).apply {
-            text = app.appName
+            text = if (isBlocked) "${app.appName} 🚫" else app.appName
             textSize = 14f
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            setTextColor(
+                ContextCompat.getColor(
+                    this@MainActivity,
+                    if (isBlocked) R.color.status_red else R.color.text_primary
+                )
+            )
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            if (isBlocked) {
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            }
         }
 
         val hours = app.durationSeconds / 3600
@@ -514,12 +625,226 @@ class MainActivity : AppCompatActivity() {
         val durationView = TextView(this).apply {
             text = durationStr
             textSize = 13f
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setTextColor(
+                ContextCompat.getColor(
+                    this@MainActivity,
+                    if (isBlocked) R.color.status_red else R.color.text_secondary
+                )
+            )
         }
 
         row.addView(nameView)
+        if (isBlocked) {
+            val blockedBadge = TextView(this).apply {
+                text = getString(R.string.badge_blocked)
+                textSize = 9f
+                setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.white))
+                background = ContextCompat.getDrawable(this@MainActivity, R.color.status_red)
+                setPadding(10, 3, 10, 3)
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginEnd = 12
+                }
+            }
+            row.addView(blockedBadge)
+        }
         row.addView(durationView)
         return row
+    }
+
+    private fun updateAppRestrictionsAlertUi(policy: DevicePolicyResponse?) {
+        val appRestrictions = policy?.appRestrictions
+        if (appRestrictions != null && appRestrictions.enabled && appRestrictions.blockedApps.isNotEmpty()) {
+            binding.cardAppRestrictionsAlert.visibility = View.VISIBLE
+            val count = appRestrictions.blockedApps.size
+            binding.textTab0AppRestrictionsBadge.text = getString(R.string.app_restrictions_badge_active, count)
+            binding.textAppRestrictionsAlertBody.text = getString(R.string.app_restrictions_active_body, count)
+            val names = appRestrictions.blockedApps.joinToString(", ") { it.appName.ifBlank { it.packageName } }
+            binding.textAppRestrictionsAlertList.text = "Restricted: $names"
+        } else {
+            binding.cardAppRestrictionsAlert.visibility = View.GONE
+        }
+    }
+
+    private fun updateAppRestrictionsSectionUi(
+        policy: DevicePolicyResponse?,
+        usage: ScreenTimeReportRequest?
+    ) {
+        val appRestrictions = policy?.appRestrictions
+        val enabled = appRestrictions?.enabled == true
+        val blockedList = appRestrictions?.blockedApps ?: emptyList()
+
+        binding.containerBlockedAppsList.removeAllViews()
+
+        if (enabled && blockedList.isNotEmpty()) {
+            binding.textAppRestrictionsBadge.visibility = View.VISIBLE
+            binding.textAppRestrictionsBadge.text = getString(R.string.app_restrictions_badge_active, blockedList.size)
+            binding.textAppRestrictionsBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            binding.textAppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+            binding.textEmptyBlockedApps.visibility = View.GONE
+
+            for (blockedApp in blockedList) {
+                binding.containerBlockedAppsList.addView(createBlockedAppRow(blockedApp))
+            }
+        } else {
+            binding.textAppRestrictionsBadge.visibility = View.VISIBLE
+            binding.textAppRestrictionsBadge.text = getString(R.string.app_restrictions_badge_none)
+            binding.textAppRestrictionsBadge.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+            binding.textAppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.color.border)
+            binding.textEmptyBlockedApps.visibility = View.VISIBLE
+        }
+
+        // Check if any app launched today violates parental restrictions
+        val blockedPkgSet = blockedList.map { it.packageName.lowercase() }.toSet()
+        val launchedBlockedApps = usage?.appUsage?.filter {
+            blockedPkgSet.contains(it.packageName.lowercase())
+        } ?: emptyList()
+
+        if (enabled && launchedBlockedApps.isNotEmpty()) {
+            val appNames = launchedBlockedApps.joinToString(", ") { it.appName }
+            binding.cardBlockedAppLaunchWarning.visibility = View.VISIBLE
+            binding.textBlockedAppLaunchWarning.text = getString(R.string.blocked_app_detected_warning, appNames)
+        } else {
+            binding.cardBlockedAppLaunchWarning.visibility = View.GONE
+        }
+    }
+
+    private fun createBlockedAppRow(blockedApp: BlockedAppDto): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 10, 0, 10)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val infoLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val nameView = TextView(this).apply {
+            text = "🚫 ${blockedApp.appName.ifBlank { blockedApp.packageName }}"
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        infoLayout.addView(nameView)
+
+        if (blockedApp.appName.isNotBlank() && blockedApp.appName != blockedApp.packageName) {
+            val pkgView = TextView(this).apply {
+                text = blockedApp.packageName
+                textSize = 11f
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            }
+            infoLayout.addView(pkgView)
+        }
+
+        val badgeView = TextView(this).apply {
+            text = getString(R.string.badge_blocked)
+            textSize = 10f
+            setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.white))
+            background = ContextCompat.getDrawable(this@MainActivity, R.color.status_red)
+            setPadding(14, 4, 14, 4)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+
+        row.addView(infoLayout)
+        row.addView(badgeView)
+        return row
+    }
+
+    private fun updateQuietHoursAlertUi(policy: DevicePolicyResponse?) {
+        val isCurrentlyActive = isQuietHoursCurrentlyActive(policy)
+        if (isCurrentlyActive && policy != null) {
+            binding.cardQuietHoursActiveAlert.visibility = View.VISIBLE
+            val formattedTime = "${formatTime12Hour(policy.quietHoursStart)} – ${formatTime12Hour(policy.quietHoursEnd)}"
+            val activeDays = formatActiveDays(policy.quietHoursDays)
+            binding.textQuietHoursActiveTime.text = "$formattedTime • $activeDays"
+        } else {
+            binding.cardQuietHoursActiveAlert.visibility = View.GONE
+        }
+    }
+
+    private fun updateDailyLimitAlertUi(
+        policy: DevicePolicyResponse?,
+        usage: ScreenTimeReportRequest?
+    ) {
+        val dailyLimitMin = policy?.dailyLimitMinutes
+        if (dailyLimitMin == null || dailyLimitMin <= 0) {
+            binding.cardDailyLimitAlert.visibility = View.GONE
+            return
+        }
+
+        val usedMinutes = if (usage?.totalScreenTimeSeconds != null) {
+            usage.totalScreenTimeSeconds / 60
+        } else {
+            0
+        }
+        val formattedBudget = formatMinutesHuman(dailyLimitMin)
+        val formattedUsed = formatMinutesHuman(usedMinutes)
+        val percent = ((usedMinutes.toDouble() / dailyLimitMin) * 100).toInt().coerceIn(0, 100)
+
+        binding.cardDailyLimitAlert.visibility = View.VISIBLE
+        binding.progressDailyLimitAlert.progress = percent
+
+        if (usedMinutes >= dailyLimitMin) {
+            // Limit reached or exceeded
+            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_red)
+            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.status_red_light))
+            binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_reached_title)
+            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+
+            binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_reached_badge)
+            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+
+            binding.textDailyLimitAlertBody.text = getString(
+                R.string.daily_limit_reached_body,
+                formattedBudget,
+                formattedUsed
+            )
+            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
+        } else if (percent >= 80) {
+            // Approaching limit (>= 80%)
+            val remainingMin = dailyLimitMin - usedMinutes
+            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_yellow)
+            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.status_yellow_light))
+            binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_near_title)
+            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
+
+            binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_near_badge)
+            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_yellow)
+
+            binding.textDailyLimitAlertBody.text = getString(
+                R.string.daily_limit_near_body,
+                formattedUsed,
+                formattedBudget,
+                formatMinutesHuman(remainingMin)
+            )
+            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
+        } else {
+            // Active on-track budget
+            val remainingMin = dailyLimitMin - usedMinutes
+            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.accent)
+            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.surface_variant))
+            binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_active_title)
+            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+
+            binding.textDailyLimitAlertBadge.text = "${formatMinutesHuman(remainingMin)} left"
+            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.accent)
+
+            binding.textDailyLimitAlertBody.text = getString(
+                R.string.daily_limit_active_body,
+                formatMinutesHuman(remainingMin),
+                formattedBudget,
+                formattedUsed
+            )
+            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.accent)
+        }
     }
 
     private fun formatIsoTimestamp(isoString: String?, fallback: String): String {
@@ -548,6 +873,103 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val AUTO_SYNC_INTERVAL_MS = 3000L
+
+        fun parseHourMinute(timeStr: String): Pair<Int, Int>? {
+            val parts = timeStr.trim().split(":")
+            if (parts.size != 2) return null
+            val h = parts[0].toIntOrNull() ?: return null
+            val m = parts[1].toIntOrNull() ?: return null
+            if (h !in 0..23 || m !in 0..59) return null
+            return Pair(h, m)
+        }
+
+        fun isQuietHoursCurrentlyActive(
+            policy: DevicePolicyResponse?,
+            now: Calendar = Calendar.getInstance()
+        ): Boolean {
+            if (policy == null || !policy.quietHoursEnabled) {
+                return false
+            }
+
+            val startStr = policy.quietHoursStart ?: return false
+            val endStr = policy.quietHoursEnd ?: return false
+
+            val (startH, startM) = parseHourMinute(startStr) ?: return false
+            val (endH, endM) = parseHourMinute(endStr) ?: return false
+
+            val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+            val startMinutes = startH * 60 + startM
+            val endMinutes = endH * 60 + endM
+
+            val dayName = when (now.get(Calendar.DAY_OF_WEEK)) {
+                Calendar.SUNDAY -> "sunday"
+                Calendar.MONDAY -> "monday"
+                Calendar.TUESDAY -> "tuesday"
+                Calendar.WEDNESDAY -> "wednesday"
+                Calendar.THURSDAY -> "thursday"
+                Calendar.FRIDAY -> "friday"
+                Calendar.SATURDAY -> "saturday"
+                else -> ""
+            }
+
+            val activeDays = policy.quietHoursDays.map { it.lowercase() }
+            val isDayActive = activeDays.isEmpty() || activeDays.contains(dayName)
+
+            return if (startMinutes < endMinutes) {
+                isDayActive && (currentMinutes in startMinutes until endMinutes)
+            } else if (startMinutes > endMinutes) {
+                if (currentMinutes >= startMinutes && isDayActive) {
+                    true
+                } else if (currentMinutes < endMinutes) {
+                    val prevDay = when (now.get(Calendar.DAY_OF_WEEK)) {
+                        Calendar.SUNDAY -> "saturday"
+                        Calendar.MONDAY -> "sunday"
+                        Calendar.TUESDAY -> "monday"
+                        Calendar.WEDNESDAY -> "tuesday"
+                        Calendar.THURSDAY -> "wednesday"
+                        Calendar.FRIDAY -> "thursday"
+                        Calendar.SATURDAY -> "friday"
+                        else -> ""
+                    }
+                    activeDays.isEmpty() || activeDays.contains(prevDay)
+                } else {
+                    false
+                }
+            } else {
+                isDayActive
+            }
+        }
+
+        fun formatTime12Hour(time24: String?): String {
+            if (time24.isNullOrBlank()) return "—"
+            val parts = time24.trim().split(":")
+            if (parts.size != 2) return time24
+            val h = parts[0].toIntOrNull() ?: return time24
+            val m = parts[1].toIntOrNull() ?: return time24
+            val amPm = if (h >= 12) "PM" else "AM"
+            val h12 = when {
+                h == 0 -> 12
+                h > 12 -> h - 12
+                else -> h
+            }
+            return String.format(Locale.getDefault(), "%d:%02d %s", h12, m, amPm)
+        }
+
+        fun formatActiveDays(days: List<String>): String {
+            if (days.isEmpty() || days.size == 7) return "Every day (Mon – Sun)"
+            val dayAbbrs = mapOf(
+                "monday" to "Mon",
+                "tuesday" to "Tue",
+                "wednesday" to "Wed",
+                "thursday" to "Thu",
+                "friday" to "Fri",
+                "saturday" to "Sat",
+                "sunday" to "Sun"
+            )
+            return days.mapNotNull { dayAbbrs[it.lowercase()] }.joinToString(", ")
+        }
+
         fun resolveTabTitles(
             isDebuggable: Boolean,
             tabDevice: String,
@@ -597,5 +1019,18 @@ class MainActivity : AppCompatActivity() {
             val timeStr = timeFormat.format(Date(lastMeasurementTimeMs))
             return String.format(measuredFormat, timeStr)
         }
+
+        fun formatMinutesHuman(totalMinutes: Long): String {
+            if (totalMinutes <= 0L) return "0m"
+            val hours = totalMinutes / 60
+            val minutes = totalMinutes % 60
+            return when {
+                hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
+                hours > 0 -> "${hours}h"
+                else -> "${minutes}m"
+            }
+        }
+
+        fun formatMinutesHuman(totalMinutes: Int): String = formatMinutesHuman(totalMinutes.toLong())
     }
 }

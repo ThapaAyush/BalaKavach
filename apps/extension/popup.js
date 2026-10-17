@@ -1,6 +1,8 @@
 export function createPopupController({
   document = globalThis.document,
   chrome = globalThis.chrome,
+  window = globalThis.window,
+  autoSyncIntervalMs = 3000,
 } = {}) {
   const domainList = document.querySelector('#domain-list');
   const domainStatus = document.querySelector('#status');
@@ -19,11 +21,13 @@ export function createPopupController({
   const deviceHeartbeatDisplay = document.querySelector('#device-heartbeat-display');
   const devicePolicyDisplay = document.querySelector('#device-policy-display');
   const deviceSyncDisplay = document.querySelector('#device-sync-display');
+  const deviceSyncMode = document.querySelector('#device-sync-mode');
   const syncButton = document.querySelector('#sync-button');
   const deviceError = document.querySelector('#device-error');
 
   let pairingBusy = false;
   let syncBusy = false;
+  let autoSyncTimer = null;
 
   function setPairingBusy(value) {
     pairingBusy = value;
@@ -148,8 +152,9 @@ export function createPopupController({
         }
       }
 
+      if (deviceSyncMode) deviceSyncMode.textContent = 'Automatic (live)';
       if (pairingForm) pairingForm.hidden = true;
-      if (syncButton) syncButton.hidden = false;
+      if (syncButton) syncButton.hidden = true;
     } else if (status === 'invalid_session') {
       if (deviceStatusBadge) {
         deviceStatusBadge.textContent = 'Re-auth required';
@@ -169,6 +174,7 @@ export function createPopupController({
         devicePolicyDisplay.textContent = `v${ver}`;
       }
       if (deviceSyncDisplay) deviceSyncDisplay.textContent = 'Re-auth required';
+      if (deviceSyncMode) deviceSyncMode.textContent = 'Inactive (re-auth required)';
 
       if (pairingForm) pairingForm.hidden = false;
       if (syncButton) syncButton.hidden = true;
@@ -183,6 +189,7 @@ export function createPopupController({
         deviceStatusMessage.hidden = false;
       }
       if (deviceMetaList) deviceMetaList.hidden = true;
+      if (deviceSyncMode) deviceSyncMode.textContent = 'Inactive (unpaired)';
       if (pairingForm) pairingForm.hidden = false;
       if (syncButton) syncButton.hidden = true;
     }
@@ -210,31 +217,82 @@ export function createPopupController({
     try {
       const response = await send({ action: 'getState' });
       showState(response);
+      return response;
     } catch (error) {
       setStatus(error.message, 'error');
+      return null;
     }
   }
 
-  async function handleSync() {
-    if (syncBusy) return;
-    setSyncBusy(true);
-    setDeviceError(null);
-    setStatus('Syncing rules with parent policy…');
+  async function autoSync() {
+    if (syncBusy) return null;
+    syncBusy = true;
+    try {
+      const response = await send({ action: 'syncPolicy' });
+      if (response?.ok) {
+        showState(response);
+        setDeviceError(null);
+      }
+      return response;
+    } catch {
+      // In automatic polling, fail silently without disrupting the user
+      return null;
+    } finally {
+      syncBusy = false;
+    }
+  }
+
+  async function handleSync({ silent = false } = {}) {
+    if (syncBusy) return null;
+    syncBusy = true;
+    if (!silent) {
+      setSyncBusy(true);
+      setDeviceError(null);
+      setStatus('Syncing rules with parent policy…');
+    }
 
     try {
       const response = await send({ action: 'syncPolicy' });
       if (!response?.ok) {
-        setDeviceError(response?.error ?? 'Policy synchronization failed.');
-        setStatus('Policy sync failed.', 'error');
+        if (!silent) {
+          setDeviceError(response?.error ?? 'Policy synchronization failed.');
+          setStatus('Policy sync failed.', 'error');
+        }
       } else {
         showState(response);
-        setDeviceError(null);
+        if (!silent) {
+          setDeviceError(null);
+        }
       }
+      return response;
     } catch (error) {
-      setDeviceError(error.message || 'Unable to communicate with the extension service worker.');
-      setStatus(error.message, 'error');
+      if (!silent) {
+        setDeviceError(error.message || 'Unable to communicate with the extension service worker.');
+        setStatus(error.message, 'error');
+      }
+      return null;
     } finally {
-      setSyncBusy(false);
+      syncBusy = false;
+      if (!silent) {
+        setSyncBusy(false);
+      }
+    }
+  }
+
+  function startAutoSync() {
+    stopAutoSync();
+    if (autoSyncIntervalMs > 0 && typeof setInterval !== 'undefined') {
+      autoSyncTimer = setInterval(() => {
+        void autoSync();
+      }, autoSyncIntervalMs);
+      autoSyncTimer?.unref?.();
+    }
+  }
+
+  function stopAutoSync() {
+    if (autoSyncTimer) {
+      clearInterval(autoSyncTimer);
+      autoSyncTimer = null;
     }
   }
 
@@ -276,8 +334,9 @@ export function createPopupController({
         if (pairingCodeInput) pairingCodeInput.value = '';
         renderDeviceStatus(response.device);
         setDeviceError(null);
-        // Automatically sync policy after successful pairing
-        void handleSync();
+        // Automatically sync policy after successful pairing and start live polling
+        void autoSync();
+        startAutoSync();
       }
     } catch (error) {
       setDeviceError(error.message || 'Unable to communicate with the extension service worker.');
@@ -291,18 +350,52 @@ export function createPopupController({
       void handlePairingSubmit(event);
     });
 
-    syncButton?.addEventListener('click', () => {
-      void handleSync();
+    if (syncButton) {
+      syncButton.addEventListener('click', () => {
+        void handleSync();
+      });
+    }
+
+    // Clean up timer on popup unload
+    window?.addEventListener?.('unload', () => {
+      stopAutoSync();
     });
 
-    void loadState();
+    // Immediate sync on window focus or visibility change
+    window?.addEventListener?.('focus', () => {
+      void autoSync();
+    });
+    document?.addEventListener?.('visibilitychange', () => {
+      if (!document.hidden) {
+        void autoSync();
+      }
+    });
+
+    // Listen to storage changes so if background worker syncs, UI updates immediately
+    if (chrome?.storage?.onChanged?.addListener) {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local') {
+          void loadState();
+        }
+      });
+    }
+
+    void loadState().then((state) => {
+      if (state?.device?.isPaired) {
+        void autoSync();
+      }
+      startAutoSync();
+    });
   }
 
   return {
     init,
     loadState,
-    handlePairingSubmit,
+    autoSync,
     handleSync,
+    startAutoSync,
+    stopAutoSync,
+    handlePairingSubmit,
     renderDeviceStatus,
     renderDomainList,
     showState,

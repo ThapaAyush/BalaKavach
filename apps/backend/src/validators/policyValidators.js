@@ -86,6 +86,19 @@ const screenTimeSchema = z.object({
   quietHours: quietHoursSchema.optional(),
 }).strict();
 
+const blockedAppItemSchema = z.union([
+  z.string().trim().min(1, 'App identifier cannot be empty.').max(150),
+  z.object({
+    packageName: z.string().trim().min(1, 'Package name cannot be empty.').max(150),
+    appName: z.string().trim().max(100).optional().default(''),
+  }).strict(),
+]);
+
+const appRestrictionsSchema = z.object({
+  enabled: z.boolean().optional(),
+  blockedApps: z.array(blockedAppItemSchema).max(100, 'Cannot exceed 100 blocked apps.').optional(),
+}).strict();
+
 const webRestrictionsSchema = z.object({
   enabled: z.boolean().optional(),
   blockedDomains: z.array(domainSchema).max(100, 'Cannot exceed 100 blocked domains.').optional(),
@@ -93,6 +106,7 @@ const webRestrictionsSchema = z.object({
 
 export const updatePolicySchema = z.object({
   screenTime: screenTimeSchema.optional(),
+  appRestrictions: appRestrictionsSchema.optional(),
   webRestrictions: webRestrictionsSchema.optional(),
 }).strict().refine((data) => Object.keys(data).length > 0, {
   message: 'At least one policy setting must be provided.',
