@@ -17,7 +17,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   const [appRestrictionsEnabled, setAppRestrictionsEnabled] = useState(false);
   const [blockedApps, setBlockedApps] = useState([]);
   const [newAppNameInput, setNewAppNameInput] = useState('');
-  const [newPackageInput, setNewPackageInput] = useState('');
   const [webRestrictionsEnabled, setWebRestrictionsEnabled] = useState(false);
   const [blockedDomains, setBlockedDomains] = useState([]);
   const [newDomainInput, setNewDomainInput] = useState('');
@@ -32,7 +31,55 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
     { appName: 'Discord', packageName: 'com.discord', icon: '💬' },
     { appName: 'Netflix', packageName: 'com.netflix.mediaclient', icon: '🎬' },
     { appName: 'Facebook', packageName: 'com.facebook.katana', icon: '📘' },
+    { appName: 'Minecraft', packageName: 'com.mojang.minecraftpe', icon: '⛏️' },
+    { appName: 'WhatsApp', packageName: 'com.whatsapp', icon: '💬' },
+    { appName: 'Spotify', packageName: 'com.spotify.music', icon: '🎧' },
+    { appName: 'Twitch', packageName: 'tv.twitch.android.app', icon: '🟣' },
   ];
+
+  const KNOWN_APP_PACKAGES = {
+    youtube: 'com.google.android.youtube',
+    tiktok: 'com.zhiliaoapp.musically',
+    instagram: 'com.instagram.android',
+    roblox: 'com.roblox.client',
+    snapchat: 'com.snapchat.android',
+    discord: 'com.discord',
+    netflix: 'com.netflix.mediaclient',
+    facebook: 'com.facebook.katana',
+    minecraft: 'com.mojang.minecraftpe',
+    whatsapp: 'com.whatsapp',
+    spotify: 'com.spotify.music',
+    twitch: 'tv.twitch.android.app',
+    telegram: 'org.telegram.messenger',
+    twitter: 'com.twitter.android',
+    x: 'com.twitter.android',
+    reddit: 'com.reddit.frontpage',
+    pinterest: 'com.pinterest',
+    'clash of clans': 'com.supercell.clashofclans',
+    'brawl stars': 'com.supercell.brawlstars',
+    'clash royale': 'com.supercell.clashroyale',
+    pubg: 'com.tencent.ig',
+    'free fire': 'com.dts.freefireth',
+    'candy crush': 'com.king.candycrushsaga',
+    'subway surfers': 'com.kiloo.subwaysurf',
+    'genshin impact': 'com.miHoYo.GenshinImpact',
+    fortnite: 'com.epicgames.fortnite',
+    'among us': 'com.innersloth.spacemafia',
+    duolingo: 'com.duolingo',
+    steam: 'com.valvesoftware.android.steam.community',
+  };
+
+  function resolvePackageName(appName) {
+    const clean = appName.trim().toLowerCase();
+    if (KNOWN_APP_PACKAGES[clean]) {
+      return KNOWN_APP_PACKAGES[clean];
+    }
+    if (/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(clean)) {
+      return clean;
+    }
+    const slug = clean.replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '');
+    return `app.${slug || 'custom'}`;
+  }
 
   const ALL_DAYS = [
     { id: 'monday', label: 'Mon' },
@@ -89,9 +136,15 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   }
 
   function handleToggleAppPreset(preset) {
-    const exists = blockedApps.some((a) => a.packageName.toLowerCase() === preset.packageName.toLowerCase());
+    const exists = blockedApps.some((a) =>
+      a.packageName.toLowerCase() === preset.packageName.toLowerCase() ||
+      (a.appName && a.appName.toLowerCase() === preset.appName.toLowerCase())
+    );
     if (exists) {
-      setBlockedApps(blockedApps.filter((a) => a.packageName.toLowerCase() !== preset.packageName.toLowerCase()));
+      setBlockedApps(blockedApps.filter((a) =>
+        a.packageName.toLowerCase() !== preset.packageName.toLowerCase() &&
+        (!a.appName || a.appName.toLowerCase() !== preset.appName.toLowerCase())
+      ));
     } else {
       if (blockedApps.length >= 100) {
         setError('Maximum 100 blocked apps reached.');
@@ -101,13 +154,18 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
     }
   }
 
-  function handleAddCustomApp(e) {
-    e.preventDefault();
-    const pkg = newPackageInput.trim().toLowerCase();
-    const name = newAppNameInput.trim() || pkg;
-    if (!pkg) return;
-    if (blockedApps.some((a) => a.packageName.toLowerCase() === pkg)) {
-      setNewPackageInput('');
+  function handleAddApp(e) {
+    e?.preventDefault();
+    const rawName = newAppNameInput.trim();
+    if (!rawName) return;
+
+    const pkg = resolvePackageName(rawName);
+    const alreadyBlocked = blockedApps.some((a) =>
+      a.packageName.toLowerCase() === pkg.toLowerCase() ||
+      (a.appName && a.appName.toLowerCase() === rawName.toLowerCase())
+    );
+
+    if (alreadyBlocked) {
       setNewAppNameInput('');
       return;
     }
@@ -115,13 +173,15 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
       setError('Maximum 100 blocked apps reached.');
       return;
     }
-    setBlockedApps([...blockedApps, { packageName: pkg, appName: name }]);
-    setNewPackageInput('');
+
+    setBlockedApps([...blockedApps, { packageName: pkg, appName: rawName }]);
     setNewAppNameInput('');
   }
 
-  function handleRemoveApp(pkgToRemove) {
-    setBlockedApps(blockedApps.filter((a) => a.packageName !== pkgToRemove));
+  function handleRemoveApp(identifierToRemove) {
+    setBlockedApps(blockedApps.filter((a) =>
+      a.packageName !== identifierToRemove && a.appName !== identifierToRemove
+    ));
   }
 
   function handleAddDomain(e) {
@@ -416,28 +476,32 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                 </div>
               </div>
 
-              {/* Custom App Form */}
+              {/* Add Custom App by Name Form */}
               <div className="pt-2">
-                <span className="block text-xs font-medium text-zinc-400 mb-2">Add Custom App by Package Name</span>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                  <input
-                    type="text"
-                    placeholder="App Name (e.g. Minecraft)"
-                    value={newAppNameInput}
-                    onChange={(e) => setNewAppNameInput(e.target.value)}
-                    className="sm:col-span-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Package Name (e.g. com.mojang.minecraftpe)"
-                    value={newPackageInput}
-                    onChange={(e) => setNewPackageInput(e.target.value)}
-                    className="sm:col-span-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
-                  />
+                <label htmlFor="newAppName" className="block text-xs font-medium text-zinc-400 mb-2">
+                  Block an App by Name
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      id="newAppName"
+                      type="text"
+                      placeholder="Enter app name (e.g. Minecraft, Discord, Subway Surfers)..."
+                      value={newAppNameInput}
+                      onChange={(e) => setNewAppNameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddApp(e);
+                        }
+                      }}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={handleAddCustomApp}
-                    className="sm:col-span-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 border border-zinc-700"
+                    onClick={handleAddApp}
+                    className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0"
                   >
                     Add App
                   </button>
@@ -463,18 +527,15 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                   <div className="flex flex-wrap gap-2">
                     {blockedApps.map((app) => (
                       <span
-                        key={app.packageName}
+                        key={app.packageName || app.appName}
                         className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-200"
                       >
                         <span className="font-semibold text-white">{app.appName || app.packageName}</span>
-                        {app.appName && app.appName !== app.packageName && (
-                          <span className="text-[10px] text-rose-400/80 font-mono">({app.packageName})</span>
-                        )}
-                        <span className="rounded bg-rose-500/20 px-1 py-0.2 text-[9px] font-bold uppercase text-rose-300">Blocked</span>
+                        <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-300">Blocked</span>
                         <button
                           type="button"
-                          onClick={() => handleRemoveApp(app.packageName)}
-                          className="text-rose-400 hover:text-white ml-0.5 font-bold"
+                          onClick={() => handleRemoveApp(app.packageName || app.appName)}
+                          className="text-rose-400 hover:text-white ml-0.5 font-bold text-sm leading-none"
                           title={`Remove ${app.appName || app.packageName}`}
                         >
                           ×
@@ -483,7 +544,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-zinc-500 italic">No apps blocked yet. Click a preset above or enter a custom package name.</p>
+                  <p className="text-xs text-zinc-500 italic">No apps blocked yet. Click a quick preset above or type an app name.</p>
                 )}
               </div>
             </div>

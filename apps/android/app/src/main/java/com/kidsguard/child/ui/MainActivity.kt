@@ -564,8 +564,9 @@ class MainActivity : AppCompatActivity() {
         updateAppRestrictionsSectionUi(policy, usage)
 
         // 5. Foreground App Usage Breakdown
-        val blockedPkgSet = policy?.appRestrictions?.takeIf { it.enabled }
-            ?.blockedApps?.map { it.packageName.lowercase() }?.toSet() ?: emptySet()
+        val blockedAppsList = policy?.appRestrictions?.takeIf { it.enabled }?.blockedApps ?: emptyList()
+        val blockedPkgSet = blockedAppsList.map { it.packageName.lowercase() }.toSet()
+        val blockedNameSet = blockedAppsList.map { it.appName.lowercase() }.filter { it.isNotBlank() }.toSet()
 
         val appList = usage?.appUsage ?: emptyList()
         binding.containerAppUsageList.removeAllViews()
@@ -579,7 +580,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.textEmptyApps.visibility = View.GONE
             for (app in appList.take(25)) {
-                val isBlocked = blockedPkgSet.contains(app.packageName.lowercase())
+                val isBlocked = blockedPkgSet.contains(app.packageName.lowercase()) ||
+                                blockedNameSet.contains(app.appName.lowercase())
                 val rowView = createAppUsageRow(app, isBlocked)
                 binding.containerAppUsageList.addView(rowView)
             }
@@ -699,8 +701,10 @@ class MainActivity : AppCompatActivity() {
 
         // Check if any app launched today violates parental restrictions
         val blockedPkgSet = blockedList.map { it.packageName.lowercase() }.toSet()
+        val blockedNameSet = blockedList.map { it.appName.lowercase() }.filter { it.isNotBlank() }.toSet()
         val launchedBlockedApps = usage?.appUsage?.filter {
-            blockedPkgSet.contains(it.packageName.lowercase())
+            blockedPkgSet.contains(it.packageName.lowercase()) ||
+            blockedNameSet.contains(it.appName.lowercase())
         } ?: emptyList()
 
         if (enabled && launchedBlockedApps.isNotEmpty()) {
@@ -727,15 +731,19 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
+        val cleanName = blockedApp.appName.ifBlank { blockedApp.packageName.removePrefix("app.") }
         val nameView = TextView(this).apply {
-            text = "🚫 ${blockedApp.appName.ifBlank { blockedApp.packageName }}"
+            text = "🚫 $cleanName"
             textSize = 14f
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
         infoLayout.addView(nameView)
 
-        if (blockedApp.appName.isNotBlank() && blockedApp.appName != blockedApp.packageName) {
+        if (blockedApp.appName.isNotBlank() &&
+            blockedApp.appName != blockedApp.packageName &&
+            !blockedApp.packageName.startsWith("app.")
+        ) {
             val pkgView = TextView(this).apply {
                 text = blockedApp.packageName
                 textSize = 11f
