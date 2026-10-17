@@ -27,7 +27,11 @@
         app:tabIndicatorColor="@color/accent"
         app:tabSelectedTextColor="@color/accent"
         app:tabTextColor="@color/text_secondary"
-        app:tabMode="fixed" />
+        app:tabTextAppearance="@style/TabTextAppearance"
+        app:tabMode="auto"
+        app:tabGravity="fill"
+        app:tabPaddingStart="4dp"
+        app:tabPaddingEnd="4dp" />
 
     <!-- Main Scrollable Body -->
     <ScrollView

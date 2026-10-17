@@ -22,4 +22,5 @@
     <color name="status_red_border">#FECACA</color>
     <color name="status_yellow_light">#FEFCE8</color>
     <color name="status_yellow_border">#FEF08A</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>
