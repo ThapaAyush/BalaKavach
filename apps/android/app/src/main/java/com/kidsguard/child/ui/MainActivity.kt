@@ -686,12 +686,14 @@ class MainActivity : AppCompatActivity() {
             val isAccessibilityOn = isAccessibilityServiceEnabled()
             if (isAccessibilityOn) {
                 binding.textTab0AppRestrictionsBadge.text = getString(R.string.accessibility_enabled_badge)
-                binding.textTab0AppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.color.status_green)
+                binding.textTab0AppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill_success)
+                binding.textTab0AppRestrictionsBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
                 binding.textAppRestrictionsAlertBody.text = getString(R.string.app_restrictions_active_body, count)
                 binding.btnEnableAppBlocking.visibility = View.GONE
             } else {
                 binding.textTab0AppRestrictionsBadge.text = getString(R.string.accessibility_disabled_badge)
-                binding.textTab0AppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+                binding.textTab0AppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill_danger)
+                binding.textTab0AppRestrictionsBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
                 binding.textAppRestrictionsAlertBody.text = getString(R.string.accessibility_alert_body)
                 binding.btnEnableAppBlocking.visibility = View.VISIBLE
             }
