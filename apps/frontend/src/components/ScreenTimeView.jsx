@@ -60,53 +60,53 @@ export default function ScreenTimeView({ child }) {
   const isPermissionDenied = data?.permissionStatus === 'denied';
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 backdrop-blur space-y-6">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
       {/* Header and Date Selector */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">Daily Screen Time: {child.displayName}</h3>
-          <p className="text-xs text-zinc-400">Aggregated foreground device usage measured on-device.</p>
+          <h3 className="text-lg font-bold text-slate-900">Daily Screen Time: {child.displayName}</h3>
+          <p className="text-xs text-slate-500">Aggregated foreground device usage measured on-device.</p>
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="screenTimeDate" className="text-xs text-zinc-400">Date:</label>
+          <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600">Date:</label>
           <input
             id="screenTimeDate"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
           />
         </div>
       </div>
 
       {error && (
-        <div role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-sm font-medium text-rose-700">
           {error}
         </div>
       )}
 
       {/* Permission Denied Notice */}
       {isPermissionDenied && (
-        <div role="alert" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-          <div className="flex items-center gap-2 font-medium text-amber-300">
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-800">
+          <div className="flex items-center gap-2 font-bold text-amber-900">
             <span>⚠️ Usage Access Not Granted on Device</span>
           </div>
-          <p className="mt-1 text-xs text-amber-200/80">
-            The child device reported that the required Android <code className="font-mono">Usage Access</code> permission is not granted. BalaKavach does not fabricate synthetic values when access is unavailable. Please grant usage access on the child device.
+          <p className="mt-1 text-xs text-amber-800/90 leading-relaxed">
+            The child device reported that the required Android <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded">Usage Access</code> permission is not granted. BalaKavach does not fabricate synthetic values when access is unavailable. Please grant usage access on the child device.
           </p>
         </div>
       )}
 
       {/* Daily Usage Summary Card */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
-          <span className="text-xs font-medium text-zinc-400">Total Screen Time Today</span>
+        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 p-5 shadow-xs">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Total Screen Time Today</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-white">
+            <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
               {formatDuration(totalSecs)}
             </span>
             {limitMins && (
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs font-semibold text-slate-500">
                 / {Math.floor(limitMins / 60)}h {limitMins % 60 ? `${limitMins % 60}m` : ''} limit
               </span>
             )}
@@ -114,64 +114,64 @@ export default function ScreenTimeView({ child }) {
 
           {limitSecs && totalSecs !== null && (
             <div className="mt-3">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/60">
                 <div
-                  className={`h-full transition-all duration-300 ${getProgressColor(percentUsed)}`}
+                  className={`h-full rounded-full transition-all duration-300 ${getProgressColor(percentUsed)}`}
                   style={{ width: `${percentUsed}%` }}
                 />
               </div>
-              <div className="mt-1.5 flex justify-between text-[11px] text-zinc-400">
+              <div className="mt-1.5 flex justify-between text-[11px] font-semibold text-slate-600">
                 <span>{percentUsed}% of budget</span>
-                {isOverLimit && <span className="font-medium text-rose-400">Daily limit reached</span>}
+                {isOverLimit && <span className="font-bold text-rose-600">Daily limit reached</span>}
               </div>
             </div>
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 flex flex-col justify-between">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 flex flex-col justify-between shadow-xs">
           <div>
-            <span className="text-xs font-medium text-zinc-400">Data Freshness & Provenance</span>
-            <div className="mt-2 text-xs space-y-1.5 text-zinc-300">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Data Freshness & Provenance</span>
+            <div className="mt-2 text-xs space-y-1.5 text-slate-700">
               {data?.dataFreshness ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${data.dataFreshness.isStale ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                    <span>
-                      {data.dataFreshness.isStale ? 'Stale' : 'Fresh'} • Reported from {data.dataFreshness.reportingDeviceName || 'Paired Device'}
+                    <span className={`size-2 rounded-full ${data.dataFreshness.isStale ? 'bg-amber-400' : 'bg-emerald-500 ring-2 ring-emerald-100'}`} />
+                    <span className="font-semibold text-slate-800">
+                      {data.dataFreshness.isStale ? 'Stale' : 'Live & Fresh'} • {data.dataFreshness.reportingDeviceName || 'Paired Device'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px] text-slate-500">
                     Timestamp: {new Date(data.dataFreshness.lastReportedAt).toLocaleTimeString()}
                   </p>
                 </>
               ) : (
-                <p className="text-zinc-500 italic">No device reports received for this date.</p>
+                <p className="text-slate-500 italic">No device reports received for this date.</p>
               )}
             </div>
           </div>
-          <div className="mt-2 pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-500">
-            Source: {data?.source === 'measured' ? 'Measured on-device via UsageStats' : 'Awaiting device sync'}
+          <div className="mt-2 pt-2.5 border-t border-slate-200 text-[11px] font-medium text-slate-500">
+            Source: {data?.source === 'measured' ? 'Measured on-device via Android UsageStats' : 'Awaiting device sync'}
           </div>
         </div>
       </div>
 
       {/* App Breakdown Table */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
-        <h4 className="text-sm font-medium text-white mb-3">Application Usage Breakdown</h4>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <h4 className="text-sm font-bold text-slate-900 mb-3">Application Usage Breakdown</h4>
         {data?.appUsage && data.appUsage.length > 0 ? (
-          <div className="divide-y divide-zinc-800/60">
+          <div className="divide-y divide-slate-100">
             {data.appUsage.map((app) => {
               const appPercent = totalSecs ? Math.round((app.durationSeconds / totalSecs) * 100) : 0;
               return (
-                <div key={app.packageName} className="py-2.5 flex items-center justify-between gap-4">
+                <div key={app.packageName} className="py-3 flex items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-medium text-zinc-200 truncate">{app.appName}</span>
-                      <span className="text-zinc-400 font-mono">{formatDuration(app.durationSeconds)} ({appPercent}%)</span>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="font-semibold text-slate-800 truncate">{app.appName}</span>
+                      <span className="text-slate-600 font-mono font-medium">{formatDuration(app.durationSeconds)} ({appPercent}%)</span>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full bg-indigo-500 transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-sky-500 to-indigo-600 rounded-full transition-all duration-300"
                         style={{ width: `${appPercent}%` }}
                       />
                     </div>
@@ -181,7 +181,7 @@ export default function ScreenTimeView({ child }) {
             })}
           </div>
         ) : (
-          <p className="text-xs text-zinc-500 italic py-2">No application usage details reported for this day.</p>
+          <p className="text-xs text-slate-500 italic py-2">No application usage details reported for this day.</p>
         )}
       </div>
     </div>

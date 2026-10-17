@@ -104,7 +104,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
   const ALL_DAYS = [
     { id: 'monday', label: 'Mon' },
-    { id: 'tuesday', label: 'Wed' },
+    { id: 'tuesday', label: 'Tue' },
     { id: 'wednesday', label: 'Wed' },
     { id: 'thursday', label: 'Thu' },
     { id: 'friday', label: 'Fri' },
@@ -274,49 +274,49 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 backdrop-blur">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">Rules & Schedules: {child.displayName}</h3>
-          <p className="text-xs text-zinc-400">Configure screen-time budgets, quiet periods, and desktop web restrictions.</p>
+          <h3 className="text-lg font-bold text-slate-900">Rules & Schedules: {child.displayName}</h3>
+          <p className="text-xs text-slate-500">Configure screen-time budgets, quiet periods, and desktop web restrictions.</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400 border border-indigo-500/20">
+          <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 border border-sky-200">
             Policy v{policyVersion}
           </span>
         </div>
       </div>
 
       {error && (
-        <div role="alert" className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
+        <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-sm font-medium text-rose-700">
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div role="status" className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+        <div role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-sm font-semibold text-emerald-800">
           {successMessage}
         </div>
       )}
 
       <form onSubmit={handleSavePolicy} className="space-y-6">
         {/* Daily Screen Time Budget */}
-        <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-b from-sky-50/20 to-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <label htmlFor="dailyLimitMinutes" className="block text-sm font-medium text-zinc-200">
+                <label htmlFor="dailyLimitMinutes" className="block text-sm font-bold text-slate-900">
                   Daily Screen-Time Limit (Minutes)
                 </label>
                 {dailyLimitMinutes && (
-                  <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-400 border border-indigo-500/20">
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 border border-sky-200">
                     {parseInt(dailyLimitMinutes, 10) >= 60
                       ? `${(parseInt(dailyLimitMinutes, 10) / 60).toFixed(1)} hrs/day`
                       : `${dailyLimitMinutes} mins/day`}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-slate-500">
                 Set maximum daily screen time budget. Leave blank for unconstrained allowance.
               </p>
             </div>
@@ -324,7 +324,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
           {/* Quick-Pick Budget Presets */}
           <div className="mt-3">
-            <span className="block text-[11px] font-medium text-zinc-400 mb-1.5">Quick Budget Presets</span>
+            <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">Quick Budget Presets</span>
             <div className="flex flex-wrap gap-2">
               {[
                 { label: '30m', mins: '30' },
@@ -341,10 +341,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     key={preset.label}
                     type="button"
                     onClick={() => setDailyLimitMinutes(preset.mins)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       isSelected
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white border border-zinc-700/50'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
                     }`}
                   >
                     {preset.label}
@@ -363,10 +363,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
               placeholder="Custom minutes (e.g. 120)"
               value={dailyLimitMinutes}
               onChange={(e) => setDailyLimitMinutes(e.target.value)}
-              className="w-56 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+              className="w-56 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
             />
             {dailyLimitMinutes && (
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs font-semibold text-slate-600">
                 ≈ {(parseInt(dailyLimitMinutes, 10) / 60).toFixed(1)} hours/day ({dailyLimitMinutes} min)
               </span>
             )}
@@ -374,11 +374,11 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
         </div>
 
         {/* Quiet Hours / Bedtime */}
-        <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50/20 to-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <span className="block text-sm font-medium text-zinc-200">Quiet Hours / Bedtime</span>
-              <p className="text-xs text-zinc-400">Designate quiet windows (e.g. overnight sleep or study hours).</p>
+              <span className="block text-sm font-bold text-slate-900">Quiet Hours / Bedtime</span>
+              <p className="text-xs text-slate-500">Designate quiet windows (e.g. overnight sleep or study hours).</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -387,37 +387,37 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                 onChange={(e) => setQuietHoursEnabled(e.target.checked)}
                 className="peer sr-only"
               />
-              <div className="peer h-6 w-11 rounded-full bg-zinc-700 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full"></div>
+              <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-amber-500 peer-checked:after:translate-x-full"></div>
             </label>
           </div>
 
           {quietHoursEnabled && (
-            <div className="mt-4 space-y-4 border-t border-zinc-800/60 pt-4">
+            <div className="mt-4 space-y-4 border-t border-amber-100 pt-4">
               <div className="flex flex-wrap items-center gap-4">
                 <div>
-                  <label htmlFor="quietStart" className="block text-xs font-medium text-zinc-400">Starts At</label>
+                  <label htmlFor="quietStart" className="block text-xs font-semibold text-slate-600">Starts At</label>
                   <input
                     id="quietStart"
                     type="time"
                     value={quietHoursStart}
                     onChange={(e) => setQuietHoursStart(e.target.value)}
-                    className="mt-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
                   />
                 </div>
                 <div>
-                  <label htmlFor="quietEnd" className="block text-xs font-medium text-zinc-400">Ends At</label>
+                  <label htmlFor="quietEnd" className="block text-xs font-semibold text-slate-600">Ends At</label>
                   <input
                     id="quietEnd"
                     type="time"
                     value={quietHoursEnd}
                     onChange={(e) => setQuietHoursEnd(e.target.value)}
-                    className="mt-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
                   />
                 </div>
               </div>
 
               <div>
-                <span className="block text-xs font-medium text-zinc-400 mb-2">Active Days</span>
+                <span className="block text-xs font-semibold text-slate-600 mb-2">Active Days</span>
                 <div className="flex flex-wrap gap-2">
                   {ALL_DAYS.map((day) => {
                     const active = quietHoursDays.includes(day.id);
@@ -426,10 +426,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                         key={day.id}
                         type="button"
                         onClick={() => toggleDay(day.id)}
-                        className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                           active
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                         }`}
                       >
                         {day.label}
@@ -443,16 +443,16 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
         </div>
 
         {/* App Restrictions / Blocked Apps (Android Mobile) */}
-        <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <div className="rounded-2xl border border-purple-200/80 bg-gradient-to-b from-purple-50/20 to-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <span className="block text-sm font-medium text-zinc-200">App Restrictions / Blocked Apps (Android)</span>
-                <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold text-purple-400 border border-purple-500/20">
+                <span className="block text-sm font-bold text-slate-900">App Restrictions / Blocked Apps (Android)</span>
+                <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700 border border-purple-200">
                   Mobile Companion
                 </span>
               </div>
-              <p className="text-xs text-zinc-400">Designate restricted applications blocked and supervised on the child's Android device.</p>
+              <p className="text-xs text-slate-500">Designate restricted applications blocked and supervised on the child's Android device.</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -461,19 +461,19 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                 onChange={(e) => setAppRestrictionsEnabled(e.target.checked)}
                 className="peer sr-only"
               />
-              <div className="peer h-6 w-11 rounded-full bg-zinc-700 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full"></div>
+              <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full"></div>
             </label>
           </div>
 
-          <div className="mt-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3 text-xs text-indigo-300">
+          <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 text-xs text-purple-900 leading-relaxed">
             <strong>Architecture Notice:</strong> Enforced transparently on Android companion devices using Android Usage Supervision without a VPN. When enabled, restricted apps are shown to the child on the mobile device and flagged upon launch.
           </div>
 
           {appRestrictionsEnabled && (
-            <div className="mt-4 space-y-4 border-t border-zinc-800/60 pt-4">
+            <div className="mt-4 space-y-4 border-t border-purple-100 pt-4">
               {/* Popular App Presets */}
               <div>
-                <span className="block text-xs font-medium text-zinc-400 mb-2">Quick Add Popular Apps</span>
+                <span className="block text-xs font-semibold text-slate-600 mb-2">Quick Add Popular Apps</span>
                 <div className="flex flex-wrap gap-2">
                   {POPULAR_APPS.map((preset) => {
                     const isAdded = blockedApps.some((a) => a.packageName.toLowerCase() === preset.packageName.toLowerCase());
@@ -482,10 +482,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                         key={preset.packageName}
                         type="button"
                         onClick={() => handleToggleAppPreset(preset)}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                           isAdded
-                            ? 'bg-rose-600/90 text-white shadow-sm ring-1 ring-rose-500'
-                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700/60'
+                            ? 'bg-rose-50 border border-rose-300 text-rose-700 shadow-2xs'
+                            : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
                         }`}
                       >
                         <span>{preset.icon}</span>
@@ -499,7 +499,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
               {/* Add Custom App by Name Form */}
               <div className="pt-2">
-                <label htmlFor="newAppName" className="block text-xs font-medium text-zinc-400 mb-2">
+                <label htmlFor="newAppName" className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Block an App by Name
                 </label>
                 <div className="flex gap-2">
@@ -516,13 +516,13 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                           handleAddApp(e);
                         }
                       }}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none transition"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={handleAddApp}
-                    className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0"
+                    className="inline-flex items-center justify-center rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-xs transition shrink-0"
                   >
                     Add App
                   </button>
@@ -532,12 +532,12 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
               {/* Active Blocked Apps List */}
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-zinc-400">Restricted Apps ({blockedApps.length})</span>
+                  <span className="text-xs font-semibold text-slate-600">Restricted Apps ({blockedApps.length})</span>
                   {blockedApps.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setBlockedApps([])}
-                      className="text-[11px] text-zinc-500 hover:text-rose-400"
+                      className="text-[11px] font-semibold text-slate-400 hover:text-rose-600 transition"
                     >
                       Clear All
                     </button>
@@ -549,14 +549,14 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     {blockedApps.map((app) => (
                       <span
                         key={app.packageName || app.appName}
-                        className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-200"
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-800 shadow-2xs"
                       >
-                        <span className="font-semibold text-white">{app.appName || app.packageName}</span>
-                        <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-300">Blocked</span>
+                        <span className="font-bold text-slate-900">{app.appName || app.packageName}</span>
+                        <span className="rounded bg-rose-200/80 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-rose-900">Blocked</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveApp(app.packageName || app.appName)}
-                          className="text-rose-400 hover:text-white ml-0.5 font-bold text-sm leading-none"
+                          className="text-rose-500 hover:text-rose-700 ml-0.5 font-bold text-sm leading-none"
                           title={`Remove ${app.appName || app.packageName}`}
                         >
                           ×
@@ -565,7 +565,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-zinc-500 italic">No apps blocked yet. Click a quick preset above or type an app name.</p>
+                  <p className="text-xs text-slate-500 italic">No apps blocked yet. Click a quick preset above or type an app name.</p>
                 )}
               </div>
             </div>
@@ -573,11 +573,11 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
         </div>
 
         {/* Website Restrictions (Desktop Chrome) */}
-        <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-b from-sky-50/20 to-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <span className="block text-sm font-medium text-zinc-200">Website Blocklist (Desktop Chrome)</span>
-              <p className="text-xs text-zinc-400">Enforced top-level HTTP(S) blocklist for Chrome desktop profiles via the BalaKavach extension.</p>
+              <span className="block text-sm font-bold text-slate-900">Website Blocklist (Desktop Chrome)</span>
+              <p className="text-xs text-slate-500">Enforced top-level HTTP(S) blocklist for Chrome desktop profiles via the BalaKavach extension.</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -586,28 +586,28 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                 onChange={(e) => setWebRestrictionsEnabled(e.target.checked)}
                 className="peer sr-only"
               />
-              <div className="peer h-6 w-11 rounded-full bg-zinc-700 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full"></div>
+              <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-600 peer-checked:after:translate-x-full"></div>
             </label>
           </div>
 
-          <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+          <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/60 p-3.5 text-xs text-sky-900 leading-relaxed">
             <strong>Platform Boundary Notice:</strong> Website filtering is actively enforced on Desktop Chrome via the BalaKavach Extension. On ordinary Android devices without a VPN (which BalaKavach strictly avoids for privacy and stability), website blocking is not claimed or active.
           </div>
 
           {webRestrictionsEnabled && (
-            <div className="mt-4 space-y-3 border-t border-zinc-800/60 pt-4">
+            <div className="mt-4 space-y-3 border-t border-sky-100 pt-4">
               <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="e.g. tiktok.com, instagram.com"
                   value={newDomainInput}
                   onChange={(e) => setNewDomainInput(e.target.value)}
-                  className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+                  className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
                 />
                 <button
                   type="button"
                   onClick={handleAddDomain}
-                  className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+                  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 shadow-xs transition"
                 >
                   Add Domain
                 </button>
@@ -618,13 +618,13 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                   {blockedDomains.map((domain) => (
                     <span
                       key={domain}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800/80 px-3 py-1 text-xs text-zinc-200"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 shadow-2xs"
                     >
                       {domain}
                       <button
                         type="button"
                         onClick={() => handleRemoveDomain(domain)}
-                        className="text-zinc-400 hover:text-rose-400"
+                        className="text-slate-400 hover:text-rose-600 font-bold ml-0.5"
                         title={`Remove ${domain}`}
                       >
                         ×
@@ -633,17 +633,17 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500 italic">No blocked domains added yet.</p>
+                <p className="text-xs text-slate-500 italic">No blocked domains added yet.</p>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-50 transition"
           >
             {saving ? 'Saving Policy…' : 'Save Rules & Policy'}
           </button>

@@ -3,10 +3,10 @@ import WelcomePage from './pages/WelcomePage.jsx';
 
 function NotFoundPage() {
   return (
-    <main className="grid min-h-screen place-items-center px-6 text-center">
+    <main className="grid min-h-screen place-items-center bg-white px-6 text-center">
       <div>
-        <p className="text-sm font-medium text-zinc-400">Page not found</p>
-        <Link className="mt-4 inline-block rounded-lg text-white underline decoration-zinc-600 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" to="/">
+        <p className="text-sm font-semibold text-slate-500">Page not found</p>
+        <Link className="mt-4 inline-block rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600 transition" to="/">
           Return to BalaKavach
         </Link>
       </div>

@@ -13,7 +13,7 @@ export default function DeviceStatusView({
   function renderSyncBadge(device) {
     if (device.pairingStatus === 'revoked') {
       return (
-        <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-medium text-rose-400 border border-rose-500/20">
+        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 border border-slate-200">
           Revoked
         </span>
       );
@@ -22,27 +22,27 @@ export default function DeviceStatusView({
     const ackVer = device.acknowledgedPolicyVersion || 0;
     if (ackVer >= policyVersion) {
       return (
-        <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-400 border border-emerald-500/20">
+        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
           In Sync (v{ackVer})
         </span>
       );
     }
 
     return (
-      <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-400 border border-amber-500/20">
+      <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
         Sync Pending (v{ackVer} / v{policyVersion})
       </span>
     );
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 backdrop-blur space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-bold text-slate-900">
             Paired Devices: {activeChild ? activeChild.displayName : 'All Devices'}
           </h3>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-slate-500">
             Track device connectivity, last heartbeats, and policy sync states.
           </p>
         </div>
@@ -50,7 +50,7 @@ export default function DeviceStatusView({
           <button
             type="button"
             onClick={() => onRequestPairing(activeChild)}
-            className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 transition"
+            className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500 transition"
           >
             Pair New Device
           </button>
@@ -58,7 +58,7 @@ export default function DeviceStatusView({
       </div>
 
       {childDevices.length === 0 ? (
-        <p className="text-xs text-zinc-400 italic py-4">No paired devices found for this profile.</p>
+        <p className="text-xs text-slate-500 italic py-4">No paired devices found for this profile.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {childDevices.map((device) => {
@@ -70,29 +70,29 @@ export default function DeviceStatusView({
             return (
               <div
                 key={device.id}
-                className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 flex flex-col justify-between space-y-3"
+                className="rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50/90 p-5 flex flex-col justify-between space-y-3.5 shadow-xs transition"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">{device.name}</h4>
-                      <span className="inline-block rounded bg-zinc-800 px-2 py-0.5 text-[10px] uppercase font-mono text-zinc-400 mt-1">
+                      <h4 className="text-sm font-bold text-slate-900">{device.name}</h4>
+                      <span className="inline-block rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[10px] uppercase font-mono text-slate-600 mt-1 shadow-2xs">
                         {device.platform}
                       </span>
                     </div>
                     {renderSyncBadge(device)}
                   </div>
 
-                  <div className="mt-3 space-y-1 text-xs text-zinc-400">
+                  <div className="mt-3 space-y-1.5 text-xs text-slate-600">
                     <p>
-                      Paired: {new Date(device.pairedAt).toLocaleDateString()}
+                      Paired: <span className="font-medium text-slate-800">{new Date(device.pairedAt).toLocaleDateString()}</span>
                     </p>
                     <p className="flex items-center gap-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full ${!isRevoked && !isStale && device.lastSeenAt ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-                      Last Heartbeat: {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}
+                      <span className={`size-2 rounded-full ${!isRevoked && !isStale && device.lastSeenAt ? 'bg-emerald-500 ring-2 ring-emerald-100' : 'bg-slate-400'}`} />
+                      Last Heartbeat: <span className="font-medium text-slate-800">{device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}</span>
                     </p>
                     {device.lastPolicyAckAt && (
-                      <p className="text-[11px] text-zinc-500">
+                      <p className="text-[11px] text-slate-500">
                         Last Policy Ack: {new Date(device.lastPolicyAckAt).toLocaleTimeString()}
                       </p>
                     )}
@@ -100,12 +100,12 @@ export default function DeviceStatusView({
                 </div>
 
                 {!isRevoked && (
-                  <div className="pt-2 border-t border-zinc-800/60 flex justify-end">
+                  <div className="pt-3 border-t border-slate-200/80 flex justify-end">
                     <button
                       type="button"
                       disabled={revokingId === device.id}
                       onClick={() => onRevokeDevice(device)}
-                      className="rounded px-2.5 py-1 text-xs font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition disabled:opacity-50"
+                      className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-2xs transition disabled:opacity-50"
                     >
                       {revokingId === device.id ? 'Revoking…' : 'Revoke Device'}
                     </button>
