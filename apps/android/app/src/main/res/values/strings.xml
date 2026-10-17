@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BalaKavach Child</string>
+    <string name="app_name">BalaKavach</string>
     <string name="companion_subtitle">Android Companion App</string>
     <string name="app_version_display">Version 0.2.0 (Parent-Managed Companion)</string>
 
@@ -136,10 +136,10 @@
     <string name="privacy_guarantee_body">• NO browsing history or URLs visited on Android.\n• NO personal chats, messages, SMS, or emails.\n• NO contacts, phone numbers, or call recordings.\n• NO photos, videos, or camera recordings.\n• NO microphone audio or ambient listening.\n• NO GPS or precise location tracking.\n• NO keystrokes, passwords, or screen captures.\n• NO VPN packet interception or network diversion.</string>
 
     <string name="permission_instructions_title">How to Review or Change Permission</string>
-    <string name="permission_instructions_body">1. Tap \'Open Usage Access Settings\' below.\n2. Locate \'BalaKavach Child\' in the list.\n3. Toggle \'Permit usage access\' ON or OFF.\n\nIf revoked, device pairing and policy visibility remain active, but screen time will be reported as unavailable.</string>
+    <string name="permission_instructions_body">1. Tap \'Open Usage Access Settings\' below.\n2. Locate \'BalaKavach\' in the list.\n3. Toggle \'Permit usage access\' ON or OFF.\n\nIf revoked, device pairing and policy visibility remain active, but screen time will be reported as unavailable.</string>
 
     <string name="platform_boundaries_title">Platform Boundaries &amp; Limitations</string>
-    <string name="platform_boundaries_body">• BalaKavach Child is an ordinary companion application that respects Android security boundaries.\n• Ordinary apps cannot unilaterally shut down, freeze, or terminate third-party applications.\n• Cannot lock the child out of device settings or prevent uninstallation.\n• Parental website blocking rules are managed on the web dashboard and enforced on desktop Chrome browsers via the BalaKavach extension.</string>
+    <string name="platform_boundaries_body">• BalaKavach is an ordinary companion application that respects Android security boundaries.\n• Ordinary apps cannot unilaterally shut down, freeze, or terminate third-party applications.\n• Cannot lock the child out of device settings or prevent uninstallation.\n• Parental website blocking rules are managed on the web dashboard and enforced on desktop Chrome browsers via the BalaKavach extension.</string>
 
     <!-- Developer Settings & Diagnostics -->
     <string name="settings_title">Developer Configuration</string>

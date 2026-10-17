@@ -380,7 +380,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDeviceSessionDetailsUi(session: DeviceSession) {
-        val deviceName = session.deviceName ?: "Child Android Device"
+        val deviceName = session.deviceName ?: "Android Device"
         binding.textDeviceNameDisplay.text = "${getString(R.string.device_name_display_label)} $deviceName"
         binding.textDeviceId.text = "${getString(R.string.device_id_label)} ${session.deviceId ?: "—"}"
         binding.textPairedAt.text = "${getString(R.string.paired_at_label)} ${formatIsoTimestamp(session.pairedAt, "—")}"
