@@ -49,6 +49,7 @@
 
     <string name="btn_sync_now">Sync With Server Now</string>
     <string name="sync_in_progress">Synchronizing with KidsGuard server…</string>
+    <string name="sync_mode_auto">Sync Mode: Automatic (live)</string>
 
     <!-- Screen 2: Screen Time -->
     <string name="screen_time_title">Today\'s Screen Time</string>
