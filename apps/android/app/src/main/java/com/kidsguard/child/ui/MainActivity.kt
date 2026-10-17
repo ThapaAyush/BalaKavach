@@ -1,7 +1,11 @@
 package com.kidsguard.child.ui
 
+import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.provider.Settings
+import android.text.TextUtils
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -149,6 +153,14 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnGrantPermissionFromScreenTime.setOnClickListener {
             openUsageSettings()
+        }
+
+        binding.btnEnableAppBlocking.setOnClickListener {
+            try {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Please open Android Settings > Accessibility to enable KidsGuard.", Toast.LENGTH_LONG).show()
+            }
         }
 
         // Settings API URL buttons
@@ -580,8 +592,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.textEmptyApps.visibility = View.GONE
             for (app in appList.take(25)) {
-                val isBlocked = blockedPkgSet.contains(app.packageName.lowercase()) ||
-                                blockedNameSet.contains(app.appName.lowercase())
+                val isBlocked = com.kidsguard.child.domain.rules.AppBlockingRuleEngine.isPackageBlocked(app.packageName, policy)
                 val rowView = createAppUsageRow(app, isBlocked)
                 binding.containerAppUsageList.addView(rowView)
             }
@@ -657,15 +668,46 @@ class MainActivity : AppCompatActivity() {
         return row
     }
 
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val service = com.kidsguard.child.service.blocking.AppBlockingAccessibilityService::class.java
+        val expectedId = ComponentName(this, service).flattenToString()
+        val enabledServices = Settings.Secure.getString(
+            contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        val colonSplitter = TextUtils.SimpleStringSplitter(':')
+        colonSplitter.setString(enabledServices)
+        while (colonSplitter.hasNext()) {
+            val componentName = colonSplitter.next()
+            if (componentName.equals(expectedId, ignoreCase = true) ||
+                componentName.contains(service.simpleName, ignoreCase = true)
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
     private fun updateAppRestrictionsAlertUi(policy: DevicePolicyResponse?) {
         val appRestrictions = policy?.appRestrictions
         if (appRestrictions != null && appRestrictions.enabled && appRestrictions.blockedApps.isNotEmpty()) {
             binding.cardAppRestrictionsAlert.visibility = View.VISIBLE
             val count = appRestrictions.blockedApps.size
-            binding.textTab0AppRestrictionsBadge.text = getString(R.string.app_restrictions_badge_active, count)
-            binding.textAppRestrictionsAlertBody.text = getString(R.string.app_restrictions_active_body, count)
             val names = appRestrictions.blockedApps.joinToString(", ") { it.appName.ifBlank { it.packageName } }
             binding.textAppRestrictionsAlertList.text = "Restricted: $names"
+
+            val isAccessibilityOn = isAccessibilityServiceEnabled()
+            if (isAccessibilityOn) {
+                binding.textTab0AppRestrictionsBadge.text = getString(R.string.accessibility_enabled_badge)
+                binding.textTab0AppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.color.status_green)
+                binding.textAppRestrictionsAlertBody.text = getString(R.string.app_restrictions_active_body, count)
+                binding.btnEnableAppBlocking.visibility = View.GONE
+            } else {
+                binding.textTab0AppRestrictionsBadge.text = getString(R.string.accessibility_disabled_badge)
+                binding.textTab0AppRestrictionsBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+                binding.textAppRestrictionsAlertBody.text = getString(R.string.accessibility_alert_body)
+                binding.btnEnableAppBlocking.visibility = View.VISIBLE
+            }
         } else {
             binding.cardAppRestrictionsAlert.visibility = View.GONE
         }

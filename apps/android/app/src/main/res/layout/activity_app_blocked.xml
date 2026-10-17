@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="6dp"
+        app:strokeColor="@color/status_red_border"
+        app:strokeWidth="1.5dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="28dp">
+
+            <!-- Red Circle with restriction icon -->
+            <FrameLayout
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:background="@drawable/circle_red_bg"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="🚫"
+                    android:textSize="38sp" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/textBlockedTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/app_blocked_title"
+                android:textColor="@color/status_red"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textBlockedSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textBlockedBody"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center"
+                android:lineSpacingExtra="3dp"
+                android:text="@string/app_blocked_body"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="20dp"
+                android:background="@color/border" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReturnHome"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:backgroundTint="@color/primary"
+                android:text="@string/btn_return_home"
+                android:textColor="@android:color/white"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:cornerRadius="10dp" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>

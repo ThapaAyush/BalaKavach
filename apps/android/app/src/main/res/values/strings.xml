@@ -51,6 +51,20 @@
     <string name="sync_in_progress">Synchronizing with KidsGuard server…</string>
     <string name="sync_mode_auto">Sync Mode: Automatic (live)</string>
 
+    <!-- App Blocking Screen & Protection -->
+    <string name="app_blocked_title">App Restricted</string>
+    <string name="app_blocked_subtitle">%1$s is restricted by your parent</string>
+    <string name="app_blocked_body">Your parent has restricted access to this app on KidsGuard. Contact your parent to request access or adjust rules in the KidsGuard dashboard.</string>
+    <string name="btn_return_home">Return to Home Screen</string>
+    <string name="accessibility_service_description">KidsGuard App Supervision monitors app launches to enforce parental screen time policies and app restrictions set by parents without network diversion or VPN.</string>
+    <string name="accessibility_permission_title">App Blocking Protection (Accessibility)</string>
+    <string name="accessibility_permission_desc">Required to stop restricted apps automatically when launched.</string>
+    <string name="btn_enable_accessibility">Enable App Blocking in Settings</string>
+    <string name="accessibility_enabled_badge">Active &amp; Enforcing</string>
+    <string name="accessibility_disabled_badge">Action Required</string>
+    <string name="accessibility_alert_title">App Blocking Service Not Enabled</string>
+    <string name="accessibility_alert_body">To enforce parent app restrictions on this phone, please enable KidsGuard App Supervision in Accessibility settings.</string>
+
     <!-- Screen 2: Screen Time -->
     <string name="screen_time_title">Today\'s Screen Time</string>
     <string name="reporting_period_title">Reporting Period:</string>
