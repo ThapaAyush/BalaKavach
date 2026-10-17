@@ -367,25 +367,54 @@ export default function WelcomePage() {
 
         {auth.state === 'authenticated' ? (
           <div className="space-y-8">
-            {/* Parent Account Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 font-bold text-sm border border-sky-200/60">
-                  {auth.parent.email[0].toUpperCase()}
+            {/* Parent Account Bar & Quick Metrics */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-bold text-base shadow-xs">
+                    {auth.parent.email[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <span className="inline-block rounded-full bg-sky-50 border border-sky-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-700">
+                      Parent Account
+                    </span>
+                    <p className="mt-0.5 break-all text-sm font-bold text-slate-900">{auth.parent.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Authenticated Parent</p>
-                  <p className="mt-0.5 break-all text-sm font-bold text-slate-900">{auth.parent.email}</p>
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-xs transition disabled:opacity-60"
+                  disabled={submitting}
+                  onClick={signOut}
+                  type="button"
+                >
+                  Sign out
+                </button>
+              </div>
+
+              {/* Quick Summary Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
+                <div className="rounded-xl bg-slate-50/70 border border-slate-200/70 p-3">
+                  <p className="text-[11px] font-semibold text-slate-500">Child Profiles</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">{children.items.length}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50/70 border border-slate-200/70 p-3">
+                  <p className="text-[11px] font-semibold text-slate-500">Paired Devices</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">{devices.items.length}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50/70 border border-slate-200/70 p-3">
+                  <p className="text-[11px] font-semibold text-slate-500">Active Policy</p>
+                  <p className="mt-1 text-lg font-bold text-sky-700 font-mono">
+                    {selectedChild && childPolicyVersions[selectedChild.id] ? `v${childPolicyVersions[selectedChild.id]}` : 'Active'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-50/70 border border-slate-200/70 p-3">
+                  <p className="text-[11px] font-semibold text-slate-500">Protection Status</p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
+                    <span className="text-xs font-bold text-emerald-700">Real-Time</span>
+                  </div>
                 </div>
               </div>
-              <button
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-rose-600 shadow-xs transition disabled:opacity-60"
-                disabled={submitting}
-                onClick={signOut}
-                type="button"
-              >
-                Sign out
-              </button>
             </div>
 
             {/* Child Profile Controls (When Child is Selected) */}
@@ -609,28 +638,30 @@ export default function WelcomePage() {
               {/* Add Child Profile Form */}
               <form className="mt-6 space-y-4 border-t border-slate-100 pt-5" onSubmit={createChildProfile}>
                 <h3 className="text-sm font-bold text-slate-900">Add a child profile</h3>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="child-display-name">Display name</label>
-                  <input
-                    autoComplete="off"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
-                    id="child-display-name"
-                    maxLength={60}
-                    onChange={(event) => setChildDisplayName(event.target.value)}
-                    placeholder="e.g. Alex"
-                    required
-                    value={childDisplayName}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="child-date-of-birth">Date of birth (optional)</label>
-                  <input
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
-                    id="child-date-of-birth"
-                    onChange={(event) => setChildDateOfBirth(event.target.value)}
-                    type="date"
-                    value={childDateOfBirth}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="child-display-name">Display name</label>
+                    <input
+                      autoComplete="off"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
+                      id="child-display-name"
+                      maxLength={60}
+                      onChange={(event) => setChildDisplayName(event.target.value)}
+                      placeholder="e.g. Alex"
+                      required
+                      value={childDisplayName}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="child-date-of-birth">Date of birth (optional)</label>
+                    <input
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
+                      id="child-date-of-birth"
+                      onChange={(event) => setChildDateOfBirth(event.target.value)}
+                      type="date"
+                      value={childDateOfBirth}
+                    />
+                  </div>
                 </div>
                 {childMessage && (
                   <p className={`text-sm font-medium ${childMessage.type === 'error' ? 'text-rose-600' : 'text-emerald-600'}`} role={childMessage.type === 'error' ? 'alert' : 'status'}>
@@ -721,87 +752,144 @@ export default function WelcomePage() {
         ) : auth.state === 'checking' ? (
           <p className="mt-8 text-sm text-slate-500" role="status">Checking sign-in status…</p>
         ) : (
-          <div className="mt-8">
-            <span className="inline-block rounded-full bg-sky-50 border border-sky-200/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-sky-700">Parent account</span>
-            <h1 id="welcome-title" className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">A calmer way to stay connected.</h1>
-            <p className="mt-3 max-w-lg text-base leading-relaxed text-slate-600">Create a parent account or sign in to your BalaKavach workspace to manage family screen time and policies.</p>
+          <div className="mt-8 lg:grid lg:grid-cols-12 lg:gap-10 lg:items-start">
+            <div className="lg:col-span-6">
+              <span className="inline-block rounded-full bg-sky-50 border border-sky-200/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-sky-700">Parent account</span>
+              <h1 id="welcome-title" className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">A calmer way to stay connected.</h1>
+              <p className="mt-3 text-base leading-relaxed text-slate-600">Create a parent account or sign in to your BalaKavach workspace to manage family screen time and policies.</p>
 
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 shadow-xs" role="status" aria-live="polite">
-              <span aria-hidden="true" className={`mt-1.5 size-2.5 shrink-0 rounded-full ${healthColor}`} />
-              <div>
-                <p className="text-sm font-bold text-slate-900">{healthLabel}</p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {isLoadingHealth && 'Contacting the local BalaKavach API…'}
-                  {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'status unknown'}${health.data?.status === 'degraded' ? ' — authentication needs a database connection.' : '.'}`}
-                  {health.state === 'unavailable' && 'Start the API at localhost:5000 to check its health.'}
-                </p>
+              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 shadow-xs" role="status" aria-live="polite">
+                <span aria-hidden="true" className={`mt-1.5 size-2.5 shrink-0 rounded-full ${healthColor}`} />
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{healthLabel}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {isLoadingHealth && 'Contacting the local BalaKavach API…'}
+                    {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'status unknown'}${health.data?.status === 'degraded' ? ' — authentication needs a database connection.' : '.'}`}
+                    {health.state === 'unavailable' && 'Start the API at localhost:5000 to check its health.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div aria-label="Authentication options" className="mb-6 flex gap-2 rounded-xl bg-slate-100 p-1 border border-slate-200" role="group">
+                  <button
+                    aria-pressed={mode === 'login'}
+                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${mode === 'login' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    onClick={() => { setMode('login'); setFormMessage(null); }}
+                    type="button"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    aria-pressed={mode === 'register'}
+                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${mode === 'register' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    onClick={() => { setMode('register'); setFormMessage(null); }}
+                    type="button"
+                  >
+                    Register
+                  </button>
+                </div>
+
+                <form className="space-y-4" onSubmit={submitCredentials}>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-email">Email</label>
+                    <input
+                      autoComplete="username"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
+                      id="parent-email"
+                      maxLength={254}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@example.com"
+                      required
+                      type="email"
+                      value={email}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-password">Password</label>
+                    <input
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
+                      id="parent-password"
+                      maxLength={128}
+                      minLength={mode === 'register' ? 8 : 1}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                      required
+                      type="password"
+                      value={password}
+                    />
+                    {mode === 'register' && <p className="mt-1.5 text-xs text-slate-500">Use at least 8 characters.</p>}
+                  </div>
+                  {formMessage && (
+                    <p className={`text-sm font-medium ${formMessage.type === 'error' ? 'text-rose-600' : 'text-emerald-600'}`} role={formMessage.type === 'error' ? 'alert' : 'status'}>
+                      {formMessage.text}
+                    </p>
+                  )}
+                  {auth.state === 'unavailable' && <p className="text-sm font-medium text-amber-700">Sign-in status could not be checked. You can still try signing in.</p>}
+                  <button
+                    className="w-full rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 shadow-md shadow-sky-600/20 disabled:cursor-wait disabled:opacity-60 transition"
+                    disabled={submitting}
+                    type="submit"
+                  >
+                    {submitting ? 'Please wait…' : mode === 'login' ? 'Continue' : 'Create account'}
+                  </button>
+                </form>
               </div>
             </div>
 
-            <div aria-label="Authentication options" className="my-6 flex gap-2 rounded-xl bg-slate-100 p-1 border border-slate-200" role="group">
-              <button
-                aria-pressed={mode === 'login'}
-                className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${mode === 'login' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                onClick={() => { setMode('login'); setFormMessage(null); }}
-                type="button"
-              >
-                Sign in
-              </button>
-              <button
-                aria-pressed={mode === 'register'}
-                className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${mode === 'register' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                onClick={() => { setMode('register'); setFormMessage(null); }}
-                type="button"
-              >
-                Register
-              </button>
-            </div>
+            {/* Right Column: Colorful Feature Showcase */}
+            <div className="mt-8 lg:mt-0 lg:col-span-6 space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50/50 via-white to-indigo-50/40 p-6 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="rounded-full bg-sky-100 text-sky-800 border border-sky-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">
+                    Parent Protection Suite
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Complete Digital Wellbeing for Your Kids</h3>
+                <p className="mt-1 text-xs text-slate-600">Built with privacy-first architecture, local device enforcement, and automatic real-time sync.</p>
 
-            <form className="space-y-4" onSubmit={submitCredentials}>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-email">Email</label>
-                <input
-                  autoComplete="username"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
-                  id="parent-email"
-                  maxLength={254}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@example.com"
-                  required
-                  type="email"
-                  value={email}
-                />
+                <div className="mt-5 space-y-3.5">
+                  <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/80 p-3.5 shadow-2xs">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 text-lg">
+                      ⏱️
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Daily Screen Time &amp; Quiet Hours</h4>
+                      <p className="mt-0.5 text-xs text-slate-500">Enforce healthy daily budgets and set automatic quiet hours for homework and bedtime.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/80 p-3.5 shadow-2xs">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700 text-lg">
+                      🚫
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Instant App &amp; Website Blocking</h4>
+                      <p className="mt-0.5 text-xs text-slate-500">Zero-delay enforcement across Android mobile apps and desktop Chrome browsing.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/80 p-3.5 shadow-2xs">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 text-lg">
+                      ⚡
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Seamless Automatic Synchronization</h4>
+                      <p className="mt-0.5 text-xs text-slate-500">Parent policy updates sync in real-time without requiring child-side confirmation.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                    <span className="size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
+                    Live System Active
+                  </span>
+                  <span>🛡️ 100% On-Device Enforcement</span>
+                </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-password">Password</label>
-                <input
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
-                  id="parent-password"
-                  maxLength={128}
-                  minLength={mode === 'register' ? 8 : 1}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  required
-                  type="password"
-                  value={password}
-                />
-                {mode === 'register' && <p className="mt-1.5 text-xs text-slate-500">Use at least 8 characters.</p>}
-              </div>
-              {formMessage && (
-                <p className={`text-sm font-medium ${formMessage.type === 'error' ? 'text-rose-600' : 'text-emerald-600'}`} role={formMessage.type === 'error' ? 'alert' : 'status'}>
-                  {formMessage.text}
-                </p>
-              )}
-              {auth.state === 'unavailable' && <p className="text-sm font-medium text-amber-700">Sign-in status could not be checked. You can still try signing in.</p>}
-              <button
-                className="w-full rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 shadow-md shadow-sky-600/20 disabled:cursor-wait disabled:opacity-60 transition"
-                disabled={submitting}
-                type="submit"
-              >
-                {submitting ? 'Please wait…' : mode === 'login' ? 'Continue' : 'Create account'}
-              </button>
-            </form>
+            </div>
           </div>
         )}
       </section>
