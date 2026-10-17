@@ -3,17 +3,33 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>KidsGuard parent-managed filter</title>
+    <title>BalaKavach Browser Companion</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main>
-      <h1>KidsGuard Filter &amp; Device</h1>
-      <p class="intro">Desktop browser companion enforcing parent-managed rules via Declarative Net Request.</p>
+      <header class="app-header">
+        <div class="brand">
+          <div class="logo-container">
+            <img src="balakavach_logo.png" alt="BalaKavach Logo" class="logo">
+          </div>
+          <div class="brand-info">
+            <h1 class="brand-title">BalaKavach</h1>
+            <p class="brand-tagline">Browser Companion</p>
+          </div>
+        </div>
+        <div class="header-status">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          <span class="header-status-text">Active</span>
+        </div>
+      </header>
 
       <section id="device-section" class="card" aria-labelledby="device-title">
         <div class="section-header">
-          <h2 id="device-title">Device status</h2>
+          <div class="section-heading-group">
+            <h2 id="device-title">Device status</h2>
+            <p class="section-subtitle">Real-time sync &amp; connectivity</p>
+          </div>
           <span id="device-status-badge" class="badge badge-unpaired" role="status">Unpaired</span>
         </div>
 
@@ -62,7 +78,7 @@
               type="text"
               maxlength="22"
               autocomplete="off"
-              placeholder="22-character code"
+              placeholder="Enter 22-character code"
               required
             >
             <p class="hint">Enter the 22-character code from your parent dashboard.</p>
@@ -86,19 +102,26 @@
       </section>
 
       <section class="card" aria-labelledby="filter-title">
-        <h2 id="filter-title">Parent-managed website filter</h2>
-        <p class="hint">Website blocking rules are configured by parents in the KidsGuard web dashboard and enforced on this browser.</p>
+        <div class="section-header">
+          <div class="section-heading-group">
+            <h2 id="filter-title">Parent-managed website filter</h2>
+            <p class="section-subtitle">Enforced locally via Declarative Net Request</p>
+          </div>
+        </div>
 
-        <section aria-labelledby="list-title">
+        <section aria-labelledby="list-title" class="list-section">
           <h3 id="list-title">Blocked domains</h3>
           <ul id="domain-list"></ul>
         </section>
         <p id="status" class="status" role="status" aria-live="polite">Loading rules…</p>
       </section>
 
-      <p class="notice">
-        Rules are managed exclusively from the KidsGuard web dashboard. Dynamic filtering is enforced locally via Chrome Declarative Net Request.
-      </p>
+      <footer class="footer-notice">
+        <span class="footer-icon" aria-hidden="true">🛡️</span>
+        <p class="notice">
+          Rules are managed exclusively from the BalaKavach web dashboard.
+        </p>
+      </footer>
     </main>
     <script type="module" src="popup.js"></script>
   </body>
