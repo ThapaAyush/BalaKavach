@@ -117,7 +117,7 @@
     <string name="badge_blocked">BLOCKED</string>
     <string name="blocked_app_detected_warning">⚠️ Restricted App Activity: %1$s was launched today. Parental policy restricts this application.</string>
 
-    <string name="top_apps_title">Foreground App Activity Today</string>
+    <string name="top_apps_title">Application Usage Breakdown</string>
     <string name="no_apps_recorded">No foreground app activity recorded for today.</string>
     <string name="apps_unavailable_no_perm">App breakdown is unavailable until Usage Access permission is granted.</string>
 

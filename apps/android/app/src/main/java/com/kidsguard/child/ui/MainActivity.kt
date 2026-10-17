@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.view.View
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -568,6 +569,7 @@ class MainActivity : AppCompatActivity() {
         val blockedNameSet = blockedAppsList.map { it.appName.lowercase() }.filter { it.isNotBlank() }.toSet()
 
         val appList = usage?.appUsage ?: emptyList()
+        val totalSec = usage?.totalScreenTimeSeconds ?: 0L
         binding.containerAppUsageList.removeAllViews()
 
         if (usage != null && !usage.permissionGranted) {
@@ -578,40 +580,85 @@ class MainActivity : AppCompatActivity() {
             binding.textEmptyApps.visibility = View.VISIBLE
         } else {
             binding.textEmptyApps.visibility = View.GONE
-            for (app in appList.take(25)) {
+            val displayList = appList.take(25)
+            for ((index, app) in displayList.withIndex()) {
                 val isBlocked = com.kidsguard.child.domain.rules.AppBlockingRuleEngine.isPackageBlocked(app.packageName, policy)
-                val rowView = createAppUsageRow(app, isBlocked)
+                val rowView = createAppUsageRow(
+                    app = app,
+                    isBlocked = isBlocked,
+                    totalSec = totalSec,
+                    showDivider = (index < displayList.size - 1)
+                )
                 binding.containerAppUsageList.addView(rowView)
             }
         }
     }
 
-    private fun createAppUsageRow(app: AppUsageItemDto, isBlocked: Boolean): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 8, 0, 8)
+    private fun createAppUsageRow(
+        app: AppUsageItemDto,
+        isBlocked: Boolean,
+        totalSec: Long,
+        showDivider: Boolean
+    ): View {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int): Int = (value * density).toInt()
+
+        val percent = if (totalSec > 0) {
+            Math.round((app.durationSeconds.toDouble() / totalSec) * 100).toInt()
+        } else 0
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            if (isBlocked) {
-                background = ContextCompat.getDrawable(this@MainActivity, R.color.status_red_light)
-            }
+            setPadding(0, dp(8), 0, if (showDivider) dp(8) else dp(2))
+        }
+
+        // Header row with Name, optional Blocked badge, and Duration with Percentage
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
 
         val nameView = TextView(this).apply {
-            text = if (isBlocked) "${app.appName} 🚫" else app.appName
-            textSize = 14f
+            text = app.appName
+            textSize = 13.5f
             setTextColor(
                 ContextCompat.getColor(
                     this@MainActivity,
                     if (isBlocked) R.color.status_red else R.color.text_primary
                 )
             )
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            if (isBlocked) {
+        }
+        headerRow.addView(nameView)
+
+        if (isBlocked) {
+            val blockedBadge = TextView(this).apply {
+                text = getString(R.string.badge_blocked)
+                textSize = 9.5f
+                setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.white))
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_badge_pill_danger)
+                setPadding(dp(6), dp(1), dp(6), dp(1))
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginStart = dp(6)
+                    marginEnd = dp(8)
+                }
             }
+            headerRow.addView(blockedBadge)
         }
 
         val hours = app.durationSeconds / 3600
@@ -619,40 +666,59 @@ class MainActivity : AppCompatActivity() {
         val durationStr = when {
             hours > 0 -> "${hours}h ${minutes}m"
             minutes > 0 -> "${minutes}m"
-            else -> "< 1m"
+            else -> "< 1 min"
         }
 
         val durationView = TextView(this).apply {
-            text = durationStr
-            textSize = 13f
+            text = "$durationStr ($percent%)"
+            textSize = 12.5f
             setTextColor(
                 ContextCompat.getColor(
                     this@MainActivity,
                     if (isBlocked) R.color.status_red else R.color.text_secondary
                 )
             )
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
+        headerRow.addView(durationView)
+        container.addView(headerRow)
 
-        row.addView(nameView)
-        if (isBlocked) {
-            val blockedBadge = TextView(this).apply {
-                text = getString(R.string.badge_blocked)
-                textSize = 9f
-                setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.white))
-                background = ContextCompat.getDrawable(this@MainActivity, R.color.status_red)
-                setPadding(10, 3, 10, 3)
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
+        // Horizontal Progress Bar
+        val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = false
+            max = 100
+            progress = percent
+            progressDrawable = ContextCompat.getDrawable(
+                this@MainActivity,
+                if (isBlocked) R.drawable.bg_progress_usage_blocked else R.drawable.bg_progress_usage
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(6)
+            ).apply {
+                topMargin = dp(6)
+            }
+        }
+        container.addView(progressBar)
+
+        if (showDivider) {
+            val divider = View(this).apply {
+                setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.surface_variant))
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(1)
                 ).apply {
-                    marginEnd = 12
+                    topMargin = dp(10)
                 }
             }
-            row.addView(blockedBadge)
+            container.addView(divider)
         }
-        row.addView(durationView)
-        return row
+
+        return container
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
