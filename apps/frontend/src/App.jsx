@@ -7,7 +7,7 @@ function NotFoundPage() {
       <div>
         <p className="text-sm font-medium text-zinc-400">Page not found</p>
         <Link className="mt-4 inline-block rounded-lg text-white underline decoration-zinc-600 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" to="/">
-          Return to KidsGuard
+          Return to BalaKavach
         </Link>
       </div>
     </main>

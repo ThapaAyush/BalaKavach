@@ -23,20 +23,11 @@
             android:orientation="vertical"
             android:padding="28dp">
 
-            <!-- Red Circle with restriction icon -->
-            <FrameLayout
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:background="@drawable/circle_red_bg"
-                android:gravity="center">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="🚫"
-                    android:textSize="38sp" />
-            </FrameLayout>
+            <ImageView
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:src="@drawable/ic_balakavach_logo"
+                android:contentDescription="@string/app_name" />
 
             <TextView
                 android:id="@+id/textBlockedTitle"

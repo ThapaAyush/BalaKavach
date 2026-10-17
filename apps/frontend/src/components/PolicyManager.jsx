@@ -577,7 +577,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
           <div className="flex items-center justify-between">
             <div>
               <span className="block text-sm font-medium text-zinc-200">Website Blocklist (Desktop Chrome)</span>
-              <p className="text-xs text-zinc-400">Enforced top-level HTTP(S) blocklist for Chrome desktop profiles via the KidsGuard extension.</p>
+              <p className="text-xs text-zinc-400">Enforced top-level HTTP(S) blocklist for Chrome desktop profiles via the BalaKavach extension.</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -591,7 +591,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
           </div>
 
           <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
-            <strong>Platform Boundary Notice:</strong> Website filtering is actively enforced on Desktop Chrome via the KidsGuard Extension. On ordinary Android devices without a VPN (which KidsGuard strictly avoids for privacy and stability), website blocking is not claimed or active.
+            <strong>Platform Boundary Notice:</strong> Website filtering is actively enforced on Desktop Chrome via the BalaKavach Extension. On ordinary Android devices without a VPN (which BalaKavach strictly avoids for privacy and stability), website blocking is not claimed or active.
           </div>
 
           {webRestrictionsEnabled && (

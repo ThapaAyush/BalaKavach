@@ -348,11 +348,9 @@ export default function WelcomePage() {
         {/* Brand Header */}
         <div className="mb-8 flex items-center justify-between border-b border-zinc-800 pb-5">
           <div className="flex items-center gap-3">
-            <div aria-hidden="true" className="grid size-10 place-items-center rounded-xl border border-indigo-500/30 bg-indigo-600/20 text-lg font-bold text-indigo-400">
-              K
-            </div>
+            <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-11 rounded-xl object-contain shadow-md" />
             <div>
-              <span className="text-base font-bold tracking-tight text-white">KidsGuard</span>
+              <span className="text-base font-bold tracking-tight text-white">BalaKavach</span>
               <p className="text-xs text-zinc-400">Parental Control Platform</p>
             </div>
           </div>
@@ -698,14 +696,14 @@ export default function WelcomePage() {
           <div className="mt-8">
             <p className="text-sm font-medium text-zinc-400">Parent account</p>
             <h1 id="welcome-title" className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">A calmer way to stay connected.</h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-zinc-400">Create a parent account or sign in to your KidsGuard workspace to manage family screen time and policies.</p>
+            <p className="mt-4 max-w-lg text-base leading-7 text-zinc-400">Create a parent account or sign in to your BalaKavach workspace to manage family screen time and policies.</p>
 
             <div className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3" role="status" aria-live="polite">
               <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${healthColor}`} />
               <div>
                 <p className="text-sm font-medium text-zinc-100">{healthLabel}</p>
                 <p className="mt-1 text-sm text-zinc-500">
-                  {isLoadingHealth && 'Contacting the local KidsGuard API…'}
+                  {isLoadingHealth && 'Contacting the local BalaKavach API…'}
                   {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'status unknown'}${health.data?.status === 'degraded' ? ' — authentication needs a database connection.' : '.'}`}
                   {health.state === 'unavailable' && 'Start the API at localhost:5000 to check its health.'}
                 </p>

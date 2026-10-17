@@ -92,7 +92,7 @@ export default function ScreenTimeView({ child }) {
             <span>⚠️ Usage Access Not Granted on Device</span>
           </div>
           <p className="mt-1 text-xs text-amber-200/80">
-            The child device reported that the required Android <code className="font-mono">Usage Access</code> permission is not granted. KidsGuard does not fabricate synthetic values when access is unavailable. Please grant usage access on the child device.
+            The child device reported that the required Android <code className="font-mono">Usage Access</code> permission is not granted. BalaKavach does not fabricate synthetic values when access is unavailable. Please grant usage access on the child device.
           </p>
         </div>
       )}
