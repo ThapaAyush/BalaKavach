@@ -338,15 +338,10 @@ export default function WelcomePage() {
   const selectedChild = children.items.find((c) => c.id === selectedChildId);
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-slate-50/70 px-4 py-8 sm:px-6 sm:py-12">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.08),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(99,102,241,0.06),_transparent_40%)]" />
-
-      <section
-        aria-labelledby="welcome-title"
-        className={`relative w-full ${auth.state === 'authenticated' ? 'max-w-4xl' : 'max-w-xl'} rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xl shadow-slate-200/60 transition-all sm:p-10`}
-      >
+    <main className="min-h-screen bg-[#eef2f6] text-slate-900 py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
         {/* Brand Header */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
+        <header className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative">
               <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-11 rounded-2xl object-contain shadow-xs border border-slate-100 p-0.5 bg-white" />
@@ -363,7 +358,9 @@ export default function WelcomePage() {
               {apiAvailable ? 'Protected & Active' : 'Connecting…'}
             </span>
           </div>
-        </div>
+        </header>
+
+        <section aria-labelledby="welcome-title">
 
         {auth.state === 'authenticated' ? (
           <div className="space-y-8">
@@ -892,7 +889,8 @@ export default function WelcomePage() {
             </div>
           </div>
         )}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
