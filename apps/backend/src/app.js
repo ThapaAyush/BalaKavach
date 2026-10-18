@@ -17,6 +17,7 @@ import { createChildRouter } from './routes/childRoutes.js';
 import { createDevicePairingRouter } from './routes/devicePairingRoutes.js';
 import { createPolicyRouter } from './routes/policyRoutes.js';
 import { createScreenTimeRouter } from './routes/screenTimeRoutes.js';
+import { getHealth } from './controllers/healthController.js';
 import healthRoutes from './routes/healthRoutes.js';
 
 export function createApp({
@@ -93,6 +94,22 @@ export function createApp({
     nodeEnv: runtimeEnv.NODE_ENV,
     rateLimitConfig: runtimeEnv.rateLimitConfig,
   }));
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      ok: true,
+      service: 'balakavach-api',
+      status: 'ready',
+      message: 'BalaKavach Backend API is running.',
+      endpoints: {
+        health: '/api/v1/health',
+        auth: '/api/v1/auth',
+        children: '/api/v1/children',
+        policies: '/api/v1/policies',
+        screenTime: '/api/v1/screen-time',
+      },
+    });
+  });
+  app.get('/health', getHealth);
   app.use('/api/v1', healthRoutes);
   app.use(notFoundHandler);
   app.use(errorHandler);

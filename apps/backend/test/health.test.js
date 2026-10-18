@@ -52,6 +52,28 @@ describe('GET /api/v1/health', () => {
     assert.equal(JSON.stringify(response.body).includes('mongodb+srv://'), false);
   });
 
+  it('returns service status and endpoint links for root GET /', { timeout: 7_000 }, async () => {
+    const response = await request(server)
+      .get('/')
+      .timeout({ deadline: OPERATION_TIMEOUT_MS })
+      .expect(200);
+
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.service, 'balakavach-api');
+    assert.equal(response.body.status, 'ready');
+    assert.equal(response.body.endpoints.health, '/api/v1/health');
+  });
+
+  it('aliases GET /health to the health check endpoint', { timeout: 7_000 }, async () => {
+    const response = await request(server)
+      .get('/health')
+      .timeout({ deadline: OPERATION_TIMEOUT_MS })
+      .expect(200);
+
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.data.service, 'kidsguard-api');
+  });
+
   it('uses a generic not-found response for unimplemented routes', { timeout: 7_000 }, async () => {
     const response = await request(server)
       .get('/api/v1/not-implemented')
