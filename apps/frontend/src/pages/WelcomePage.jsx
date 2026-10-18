@@ -362,23 +362,33 @@ export default function WelcomePage() {
   const selectedChild = children.items.find((c) => c.id === selectedChildId);
 
   return (
-    <main className="min-h-screen min-h-dvh bg-[#eef2f6] text-slate-900 py-3.5 sm:py-8 px-3 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
+    <div className="relative min-h-screen min-h-dvh bg-slate-50/70 text-slate-900 antialiased overflow-x-hidden selection:bg-sky-500 selection:text-white">
+      {/* Decorative ambient background glows */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-tr from-sky-200/40 via-indigo-200/30 to-emerald-100/30 blur-3xl opacity-60" />
+        <div className="absolute top-1/4 -right-40 size-[420px] rounded-full bg-sky-200/20 blur-3xl" />
+        <div className="absolute bottom-10 -left-40 size-[420px] rounded-full bg-indigo-200/20 blur-3xl" />
+      </div>
+
+      <main className="mx-auto max-w-6xl px-3.5 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-6">
         {/* Brand Header */}
-        <header className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="relative">
-              <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-10 sm:size-11 rounded-2xl object-contain shadow-xs border border-slate-100 p-0.5 bg-white" />
+        <header className="rounded-2xl border border-slate-200/80 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-3.5 sm:py-4 shadow-sm shadow-slate-200/40 flex flex-wrap items-center justify-between gap-3 sm:gap-4 transition">
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center justify-center size-11 sm:size-12 rounded-2xl bg-gradient-to-br from-sky-50 via-indigo-50/40 to-white border border-sky-100/80 p-1.5 shadow-2xs">
+              <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-full object-contain" />
               <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 sm:size-3 rounded-full ring-2 ring-white ${apiAvailable ? 'bg-emerald-500' : 'bg-amber-400'}`} />
             </div>
             <div>
-              <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">BalaKavach</span>
-              <p className="text-[11px] sm:text-xs font-medium text-slate-500">Parental Control Platform</p>
+              <div className="flex items-center gap-2">
+                <span className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">BalaKavach</span>
+                <span className="hidden sm:inline-block rounded-md bg-sky-50 border border-sky-200/60 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">PLATFORM</span>
+              </div>
+              <p className="text-[11px] sm:text-xs font-medium text-slate-500">Parental Control &amp; Family Safety</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${apiAvailable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-              <span className={`size-2 rounded-full ${apiAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span className={`inline-flex items-center justify-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide border shadow-2xs whitespace-nowrap transition-all duration-300 ${apiAvailable ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 shadow-emerald-500/5' : 'bg-amber-50 text-amber-700 border-amber-200/80'}`}>
+              <span className={`size-2 rounded-full ${apiAvailable ? 'bg-emerald-500 animate-pulse ring-4 ring-emerald-100' : 'bg-amber-500 ring-4 ring-amber-100'}`} />
               {apiAvailable ? 'Protected & Active' : 'Connecting…'}
             </span>
           </div>
@@ -809,93 +819,127 @@ export default function WelcomePage() {
         ) : auth.state === 'checking' ? (
           <p className="mt-8 text-sm text-slate-500" role="status">Checking sign-in status…</p>
         ) : (
-          <div className="mt-5 sm:mt-8 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start space-y-6 lg:space-y-0 max-w-5xl mx-auto">
+          <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch max-w-5xl mx-auto">
             {/* Left Column: Sign In / Register Card */}
-            <div className="lg:col-span-7 space-y-4">
-              <div>
-                <span className="inline-block rounded-full bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-700">Parent Portal</span>
-                <h1 id="welcome-title" className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">
-                  {mode === 'login' ? 'Sign in to BalaKavach' : 'Create Parent Account'}
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  {mode === 'login' ? 'Manage screen time and protection for your family.' : 'Set up your parent dashboard in under a minute.'}
-                </p>
-              </div>
+            <div className="lg:col-span-7 flex flex-col">
+              <div className="flex-1 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-6 sm:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition">
+                <div>
+                  {/* Top Header inside Left Card */}
+                  <div className="mb-6 border-b border-slate-100 pb-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-sky-700">
+                        <span className="size-1.5 rounded-full bg-sky-600" />
+                        Parent Portal
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        {mode === 'login' ? 'Secure Sign-In' : 'New Parent Setup'}
+                      </span>
+                    </div>
+                    <h1 id="welcome-title" className="mt-2.5 text-2xl sm:text-[26px] font-extrabold tracking-tight text-slate-900 leading-tight">
+                      {mode === 'login' ? 'Sign in to BalaKavach' : 'Create Parent Account'}
+                    </h1>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      {mode === 'login' ? 'Manage screen time and protection for your family.' : 'Set up your parent dashboard in under a minute.'}
+                    </p>
+                  </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-                <div aria-label="Authentication options" className="mb-5 flex gap-1.5 rounded-xl bg-slate-100 p-1 border border-slate-200/80" role="group">
-                  <button
-                    aria-pressed={mode === 'login'}
-                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition min-h-[42px] ${mode === 'login' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    onClick={() => { setMode('login'); setFormMessage(null); }}
-                    type="button"
-                  >
-                    Sign in
-                  </button>
-                  <button
-                    aria-pressed={mode === 'register'}
-                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition min-h-[42px] ${mode === 'register' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    onClick={() => { setMode('register'); setFormMessage(null); }}
-                    type="button"
-                  >
-                    Register
-                  </button>
+                  {/* Mode Tabs */}
+                  <div aria-label="Authentication options" className="mb-5 flex gap-1 rounded-2xl bg-slate-100/80 p-1 border border-slate-200/70" role="group">
+                    <button
+                      aria-pressed={mode === 'login'}
+                      className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all duration-200 min-h-[42px] ${mode === 'login' ? 'bg-white text-sky-700 shadow-sm shadow-slate-300/40 ring-1 ring-black/5' : 'text-slate-600 hover:text-slate-900'}`}
+                      onClick={() => { setMode('login'); setFormMessage(null); }}
+                      type="button"
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      aria-pressed={mode === 'register'}
+                      className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all duration-200 min-h-[42px] ${mode === 'register' ? 'bg-white text-sky-700 shadow-sm shadow-slate-300/40 ring-1 ring-black/5' : 'text-slate-600 hover:text-slate-900'}`}
+                      onClick={() => { setMode('register'); setFormMessage(null); }}
+                      type="button"
+                    >
+                      Register
+                    </button>
+                  </div>
+
+                  {/* Form */}
+                  <form className="space-y-4" onSubmit={submitCredentials}>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-700 tracking-wide uppercase" htmlFor="parent-email">Email</label>
+                      <input
+                        autoComplete="username"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition shadow-2xs"
+                        id="parent-email"
+                        maxLength={254}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="name@example.com"
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold text-slate-700 tracking-wide uppercase" htmlFor="parent-password">Password</label>
+                        {mode === 'login' && (
+                          <span className="text-[11px] text-slate-400 font-medium">Encrypted &amp; Secure</span>
+                        )}
+                      </div>
+                      <input
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition shadow-2xs"
+                        id="parent-password"
+                        maxLength={128}
+                        minLength={mode === 'register' ? 8 : 1}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="••••••••"
+                        required
+                        type="password"
+                        value={password}
+                      />
+                      {mode === 'register' && <p className="mt-1.5 text-[11px] font-medium text-slate-500">Must be at least 8 characters.</p>}
+                    </div>
+
+                    {formMessage && (
+                      <div className={`rounded-xl border p-3 text-xs font-semibold ${formMessage.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`} role={formMessage.type === 'error' ? 'alert' : 'status'}>
+                        {formMessage.text}
+                      </div>
+                    )}
+                    {auth.state === 'unavailable' && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800" role="alert">
+                        Sign-in status could not be checked. You can still try signing in.
+                      </div>
+                    )}
+
+                    <button
+                      className="w-full rounded-xl bg-gradient-to-r from-sky-600 via-sky-600 to-indigo-600 px-4 py-3 min-h-[46px] text-sm font-bold text-white hover:from-sky-500 hover:to-indigo-500 shadow-md shadow-sky-600/20 hover:shadow-lg hover:shadow-sky-600/30 disabled:cursor-wait disabled:opacity-60 transition active:scale-[0.99] flex items-center justify-center gap-2"
+                      disabled={submitting}
+                      type="submit"
+                    >
+                      {submitting ? (
+                        <>
+                          <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          <span>Please wait…</span>
+                        </>
+                      ) : (
+                        <span>{mode === 'login' ? 'Continue' : 'Create account'}</span>
+                      )}
+                    </button>
+                  </form>
                 </div>
 
-                <form className="space-y-3.5" onSubmit={submitCredentials}>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-email">Email</label>
-                    <input
-                      autoComplete="username"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
-                      id="parent-email"
-                      maxLength={254}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="name@example.com"
-                      required
-                      type="email"
-                      value={email}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-password">Password</label>
-                    <input
-                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
-                      id="parent-password"
-                      maxLength={128}
-                      minLength={mode === 'register' ? 8 : 1}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder="••••••••"
-                      required
-                      type="password"
-                      value={password}
-                    />
-                    {mode === 'register' && <p className="mt-1 text-[11px] text-slate-500">Use at least 8 characters.</p>}
-                  </div>
-
-                  {formMessage && (
-                    <p className={`text-sm font-medium ${formMessage.type === 'error' ? 'text-rose-600' : 'text-emerald-600'}`} role={formMessage.type === 'error' ? 'alert' : 'status'}>
-                      {formMessage.text}
-                    </p>
-                  )}
-                  {auth.state === 'unavailable' && <p className="text-sm font-medium text-amber-700">Sign-in status could not be checked. You can still try signing in.</p>}
-
-                  <button
-                    className="w-full rounded-xl bg-sky-600 px-4 py-3 min-h-[46px] text-sm font-semibold text-white hover:bg-sky-500 shadow-md shadow-sky-600/20 disabled:cursor-wait disabled:opacity-60 transition active:scale-[0.99]"
-                    disabled={submitting}
-                    type="submit"
-                  >
-                    {submitting ? 'Please wait…' : mode === 'login' ? 'Continue' : 'Create account'}
-                  </button>
-                </form>
-
-                <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500" role="status" aria-live="polite">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${healthColor}`} />
-                    <span className="font-semibold text-slate-700">{healthLabel}</span>
+                {/* Status Footer */}
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500" role="status" aria-live="polite">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${healthColor} ring-4 ${apiAvailable ? 'ring-emerald-100' : 'ring-rose-100'}`} />
+                    <span className="font-bold text-slate-700">{healthLabel}</span>
                     <span className="text-slate-300">•</span>
-                    <span>
+                    <span className="font-medium text-slate-500">
                       {isLoadingHealth && 'Contacting API server…'}
                       {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'connected'}`}
                       {health.state === 'unavailable' && (
@@ -910,101 +954,118 @@ export default function WelcomePage() {
             </div>
 
             {/* Right Column: Clean Child Device Apps Download */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900">Child Device Apps</h2>
-                    <p className="mt-0.5 text-xs text-slate-500">Install to protect your kids' phones &amp; computers.</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                    Free
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {/* Android Card */}
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/60 to-white p-3.5 transition hover:border-emerald-300">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 text-xl shrink-0">
-                        📱
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-bold text-slate-900">Android App</h3>
-                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">8.6 MB</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500">Phones &amp; tablets</p>
-                      </div>
+            <div className="lg:col-span-5 flex flex-col">
+              <div className="flex-1 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-6 sm:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition">
+                <div>
+                  {/* Top Header inside Right Card */}
+                  <div className="mb-6 border-b border-slate-100 pb-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-emerald-700">
+                        <span className="size-1.5 rounded-full bg-emerald-600" />
+                        Companion Apps
+                      </span>
+                      <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                        Free
+                      </span>
                     </div>
-                    <a
-                      href="/balakavach-companion.apk"
-                      download="balakavach-companion.apk"
-                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 transition active:scale-95 shrink-0"
-                      id="download-apk-btn"
-                    >
-                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                      Download
-                    </a>
+                    <h2 className="mt-2.5 text-2xl sm:text-[26px] font-extrabold tracking-tight text-slate-900 leading-tight">
+                      Child Device Apps
+                    </h2>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Install to protect your kids' phones &amp; computers.
+                    </p>
                   </div>
 
-                  {/* Chrome Extension Card */}
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-200/80 bg-gradient-to-r from-sky-50/60 to-white p-3.5 transition hover:border-sky-300">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-800 text-xl shrink-0">
-                        🌐
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-bold text-slate-900">Chrome Extension</h3>
-                          <span className="text-[10px] font-semibold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">258 KB</span>
+                  {/* App Download Cards */}
+                  <div className="space-y-3.5">
+                    {/* Android Card */}
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/70 via-emerald-50/30 to-white p-3.5 sm:p-4 transition hover:shadow-md hover:shadow-emerald-500/10 hover:border-emerald-300">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-11 items-center justify-center rounded-xl bg-emerald-100/90 text-emerald-800 text-2xl shrink-0 shadow-2xs">
+                          📱
                         </div>
-                        <p className="text-[11px] text-slate-500">Desktop browsing</p>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-sm font-bold text-slate-900">Android App</h3>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md">8.6 MB</span>
+                          </div>
+                          <p className="text-[11px] font-medium text-slate-500">Phones &amp; tablets</p>
+                        </div>
                       </div>
+                      <a
+                        href="/balakavach-companion.apk"
+                        download="balakavach-companion.apk"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 hover:shadow-md transition active:scale-95 shrink-0"
+                        id="download-apk-btn"
+                      >
+                        <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download
+                      </a>
                     </div>
-                    <a
-                      href="/balakavach-chrome-extension.zip"
-                      download="balakavach-chrome-extension.zip"
-                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-sky-500 transition active:scale-95 shrink-0"
-                      id="download-extension-btn"
-                    >
-                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                      Download
-                    </a>
+
+                    {/* Chrome Extension Card */}
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50/70 via-sky-50/30 to-white p-3.5 sm:p-4 transition hover:shadow-md hover:shadow-sky-500/10 hover:border-sky-300">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-11 items-center justify-center rounded-xl bg-sky-100/90 text-sky-800 text-2xl shrink-0 shadow-2xs">
+                          🌐
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-sm font-bold text-slate-900">Chrome Extension</h3>
+                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-1.5 py-0.5 rounded-md">258 KB</span>
+                          </div>
+                          <p className="text-[11px] font-medium text-slate-500">Desktop browsing</p>
+                        </div>
+                      </div>
+                      <a
+                        href="/balakavach-chrome-extension.zip"
+                        download="balakavach-chrome-extension.zip"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-sky-600/20 hover:from-sky-500 hover:to-indigo-500 hover:shadow-md transition active:scale-95 shrink-0"
+                        id="download-extension-btn"
+                      >
+                        <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Quick Setup Guide */}
+                  <div className="mt-4">
+                    <details className="group rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs text-slate-600 transition hover:bg-slate-50">
+                      <summary className="flex cursor-pointer items-center justify-between font-bold text-slate-700 select-none">
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-sky-600">ℹ️</span>
+                          How to install Chrome Extension
+                        </span>
+                        <span className="text-slate-400 group-open:rotate-180 transition-transform text-[10px]">▼</span>
+                      </summary>
+                      <ol className="mt-3 list-decimal list-inside space-y-2 pl-0.5 text-[11.5px] text-slate-600 border-t border-slate-200/70 pt-2.5">
+                        <li>Download &amp; extract <code className="bg-white px-1.5 py-0.5 rounded-md border border-slate-200 font-mono text-[10.5px] text-sky-700">balakavach-chrome-extension.zip</code></li>
+                        <li>Go to <code className="bg-white px-1.5 py-0.5 rounded-md border border-slate-200 font-mono text-[10.5px] text-sky-700">chrome://extensions</code> in Chrome</li>
+                        <li>Enable <strong>Developer mode</strong> and click <strong>Load unpacked</strong></li>
+                        <li>Select extracted folder and enter pairing code from parent portal</li>
+                      </ol>
+                    </details>
                   </div>
                 </div>
-
-                {/* Collapsible Quick Setup Guide */}
-                <details className="group rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs text-slate-600 transition">
-                  <summary className="flex cursor-pointer items-center justify-between font-semibold text-slate-700 select-none">
-                    <span>How to install Chrome Extension</span>
-                    <span className="text-slate-400 group-open:rotate-180 transition-transform text-[10px]">▼</span>
-                  </summary>
-                  <ol className="mt-2.5 list-decimal list-inside space-y-1.5 pl-0.5 text-[11px] text-slate-600 border-t border-slate-200/60 pt-2">
-                    <li>Download &amp; extract <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-[10.5px]">balakavach-chrome-extension.zip</code></li>
-                    <li>Go to <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-[10.5px]">chrome://extensions</code> in Chrome</li>
-                    <li>Enable <strong>Developer mode</strong> and click <strong>Load unpacked</strong></li>
-                    <li>Select extracted folder and enter pairing code</li>
-                  </ol>
-                </details>
 
                 {/* Minimal Feature Highlights */}
-                <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-100">
-                    <span className="text-base">⏱️</span>
-                    <p className="mt-0.5 font-bold text-slate-800 text-[11px]">Screen Time</p>
+                <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2.5 text-center">
+                  <div className="rounded-2xl bg-gradient-to-b from-slate-50/80 to-white p-2.5 border border-slate-200/70 shadow-2xs">
+                    <span className="text-lg">⏱️</span>
+                    <p className="mt-1 font-bold text-slate-800 text-[11px]">Screen Time</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-100">
-                    <span className="text-base">🚫</span>
-                    <p className="mt-0.5 font-bold text-slate-800 text-[11px]">App Blocking</p>
+                  <div className="rounded-2xl bg-gradient-to-b from-slate-50/80 to-white p-2.5 border border-slate-200/70 shadow-2xs">
+                    <span className="text-lg">🚫</span>
+                    <p className="mt-1 font-bold text-slate-800 text-[11px]">App Blocking</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-100">
-                    <span className="text-base">🛡️</span>
-                    <p className="mt-0.5 font-bold text-slate-800 text-[11px]">Web Filter</p>
+                  <div className="rounded-2xl bg-gradient-to-b from-slate-50/80 to-white p-2.5 border border-slate-200/70 shadow-2xs">
+                    <span className="text-lg">🛡️</span>
+                    <p className="mt-1 font-bold text-slate-800 text-[11px]">Web Filter</p>
                   </div>
                 </div>
               </div>
@@ -1012,7 +1073,7 @@ export default function WelcomePage() {
           </div>
         )}
         </section>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
