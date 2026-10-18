@@ -24,6 +24,12 @@ object ScreenTimeLimitManager {
     private const val KEY_LIVE_SECONDS_TODAY = "live_seconds_today"
     private const val KEY_LAST_POPUP_TIMESTAMP = "last_popup_timestamp"
 
+    private const val KEY_LIMIT_DATE = "limit_date"
+    private const val KEY_LIMIT_MINUTES = "limit_minutes"
+    private const val KEY_LIMIT_POLICY_VERSION = "limit_policy_version"
+    private const val KEY_LIMIT_BASELINE_SECONDS = "limit_baseline_seconds"
+    private const val KEY_LIMIT_CONFIGURED_TIMESTAMP = "limit_configured_timestamp"
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -31,6 +37,85 @@ object ScreenTimeLimitManager {
     private fun getTodayDateString(nowMs: Long = System.currentTimeMillis()): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         return sdf.format(Date(nowMs))
+    }
+
+    /**
+     * Resolves the baseline usage seconds recorded when this parental limit was configured.
+     * Accurately counts usage from the recent restricted time instead of locking out based on past day usage.
+     */
+    fun getOrCreateLimitBaselineSeconds(
+        context: Context,
+        policy: DevicePolicyResponse?,
+        totalMeasuredSeconds: Long,
+        nowMs: Long = System.currentTimeMillis()
+    ): Long {
+        val dailyLimitMin = policy?.dailyLimitMinutes
+        if (dailyLimitMin == null || dailyLimitMin <= 0) {
+            return 0L
+        }
+
+        val prefs = getPrefs(context)
+        val today = getTodayDateString(nowMs)
+
+        val savedDate = prefs.getString(KEY_LIMIT_DATE, null)
+        val savedLimitMin = prefs.getInt(KEY_LIMIT_MINUTES, -1)
+        val savedPolicyVer = prefs.getInt(KEY_LIMIT_POLICY_VERSION, -1)
+        val savedBaseline = prefs.getLong(KEY_LIMIT_BASELINE_SECONDS, -1L)
+
+        val isDifferentDay = savedDate != today
+        val isDifferentLimit = savedLimitMin != dailyLimitMin
+        val isDifferentVersion = policy.policyVersion > 0 && savedPolicyVer != policy.policyVersion
+
+        // If newly set, limit value changed, or day rolled over:
+        // Establish new baseline at current total measured usage so the child gets the full budget from now
+        if (isDifferentDay || isDifferentLimit || isDifferentVersion || savedBaseline < 0L) {
+            val baseline = totalMeasuredSeconds.coerceAtLeast(0L)
+            prefs.edit()
+                .putString(KEY_LIMIT_DATE, today)
+                .putInt(KEY_LIMIT_MINUTES, dailyLimitMin)
+                .putInt(KEY_LIMIT_POLICY_VERSION, policy.policyVersion)
+                .putLong(KEY_LIMIT_BASELINE_SECONDS, baseline)
+                .putLong(KEY_LIMIT_CONFIGURED_TIMESTAMP, nowMs)
+                .putLong(KEY_LIVE_SECONDS_TODAY, 0L)
+                .putBoolean(KEY_IS_LOCKED, false)
+                .putLong(KEY_EXTENSION_UNTIL_MS, 0L)
+                .apply()
+            return baseline
+        }
+
+        // Latch positive usage if baseline was initialized at 0 before usage reader completed first pass
+        if (savedBaseline == 0L && totalMeasuredSeconds > 0L) {
+            val configuredAt = prefs.getLong(KEY_LIMIT_CONFIGURED_TIMESTAMP, 0L)
+            if (nowMs - configuredAt < 60_000L) {
+                prefs.edit()
+                    .putLong(KEY_LIMIT_BASELINE_SECONDS, totalMeasuredSeconds)
+                    .apply()
+                return totalMeasuredSeconds
+            }
+        }
+
+        return savedBaseline
+    }
+
+    /**
+     * Calculates used minutes counted strictly from the recent restricted time.
+     */
+    fun computeUsedMinutesForLimit(
+        context: Context,
+        policy: DevicePolicyResponse?,
+        usage: ScreenTimeReportRequest?,
+        nowMs: Long = System.currentTimeMillis()
+    ): Int {
+        val dailyLimitMin = policy?.dailyLimitMinutes
+        if (dailyLimitMin == null || dailyLimitMin <= 0) {
+            return 0
+        }
+        val totalMeasuredSec = usage?.totalScreenTimeSeconds ?: 0L
+        val baseline = getOrCreateLimitBaselineSeconds(context, policy, totalMeasuredSec, nowMs)
+        val measuredSinceRestriction = (totalMeasuredSec - baseline).coerceAtLeast(0L)
+        val liveSeconds = getLiveForegroundSeconds(context, nowMs)
+        val effectiveUsedSeconds = maxOf(measuredSinceRestriction, liveSeconds)
+        return (effectiveUsedSeconds / 60).toInt()
     }
 
     /**
@@ -48,6 +133,7 @@ object ScreenTimeLimitManager {
                 isTimeOver = true,
                 isLocked = true,
                 isExtensionActive = false,
+                usedMinutes = usedMinutes,
                 reason = "Device locked for today by user."
             )
         }
@@ -57,6 +143,7 @@ object ScreenTimeLimitManager {
                 isTimeOver = false,
                 isLocked = false,
                 isExtensionActive = false,
+                usedMinutes = usedMinutes,
                 reason = "No daily limit configured."
             )
         }
@@ -67,6 +154,7 @@ object ScreenTimeLimitManager {
                 isTimeOver = false,
                 isLocked = false,
                 isExtensionActive = false,
+                usedMinutes = usedMinutes,
                 reason = "Usage ($usedMinutes m) is within daily budget ($dailyLimitMinutes m)."
             )
         }
@@ -80,6 +168,7 @@ object ScreenTimeLimitManager {
                 isLocked = false,
                 isExtensionActive = true,
                 extensionRemainingSeconds = remainingSec,
+                usedMinutes = usedMinutes,
                 reason = "Temporary extension active ($remainingSec seconds remaining)."
             )
         }
@@ -89,6 +178,7 @@ object ScreenTimeLimitManager {
             isTimeOver = true,
             isLocked = false,
             isExtensionActive = false,
+            usedMinutes = usedMinutes,
             reason = "Daily limit reached ($usedMinutes m >= $dailyLimitMinutes m) with no active extension."
         )
     }
@@ -133,15 +223,7 @@ object ScreenTimeLimitManager {
             0L
         }
 
-        val measuredMinutes = if (usage?.totalScreenTimeSeconds != null) {
-            (usage.totalScreenTimeSeconds / 60).toInt()
-        } else {
-            0
-        }
-
-        val liveSeconds = getLiveForegroundSeconds(context, nowMs)
-        val liveMinutes = (liveSeconds / 60).toInt()
-        val effectiveUsedMinutes = maxOf(measuredMinutes, liveMinutes)
+        val effectiveUsedMinutes = computeUsedMinutesForLimit(context, policy, usage, nowMs)
 
         return evaluateScreenTimeState(
             dailyLimitMinutes = policy?.dailyLimitMinutes,
@@ -449,5 +531,6 @@ data class ScreenTimeEvaluationResult(
     val isLocked: Boolean,
     val isExtensionActive: Boolean,
     val extensionRemainingSeconds: Long = 0L,
-    val reason: String = ""
+    val reason: String = "",
+    val usedMinutes: Int = 0
 )

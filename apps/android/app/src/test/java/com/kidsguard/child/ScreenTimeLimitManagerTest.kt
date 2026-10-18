@@ -203,4 +203,31 @@ class ScreenTimeLimitManagerTest {
         }
         assertFalse(ScreenTimeLimitManager.isQuietHoursActive(policy, calAfternoon))
     }
+
+    @Test
+    fun getOrCreateLimitBaselineSeconds_latchesCurrentUsageAsBaselineForNewLimit() {
+        val mockContext = org.mockito.Mockito.mock(android.content.Context::class.java)
+        val mockPrefs = org.mockito.Mockito.mock(android.content.SharedPreferences::class.java)
+        val mockEditor = org.mockito.Mockito.mock(android.content.SharedPreferences.Editor::class.java)
+
+        org.mockito.Mockito.`when`(mockContext.getSharedPreferences(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt())).thenReturn(mockPrefs)
+        org.mockito.Mockito.`when`(mockPrefs.edit()).thenReturn(mockEditor)
+        org.mockito.Mockito.`when`(mockEditor.putString(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyString())).thenReturn(mockEditor)
+        org.mockito.Mockito.`when`(mockEditor.putInt(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt())).thenReturn(mockEditor)
+        org.mockito.Mockito.`when`(mockEditor.putLong(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyLong())).thenReturn(mockEditor)
+        org.mockito.Mockito.`when`(mockEditor.putBoolean(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyBoolean())).thenReturn(mockEditor)
+
+        org.mockito.Mockito.`when`(mockPrefs.getString("limit_date", null)).thenReturn(null)
+        org.mockito.Mockito.`when`(mockPrefs.getInt("limit_minutes", -1)).thenReturn(-1)
+        org.mockito.Mockito.`when`(mockPrefs.getInt("limit_policy_version", -1)).thenReturn(-1)
+        org.mockito.Mockito.`when`(mockPrefs.getLong("limit_baseline_seconds", -1L)).thenReturn(-1L)
+
+        val policy = com.kidsguard.child.data.model.DevicePolicyResponse.defaultPolicy().copy(
+            dailyLimitMinutes = 1
+        )
+
+        // 3660s (1h 1m) already used earlier today before parent set 1m limit
+        val baseline = ScreenTimeLimitManager.getOrCreateLimitBaselineSeconds(mockContext, policy, 3660L)
+        assertEquals(3660L, baseline)
+    }
 }

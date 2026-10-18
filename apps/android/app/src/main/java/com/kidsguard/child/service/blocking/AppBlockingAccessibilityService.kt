@@ -128,6 +128,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     putExtra(ScreenTimeOverActivity.EXTRA_BUDGET_MINUTES, policy?.dailyLimitMinutes ?: 0)
+                    putExtra(ScreenTimeOverActivity.EXTRA_USED_MINUTES, screenTimeState.usedMinutes.coerceAtLeast(policy?.dailyLimitMinutes ?: 0))
                     putExtra(ScreenTimeOverActivity.EXTRA_IS_LOCKED_MODE, isLocked)
                 }
                 startActivity(overIntent)
@@ -234,6 +235,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     putExtra(ScreenTimeOverActivity.EXTRA_BUDGET_MINUTES, policy?.dailyLimitMinutes ?: 0)
+                    putExtra(ScreenTimeOverActivity.EXTRA_USED_MINUTES, screenTimeState.usedMinutes.coerceAtLeast(policy?.dailyLimitMinutes ?: 0))
                     putExtra(ScreenTimeOverActivity.EXTRA_IS_LOCKED_MODE, isLocked)
                 }
                 startActivity(overIntent)

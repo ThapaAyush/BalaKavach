@@ -490,11 +490,7 @@ class MainActivity : AppCompatActivity() {
 
         // 3. Parent Daily Limit (Read-Only)
         val dailyLimitMin = policy?.dailyLimitMinutes
-        val usedMinutes = if (usage?.totalScreenTimeSeconds != null) {
-            usage.totalScreenTimeSeconds / 60
-        } else {
-            0
-        }
+        val usedMinutes = ScreenTimeLimitManager.computeUsedMinutesForLimit(this, policy, usage)
 
         if (dailyLimitMin != null && dailyLimitMin > 0) {
             val formattedBudget = formatMinutesHuman(dailyLimitMin)
@@ -513,12 +509,16 @@ class MainActivity : AppCompatActivity() {
                 binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
                 binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
 
-                binding.textDailyLimitRemaining.text = getString(
-                    R.string.daily_limit_exceeded_format,
-                    formatMinutesHuman(overMinutes),
-                    formatMinutesHuman(usedMinutes),
-                    formattedBudget
-                )
+                if (overMinutes > 0) {
+                    binding.textDailyLimitRemaining.text = getString(
+                        R.string.daily_limit_exceeded_format,
+                        formatMinutesHuman(overMinutes),
+                        formatMinutesHuman(usedMinutes),
+                        formattedBudget
+                    )
+                } else {
+                    binding.textDailyLimitRemaining.text = "Daily limit reached ($formattedBudget used of $formattedBudget budget)"
+                }
                 binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.status_red))
                 binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
             } else if (percent >= 80) {
@@ -882,11 +882,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val usedMinutes = if (usage?.totalScreenTimeSeconds != null) {
-            usage.totalScreenTimeSeconds / 60
-        } else {
-            0
-        }
+        val usedMinutes = ScreenTimeLimitManager.computeUsedMinutesForLimit(this, policy, usage)
         val formattedBudget = formatMinutesHuman(dailyLimitMin)
         val formattedUsed = formatMinutesHuman(usedMinutes)
         val percent = ((usedMinutes.toDouble() / dailyLimitMin) * 100).toInt().coerceIn(0, 100)
