@@ -338,23 +338,23 @@ export default function WelcomePage() {
   const selectedChild = children.items.find((c) => c.id === selectedChildId);
 
   return (
-    <main className="min-h-screen bg-[#eef2f6] text-slate-900 py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <main className="min-h-screen min-h-dvh bg-[#eef2f6] text-slate-900 py-3.5 sm:py-8 px-3 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
         {/* Brand Header */}
-        <header className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <header className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <div className="relative">
-              <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-11 rounded-2xl object-contain shadow-xs border border-slate-100 p-0.5 bg-white" />
-              <span className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full ring-2 ring-white ${apiAvailable ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+              <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-10 sm:size-11 rounded-2xl object-contain shadow-xs border border-slate-100 p-0.5 bg-white" />
+              <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 sm:size-3 rounded-full ring-2 ring-white ${apiAvailable ? 'bg-emerald-500' : 'bg-amber-400'}`} />
             </div>
             <div>
-              <span className="text-lg font-bold tracking-tight text-slate-900">BalaKavach</span>
-              <p className="text-xs font-medium text-slate-500">Parental Control Platform</p>
+              <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">BalaKavach</span>
+              <p className="text-[11px] sm:text-xs font-medium text-slate-500">Parental Control Platform</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${apiAvailable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-              <span className={`size-1.5 rounded-full ${apiAvailable ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className={`inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${apiAvailable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+              <span className={`size-2 rounded-full ${apiAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
               {apiAvailable ? 'Protected & Active' : 'Connecting…'}
             </span>
           </div>
@@ -416,23 +416,33 @@ export default function WelcomePage() {
 
             {/* Child Profile Controls (When Child is Selected) */}
             {selectedChild && (
-              <div className="rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50/30 via-white to-white p-5 sm:p-6 shadow-sm space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-bold text-base shadow-xs">
-                      {selectedChild.displayName[0].toUpperCase()}
+              <div className="rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50/30 via-white to-white p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-100 pb-4">
+                  <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-bold text-sm sm:text-base shadow-xs">
+                        {selectedChild.displayName[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-600">Parent Control Center</span>
+                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">{selectedChild.displayName}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Parent Control Center</span>
-                      <h3 className="text-xl font-extrabold text-slate-900">{selectedChild.displayName}</h3>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedChildId(null)}
+                      className="sm:hidden rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
+                      aria-label="Close child controls"
+                    >
+                      Close
+                    </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="w-full sm:w-auto grid grid-cols-3 sm:flex gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
                       <button
                         type="button"
                         onClick={() => setActiveTab('screentime')}
-                        className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+                        className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
                           activeTab === 'screentime'
                             ? 'bg-white text-sky-700 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -443,7 +453,7 @@ export default function WelcomePage() {
                       <button
                         type="button"
                         onClick={() => setActiveTab('policy')}
-                        className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+                        className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
                           activeTab === 'policy'
                             ? 'bg-white text-sky-700 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -457,7 +467,7 @@ export default function WelcomePage() {
                           setActiveTab('devices');
                           loadDevices();
                         }}
-                        className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+                        className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
                           activeTab === 'devices'
                             ? 'bg-white text-sky-700 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -469,7 +479,7 @@ export default function WelcomePage() {
                     <button
                       type="button"
                       onClick={() => setSelectedChildId(null)}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
+                      className="hidden sm:inline-block rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs shrink-0"
                       aria-label="Close child controls"
                     >
                       Close
@@ -516,10 +526,10 @@ export default function WelcomePage() {
               ) : (
                 <ul className="mt-3 space-y-3" aria-label="Saved child profiles">
                   {children.items.map((child) => (
-                    <li className="rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50/90 p-4 transition shadow-xs" key={child.id}>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
+                    <li className="rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50/90 p-3.5 sm:p-4 transition shadow-xs" key={child.id}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 font-bold text-sm border border-sky-200/60">
+                          <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 font-bold text-sm border border-sky-200/60 shrink-0">
                             {child.displayName[0].toUpperCase()}
                           </div>
                           <div>
@@ -527,10 +537,10 @@ export default function WelcomePage() {
                             {child.dateOfBirth && <p className="mt-0.5 text-xs text-slate-500">Date of birth: {child.dateOfBirth}</p>}
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
                           <button
                             type="button"
-                            className="rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 shadow-xs transition"
+                            className="flex-1 sm:flex-initial rounded-xl border border-sky-200 bg-sky-50 px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 shadow-xs transition text-center"
                             onClick={() => {
                               setSelectedChildId(selectedChildId === child.id ? null : child.id);
                             }}
@@ -540,7 +550,7 @@ export default function WelcomePage() {
                           </button>
                           <button
                             type="button"
-                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 shadow-xs transition disabled:opacity-50"
+                            className="flex-1 sm:flex-initial rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 shadow-xs transition disabled:opacity-50 text-center"
                             disabled={pairingAction.busyChildId === child.id}
                             onClick={() => requestPairingCode(child)}
                             aria-label={`Pair a device for ${child.displayName}`}
@@ -549,7 +559,7 @@ export default function WelcomePage() {
                           </button>
                           <button
                             type="button"
-                            className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-xs transition"
+                            className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-xs transition shrink-0"
                             onClick={() => setConfirmDeleteChildId(child.id)}
                             aria-label={`Delete ${child.displayName}`}
                           >
@@ -604,8 +614,34 @@ export default function WelcomePage() {
                                 </button>
                               </div>
                               <p className="mt-2 text-xs text-slate-500">
-                                Enter this code in the BalaKavach Android companion app. Kept in memory only; not stored in browser storage. Expires at {new Date(pairingCode.expiresAt).toLocaleTimeString()}.
+                                Enter this code in the BalaKavach Android companion app or Chrome desktop extension popup. Kept in memory only; not stored in browser storage. Expires at {new Date(pairingCode.expiresAt).toLocaleTimeString()}.
                               </p>
+                              <div className="mt-2.5 pt-2 border-t border-emerald-200/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <span className="text-slate-600">Need to install the client on child's device?</span>
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <a
+                                    href="/balakavach-companion.apk"
+                                    download="balakavach-companion.apk"
+                                    className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:text-emerald-800 underline"
+                                  >
+                                    <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    Android App (8.6 MB) ↓
+                                  </a>
+                                  <span className="text-slate-300 hidden sm:inline">•</span>
+                                  <a
+                                    href="/balakavach-chrome-extension.zip"
+                                    download="balakavach-chrome-extension.zip"
+                                    className="inline-flex items-center gap-1 font-bold text-sky-700 hover:text-sky-800 underline"
+                                  >
+                                    <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    Chrome Extension ZIP (258 KB) ↓
+                                  </a>
+                                </div>
+                              </div>
                             </>
                           ) : (
                             <div className="flex items-center justify-between gap-2">
@@ -749,29 +785,24 @@ export default function WelcomePage() {
         ) : auth.state === 'checking' ? (
           <p className="mt-8 text-sm text-slate-500" role="status">Checking sign-in status…</p>
         ) : (
-          <div className="mt-8 lg:grid lg:grid-cols-12 lg:gap-10 lg:items-start">
-            <div className="lg:col-span-6">
-              <span className="inline-block rounded-full bg-sky-50 border border-sky-200/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-sky-700">Parent account</span>
-              <h1 id="welcome-title" className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">A calmer way to stay connected.</h1>
-              <p className="mt-3 text-base leading-relaxed text-slate-600">Create a parent account or sign in to your BalaKavach workspace to manage family screen time and policies.</p>
-
-              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 shadow-xs" role="status" aria-live="polite">
-                <span aria-hidden="true" className={`mt-1.5 size-2.5 shrink-0 rounded-full ${healthColor}`} />
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{healthLabel}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {isLoadingHealth && 'Contacting the local BalaKavach API…'}
-                    {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'status unknown'}${health.data?.status === 'degraded' ? ' — authentication needs a database connection.' : '.'}`}
-                    {health.state === 'unavailable' && 'Start the API at localhost:5000 to check its health.'}
-                  </p>
-                </div>
+          <div className="mt-5 sm:mt-8 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start space-y-6 lg:space-y-0 max-w-5xl mx-auto">
+            {/* Left Column: Sign In / Register Card */}
+            <div className="lg:col-span-7 space-y-4">
+              <div>
+                <span className="inline-block rounded-full bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-700">Parent Portal</span>
+                <h1 id="welcome-title" className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">
+                  {mode === 'login' ? 'Sign in to BalaKavach' : 'Create Parent Account'}
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  {mode === 'login' ? 'Manage screen time and protection for your family.' : 'Set up your parent dashboard in under a minute.'}
+                </p>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div aria-label="Authentication options" className="mb-6 flex gap-2 rounded-xl bg-slate-100 p-1 border border-slate-200" role="group">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+                <div aria-label="Authentication options" className="mb-5 flex gap-1.5 rounded-xl bg-slate-100 p-1 border border-slate-200/80" role="group">
                   <button
                     aria-pressed={mode === 'login'}
-                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${mode === 'login' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition min-h-[42px] ${mode === 'login' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                     onClick={() => { setMode('login'); setFormMessage(null); }}
                     type="button"
                   >
@@ -779,7 +810,7 @@ export default function WelcomePage() {
                   </button>
                   <button
                     aria-pressed={mode === 'register'}
-                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${mode === 'register' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition min-h-[42px] ${mode === 'register' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                     onClick={() => { setMode('register'); setFormMessage(null); }}
                     type="button"
                   >
@@ -787,12 +818,12 @@ export default function WelcomePage() {
                   </button>
                 </div>
 
-                <form className="space-y-4" onSubmit={submitCredentials}>
+                <form className="space-y-3.5" onSubmit={submitCredentials}>
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-email">Email</label>
                     <input
                       autoComplete="username"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
                       id="parent-email"
                       maxLength={254}
                       onChange={(event) => setEmail(event.target.value)}
@@ -806,7 +837,7 @@ export default function WelcomePage() {
                     <label className="mb-1.5 block text-xs font-semibold text-slate-700" htmlFor="parent-password">Password</label>
                     <input
                       autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
                       id="parent-password"
                       maxLength={128}
                       minLength={mode === 'register' ? 8 : 1}
@@ -816,74 +847,137 @@ export default function WelcomePage() {
                       type="password"
                       value={password}
                     />
-                    {mode === 'register' && <p className="mt-1.5 text-xs text-slate-500">Use at least 8 characters.</p>}
+                    {mode === 'register' && <p className="mt-1 text-[11px] text-slate-500">Use at least 8 characters.</p>}
                   </div>
+
                   {formMessage && (
                     <p className={`text-sm font-medium ${formMessage.type === 'error' ? 'text-rose-600' : 'text-emerald-600'}`} role={formMessage.type === 'error' ? 'alert' : 'status'}>
                       {formMessage.text}
                     </p>
                   )}
                   {auth.state === 'unavailable' && <p className="text-sm font-medium text-amber-700">Sign-in status could not be checked. You can still try signing in.</p>}
+
                   <button
-                    className="w-full rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 shadow-md shadow-sky-600/20 disabled:cursor-wait disabled:opacity-60 transition"
+                    className="w-full rounded-xl bg-sky-600 px-4 py-3 min-h-[46px] text-sm font-semibold text-white hover:bg-sky-500 shadow-md shadow-sky-600/20 disabled:cursor-wait disabled:opacity-60 transition active:scale-[0.99]"
                     disabled={submitting}
                     type="submit"
                   >
                     {submitting ? 'Please wait…' : mode === 'login' ? 'Continue' : 'Create account'}
                   </button>
                 </form>
+
+                <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500" role="status" aria-live="polite">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${healthColor}`} />
+                    <span className="font-semibold text-slate-700">{healthLabel}</span>
+                    <span className="text-slate-300">•</span>
+                    <span>
+                      {isLoadingHealth && 'Contacting local API…'}
+                      {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'connected'}`}
+                      {health.state === 'unavailable' && 'Start the API at localhost:5000'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Right Column: Colorful Feature Showcase */}
-            <div className="mt-8 lg:mt-0 lg:col-span-6 space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50/50 via-white to-indigo-50/40 p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="rounded-full bg-sky-100 text-sky-800 border border-sky-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">
-                    Parent Protection Suite
+            {/* Right Column: Clean Child Device Apps Download */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">Child Device Apps</h2>
+                    <p className="mt-0.5 text-xs text-slate-500">Install to protect your kids' phones &amp; computers.</p>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                    Free
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Complete Digital Wellbeing for Your Kids</h3>
-                <p className="mt-1 text-xs text-slate-600">Built with privacy-first architecture, local device enforcement, and automatic real-time sync.</p>
 
-                <div className="mt-5 space-y-3.5">
-                  <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/80 p-3.5 shadow-2xs">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 text-lg">
-                      ⏱️
+                <div className="space-y-3">
+                  {/* Android Card */}
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/60 to-white p-3.5 transition hover:border-emerald-300">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 text-xl shrink-0">
+                        📱
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-bold text-slate-900">Android App</h3>
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">8.6 MB</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">Phones &amp; tablets</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">Daily Screen Time &amp; Quiet Hours</h4>
-                      <p className="mt-0.5 text-xs text-slate-500">Enforce healthy daily budgets and set automatic quiet hours for homework and bedtime.</p>
-                    </div>
+                    <a
+                      href="/balakavach-companion.apk"
+                      download="balakavach-companion.apk"
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 transition active:scale-95 shrink-0"
+                      id="download-apk-btn"
+                    >
+                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      Download
+                    </a>
                   </div>
 
-                  <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/80 p-3.5 shadow-2xs">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700 text-lg">
-                      🚫
+                  {/* Chrome Extension Card */}
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-200/80 bg-gradient-to-r from-sky-50/60 to-white p-3.5 transition hover:border-sky-300">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-800 text-xl shrink-0">
+                        🌐
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-bold text-slate-900">Chrome Extension</h3>
+                          <span className="text-[10px] font-semibold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">258 KB</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">Desktop browsing</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">Instant App &amp; Website Blocking</h4>
-                      <p className="mt-0.5 text-xs text-slate-500">Zero-delay enforcement across Android mobile apps and desktop Chrome browsing.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/80 p-3.5 shadow-2xs">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 text-lg">
-                      ⚡
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">Seamless Automatic Synchronization</h4>
-                      <p className="mt-0.5 text-xs text-slate-500">Parent policy updates sync in real-time without requiring child-side confirmation.</p>
-                    </div>
+                    <a
+                      href="/balakavach-chrome-extension.zip"
+                      download="balakavach-chrome-extension.zip"
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-sky-500 transition active:scale-95 shrink-0"
+                      id="download-extension-btn"
+                    >
+                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      Download
+                    </a>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                    <span className="size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
-                    Live System Active
-                  </span>
-                  <span>🛡️ 100% On-Device Enforcement</span>
+                {/* Collapsible Quick Setup Guide */}
+                <details className="group rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs text-slate-600 transition">
+                  <summary className="flex cursor-pointer items-center justify-between font-semibold text-slate-700 select-none">
+                    <span>How to install Chrome Extension</span>
+                    <span className="text-slate-400 group-open:rotate-180 transition-transform text-[10px]">▼</span>
+                  </summary>
+                  <ol className="mt-2.5 list-decimal list-inside space-y-1.5 pl-0.5 text-[11px] text-slate-600 border-t border-slate-200/60 pt-2">
+                    <li>Download &amp; extract <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-[10.5px]">balakavach-chrome-extension.zip</code></li>
+                    <li>Go to <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-[10.5px]">chrome://extensions</code> in Chrome</li>
+                    <li>Enable <strong>Developer mode</strong> and click <strong>Load unpacked</strong></li>
+                    <li>Select extracted folder and enter pairing code</li>
+                  </ol>
+                </details>
+
+                {/* Minimal Feature Highlights */}
+                <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-100">
+                    <span className="text-base">⏱️</span>
+                    <p className="mt-0.5 font-bold text-slate-800 text-[11px]">Screen Time</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-100">
+                    <span className="text-base">🚫</span>
+                    <p className="mt-0.5 font-bold text-slate-800 text-[11px]">App Blocking</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-100">
+                    <span className="text-base">🛡️</span>
+                    <p className="mt-0.5 font-bold text-slate-800 text-[11px]">Web Filter</p>
+                  </div>
                 </div>
               </div>
             </div>

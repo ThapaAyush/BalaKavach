@@ -4,6 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    watch: {
+      ignored: ['**/*.apk', '**/*.zip'],
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',

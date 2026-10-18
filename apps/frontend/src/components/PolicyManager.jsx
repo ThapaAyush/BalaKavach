@@ -274,10 +274,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+      <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Rules & Schedules: {child.displayName}</h3>
+          <h3 className="text-base sm:text-lg font-bold text-slate-900">Rules & Schedules: {child.displayName}</h3>
           <p className="text-xs text-slate-500">Configure screen-time budgets, quiet periods, and desktop web restrictions.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <input
               id="dailyLimitMinutes"
               type="number"
@@ -363,7 +363,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
               placeholder="Custom minutes (e.g. 120)"
               value={dailyLimitMinutes}
               onChange={(e) => setDailyLimitMinutes(e.target.value)}
-              className="w-56 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
+              className="w-full sm:w-56 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
             />
             {dailyLimitMinutes && (
               <span className="text-xs font-semibold text-slate-600">
@@ -393,7 +393,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
           {quietHoursEnabled && (
             <div className="mt-4 space-y-4 border-t border-amber-100 pt-4">
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-4">
                 <div>
                   <label htmlFor="quietStart" className="block text-xs font-semibold text-slate-600">Starts At</label>
                   <input
@@ -401,7 +401,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     type="time"
                     value={quietHoursStart}
                     onChange={(e) => setQuietHoursStart(e.target.value)}
-                    className="mt-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
+                    className="mt-1 w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
                   />
                 </div>
                 <div>
@@ -411,14 +411,14 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     type="time"
                     value={quietHoursEnd}
                     onChange={(e) => setQuietHoursEnd(e.target.value)}
-                    className="mt-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
+                    className="mt-1 w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
                   />
                 </div>
               </div>
 
               <div>
                 <span className="block text-xs font-semibold text-slate-600 mb-2">Active Days</span>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
                   {ALL_DAYS.map((day) => {
                     const active = quietHoursDays.includes(day.id);
                     return (
@@ -426,7 +426,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                         key={day.id}
                         type="button"
                         onClick={() => toggleDay(day.id)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                        className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-center transition ${
                           active
                             ? 'bg-amber-500 text-white shadow-xs'
                             : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -502,7 +502,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                 <label htmlFor="newAppName" className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Block an App by Name
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <div className="relative flex-1">
                     <input
                       id="newAppName"
@@ -596,7 +596,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
           {webRestrictionsEnabled && (
             <div className="mt-4 space-y-3 border-t border-sky-100 pt-4">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="e.g. tiktok.com, instagram.com"
@@ -643,7 +643,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-50 transition"
+            className="w-full sm:w-auto rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-50 transition active:scale-[0.99]"
           >
             {saving ? 'Saving Policy…' : 'Save Rules & Policy'}
           </button>

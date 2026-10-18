@@ -64,14 +64,14 @@ export default function ScreenTimeView({ child }) {
   const totalAppOpens = data?.totalAppOpens ?? (data?.appUsage?.reduce((acc, app) => acc + (app.openCount || 0), 0) || 0);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
       {/* Header and Date Selector */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Daily Screen Time: {child.displayName}</h3>
+          <h3 className="text-base sm:text-lg font-bold text-slate-900">Daily Screen Time: {child.displayName}</h3>
           <p className="text-xs text-slate-500">Aggregated foreground device usage, mobile opens, and app launches measured on-device.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
           <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600">Date:</label>
           <input
             id="screenTimeDate"
@@ -102,9 +102,9 @@ export default function ScreenTimeView({ child }) {
       )}
 
       {/* 4-Card Summary Metrics Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Metric 1: Total Screen Time */}
-        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 p-5 shadow-xs flex flex-col justify-between">
+        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 p-4 sm:p-5 shadow-xs flex flex-col justify-between">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Total Screen Time</span>
             <div className="mt-2 flex items-baseline gap-2">
@@ -208,8 +208,8 @@ export default function ScreenTimeView({ child }) {
       </div>
 
       {/* App Breakdown Table with Per-App Open Frequency */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-4">
           <div>
             <h4 className="text-sm font-bold text-slate-900">Application Usage &amp; Launch Frequency</h4>
             <p className="text-xs text-slate-500">Foreground duration and open count per application.</p>
