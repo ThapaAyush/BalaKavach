@@ -59,6 +59,7 @@ describe('GET /api/v1/health', () => {
       .expect(200);
 
     assert.equal(response.body.ok, true);
+    assert.equal(response.body.message, 'Your backend is connected');
     assert.equal(response.body.service, 'balakavach-api');
     assert.equal(response.body.status, 'ready');
     assert.equal(response.body.endpoints.health, '/api/v1/health');

@@ -97,9 +97,9 @@ export function createApp({
   app.get('/', (req, res) => {
     res.status(200).json({
       ok: true,
+      message: 'Your backend is connected',
       service: 'balakavach-api',
       status: 'ready',
-      message: 'BalaKavach Backend API is running.',
       endpoints: {
         health: '/api/v1/health',
         auth: '/api/v1/auth',
