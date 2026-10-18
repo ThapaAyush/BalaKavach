@@ -35,7 +35,7 @@ The web dashboard runs locally at `http://localhost:5173`.
 Copy `.env.example` to `.env`:
 
 ```env
-VITE_API_BASE_URL=http://localhost:5000
+VITE_API_BASE_URL=https://balakavach-be.onrender.com/api/v1
 ```
 
 ### Production Build

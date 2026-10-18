@@ -36,10 +36,21 @@ export function createApp({
     app.set('trust proxy', trustProxyHops);
   }
 
+  const allowedOrigins = Array.isArray(runtimeEnv.CLIENT_ORIGIN)
+    ? runtimeEnv.CLIENT_ORIGIN
+    : typeof runtimeEnv.CLIENT_ORIGIN === 'string'
+      ? runtimeEnv.CLIENT_ORIGIN.split(',').map((o) => o.trim().replace(/\/+$/, ''))
+      : [runtimeEnv.CLIENT_ORIGIN];
+
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cors({
-    origin: runtimeEnv.CLIENT_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   }));
