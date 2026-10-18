@@ -45,22 +45,46 @@ export default function WelcomePage() {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let healthTimer = null;
+    let authTimer = null;
+    let active = true;
 
-    apiGet('/health', { signal: controller.signal })
-      .then((data) => setHealth({ state: 'available', data }))
-      .catch((error) => {
-        if (error.name !== 'AbortError') setHealth({ state: 'unavailable', data: null });
-      });
+    function checkHealth() {
+      apiGet('/health')
+        .then((data) => {
+          if (!active) return;
+          setHealth({ state: 'available', data });
+        })
+        .catch((error) => {
+          if (!active || error.name === 'AbortError') return;
+          setHealth({ state: 'unavailable', data: null });
+          healthTimer = setTimeout(checkHealth, 5000);
+        });
+    }
 
-    apiGet('/auth/me', { signal: controller.signal })
-      .then((data) => setAuth({ state: 'authenticated', parent: data.parent }))
-      .catch((error) => {
-        if (error.name === 'AbortError') return;
-        setAuth({ state: error.status === 401 ? 'signed-out' : 'unavailable', parent: null });
-      });
+    function checkAuth() {
+      apiGet('/auth/me')
+        .then((data) => {
+          if (!active) return;
+          setAuth({ state: 'authenticated', parent: data.parent });
+        })
+        .catch((error) => {
+          if (!active || error.name === 'AbortError') return;
+          setAuth({ state: error.status === 401 ? 'signed-out' : 'unavailable', parent: null });
+          if (error.status !== 401) {
+            authTimer = setTimeout(checkAuth, 5000);
+          }
+        });
+    }
 
-    return () => controller.abort();
+    checkHealth();
+    checkAuth();
+
+    return () => {
+      active = false;
+      if (healthTimer) clearTimeout(healthTimer);
+      if (authTimer) clearTimeout(authTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -872,9 +896,13 @@ export default function WelcomePage() {
                     <span className="font-semibold text-slate-700">{healthLabel}</span>
                     <span className="text-slate-300">•</span>
                     <span>
-                      {isLoadingHealth && 'Contacting local API…'}
+                      {isLoadingHealth && 'Contacting API server…'}
                       {apiAvailable && `MongoDB ${health.data?.dependencies?.mongodb ?? 'connected'}`}
-                      {health.state === 'unavailable' && 'Start the API at localhost:5000'}
+                      {health.state === 'unavailable' && (
+                        typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                          ? 'Start the API at localhost:5000'
+                          : 'API service waking up or connecting. Retrying…'
+                      )}
                     </span>
                   </div>
                 </div>
