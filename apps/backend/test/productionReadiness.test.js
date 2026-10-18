@@ -134,4 +134,50 @@ describe('Production Readiness & Deployment Configuration', () => {
       assert.equal(defaultOptions.secure, false);
     });
   });
+
+  describe('CORS and Helmet Cross-Origin Resource Sharing', () => {
+    it('permits Vercel production frontend with credentials and cross-origin CORP', async () => {
+      const app = createApp({
+        runtimeEnv: { NODE_ENV: 'production', CLIENT_ORIGIN: 'http://localhost:5173' },
+      });
+
+      const res = await request(app)
+        .get('/api/v1/health')
+        .set('Origin', 'https://bala-kavach-fe.vercel.app')
+        .expect(200);
+
+      assert.equal(res.headers['access-control-allow-origin'], 'https://bala-kavach-fe.vercel.app');
+      assert.equal(res.headers['access-control-allow-credentials'], 'true');
+      assert.equal(res.headers['cross-origin-resource-policy'], 'cross-origin');
+    });
+
+    it('responds to preflight OPTIONS for Vercel production frontend', async () => {
+      const app = createApp({
+        runtimeEnv: { NODE_ENV: 'production', CLIENT_ORIGIN: 'http://localhost:5173' },
+      });
+
+      const res = await request(app)
+        .options('/api/v1/auth/login')
+        .set('Origin', 'https://bala-kavach-fe.vercel.app')
+        .set('Access-Control-Request-Method', 'POST')
+        .expect(204);
+
+      assert.equal(res.headers['access-control-allow-origin'], 'https://bala-kavach-fe.vercel.app');
+      assert.equal(res.headers['access-control-allow-credentials'], 'true');
+    });
+
+    it('does not emit Access-Control-Allow-Origin for untrusted origins', async () => {
+      const app = createApp({
+        runtimeEnv: { NODE_ENV: 'production', CLIENT_ORIGIN: 'http://localhost:5173' },
+      });
+
+      const res = await request(app)
+        .get('/api/v1/health')
+        .set('Origin', 'https://malicious.example.com')
+        .expect(200);
+
+      assert.equal(res.headers['access-control-allow-origin'], undefined);
+    });
+  });
 });
+

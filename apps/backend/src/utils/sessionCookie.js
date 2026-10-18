@@ -20,6 +20,7 @@ export function sessionCookieOptions(nodeEnv, sameSite = 'strict') {
     secure: nodeEnv === 'production' || sameSite === 'none',
     sameSite,
     path: '/',
+    ...(sameSite === 'none' ? { partitioned: true } : {}),
   };
 }
 

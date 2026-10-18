@@ -36,14 +36,26 @@ export function createApp({
     app.set('trust proxy', trustProxyHops);
   }
 
-  const allowedOrigins = Array.isArray(runtimeEnv.CLIENT_ORIGIN)
+  const runtimeOrigins = Array.isArray(runtimeEnv.CLIENT_ORIGIN)
     ? runtimeEnv.CLIENT_ORIGIN
     : typeof runtimeEnv.CLIENT_ORIGIN === 'string'
       ? runtimeEnv.CLIENT_ORIGIN.split(',').map((o) => o.trim().replace(/\/+$/, ''))
-      : [runtimeEnv.CLIENT_ORIGIN];
+      : [runtimeEnv.CLIENT_ORIGIN].filter(Boolean);
+
+  const defaultAllowedOrigins = [
+    'https://bala-kavach-fe.vercel.app',
+    'http://localhost:5173',
+  ];
+
+  const allowedOrigins = Array.from(new Set([
+    ...defaultAllowedOrigins,
+    ...runtimeOrigins,
+  ]));
 
   app.disable('x-powered-by');
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }));
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
@@ -53,6 +65,7 @@ export function createApp({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
   }));
   app.use(requestId);
   app.use(pinoHttp({
