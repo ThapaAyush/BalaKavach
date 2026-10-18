@@ -202,6 +202,24 @@ class AndroidUsageStatsReader(
         val aggregatedSeconds = UsageStatsHelper.aggregateEvents(eventsList, startOfDayMs, nowMs)
         val packageManager = context.packageManager
 
+        // Count app opens from ACTIVITY_RESUMED events and device screen unlocks
+        val appOpenCounts = mutableMapOf<String, Int>()
+        var screenInteractiveEvents = 0
+        for (event in eventsList) {
+            if (event.timeStamp in startOfDayMs..nowMs) {
+                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                    appOpenCounts[event.packageName] = (appOpenCounts[event.packageName] ?: 0) + 1
+                }
+                // 15 = SCREEN_INTERACTIVE, 18 = KEYGUARD_HIDDEN
+                if (event.eventType == 15 || event.eventType == 18) {
+                    screenInteractiveEvents++
+                }
+            }
+        }
+
+        val liveUnlocks = com.kidsguard.child.domain.rules.ScreenTimeLimitManager.getDeviceUnlockCount(context, nowMs)
+        val deviceUnlockCount = maxOf(screenInteractiveEvents, liveUnlocks)
+
         val appUsageItems = aggregatedSeconds.entries
             .map { (pkg, durationSec) ->
                 val label = try {
@@ -215,10 +233,13 @@ class AndroidUsageStatsReader(
                 } catch (_: Exception) {
                     pkg
                 }
+                val trackedOpens = com.kidsguard.child.domain.rules.ScreenTimeLimitManager.getAppOpenCount(context, pkg, nowMs)
+                val opens = maxOf(appOpenCounts[pkg] ?: 0, trackedOpens)
                 AppUsageItemDto(
                     packageName = pkg,
                     appName = label.take(100),
-                    durationSeconds = durationSec
+                    durationSeconds = durationSec,
+                    openCount = opens
                 )
             }
             .sortedByDescending { it.durationSeconds }
@@ -233,7 +254,8 @@ class AndroidUsageStatsReader(
             reportingPeriod = reportingPeriod,
             permissionGranted = true,
             source = "measured",
-            appUsage = appUsageItems
+            appUsage = appUsageItems,
+            deviceUnlockCount = deviceUnlockCount
         )
     }
 }

@@ -97,11 +97,26 @@
     <string name="daily_limit_badge_no_limit">NO LIMIT</string>
     <string name="daily_limit_remaining_format">Remaining today: %1$s (%2$s used of %3$s budget)</string>
     <string name="daily_limit_exceeded_format">Over budget by %1$s (%2$s used of %3$s budget)</string>
+
+    <!-- Screen Time Over Dialog & Actions -->
+    <string name="time_over_title">Your Time is Over</string>
+    <string name="time_over_subtitle">Daily Screen-Time Limit Reached</string>
+    <string name="time_over_body">You have used up your daily screen time budget configured by your parent. Please take a break from your phone.</string>
+    <string name="time_over_budget_info">Budget: %1$d mins • Used: %2$d mins</string>
+    <string name="btn_extend_5min">5 min more</string>
+    <string name="btn_time_over_ok">OK</string>
+    <string name="toast_extended_5min">Added 5 minutes of screen time. Reminder will appear in 5 minutes.</string>
+    <string name="toast_locked_ok">Screen time locked for today. Returning to home screen.</string>
+    <string name="time_over_locked_title">Device Locked</string>
+    <string name="time_over_locked_subtitle">Daily Screen-Time Budget Expired</string>
+    <string name="time_over_locked_body">You tapped OK to end screen time for today. Apps and websites are restricted until tomorrow.</string>
     <string name="quiet_hours_title">Parent Quiet Hours</string>
     <string name="quiet_hours_disabled">No quiet hours scheduled</string>
     <string name="quiet_hours_format">Active: %1$s to %2$s</string>
     <string name="quiet_hours_active_title">Quiet Hours / Bedtime Active</string>
     <string name="quiet_hours_active_body">Parental quiet hours are currently in effect. Device access is restricted for sleep, study, or family time.</string>
+    <string name="quiet_hours_blocked_subtitle">%1$s is restricted during Quiet Hours</string>
+    <string name="quiet_hours_blocked_body_with_window">Parental quiet hours are currently in effect (%1$s). Device access is restricted for sleep, study, or family time.</string>
     <string name="quiet_hours_in_effect_badge">IN EFFECT NOW</string>
     <string name="quiet_hours_scheduled_badge">SCHEDULED</string>
     <string name="read_only_policy_note">Parental budgets, quiet hours, and app restrictions are configured on the web dashboard. This companion app transparently monitors usage and enforces parental policy without VPN redirection.</string>

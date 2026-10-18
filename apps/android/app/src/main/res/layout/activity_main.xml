@@ -766,22 +766,55 @@
                             android:textStyle="bold"
                             android:text="—" />
 
-                        <!-- Reporting Period and Last Measured -->
+                        <!-- Real-time Current Device Time (Live on Screen) -->
+                        <LinearLayout
+                            android:id="@+id/layoutRealTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <View
+                                android:id="@+id/dotLiveIndicator"
+                                android:layout_width="8dp"
+                                android:layout_height="8dp"
+                                android:layout_marginEnd="6dp"
+                                android:background="@drawable/circle_green_indicator" />
+
+                            <TextClock
+                                android:id="@+id/clockRealTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:format12Hour="'Real Time: 'h:mm a"
+                                android:format24Hour="'Real Time: 'HH:mm"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/textLiveStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="• Live"
+                                android:textColor="@color/status_green"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <!-- Hidden fields to preserve API compatibility -->
                         <TextView
                             android:id="@+id/textReportingPeriod"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12.5sp" />
+                            android:visibility="gone" />
 
                         <TextView
                             android:id="@+id/textLastMeasured"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textColor="@color/text_tertiary"
-                            android:textSize="11.5sp" />
+                            android:visibility="gone" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

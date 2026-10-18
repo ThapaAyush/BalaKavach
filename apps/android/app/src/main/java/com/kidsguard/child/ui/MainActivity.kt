@@ -21,12 +21,14 @@ import com.google.android.material.tabs.TabLayout
 import com.kidsguard.child.KidsGuardApp
 import com.kidsguard.child.R
 import com.kidsguard.child.data.model.AppUsageItemDto
+import com.kidsguard.child.domain.rules.ScreenTimeLimitManager
 import com.kidsguard.child.data.model.BlockedAppDto
 import com.kidsguard.child.data.model.DevicePolicyResponse
 import com.kidsguard.child.data.model.DeviceSession
 import com.kidsguard.child.data.model.ScreenTimeReportRequest
 import com.kidsguard.child.databinding.ActivityMainBinding
 import com.kidsguard.child.service.usage.UsageStatsHelper
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -44,6 +46,7 @@ import java.util.TimeZone
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private var liveTickerJob: Job? = null
 
     private val isDebuggable: Boolean by lazy {
         (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -64,6 +67,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.clockRealTime.format12Hour = "'Real Time: 'h:mm a"
+        binding.clockRealTime.format24Hour = "'Real Time: 'HH:mm"
+
         setupTabs()
         setupClickListeners()
         observeViewModel()
@@ -81,6 +87,26 @@ class MainActivity : AppCompatActivity() {
         updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
         // Update daily limit alert banner
         updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
+        // Start live ticker to update real-time screen stats while active on screen
+        startLiveRealTimeTicker()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        liveTickerJob?.cancel()
+        liveTickerJob = null
+    }
+
+    private fun startLiveRealTimeTicker() {
+        liveTickerJob?.cancel()
+        liveTickerJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(3000L)
+                viewModel.refreshUsageData()
+                updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
+                updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
+            }
+        }
     }
 
     private fun setupTabs() {
@@ -413,7 +439,10 @@ class MainActivity : AppCompatActivity() {
             binding.textTodayScreenTime.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
             binding.cardUsageMissingBanner.visibility = View.VISIBLE
 
-            // Truthful timestamps when usage measurement is unavailable
+            binding.dotLiveIndicator.visibility = View.GONE
+            binding.textLiveStatus.visibility = View.GONE
+
+            // Truthful timestamps when usage measurement is unavailable (hidden from UI)
             binding.textReportingPeriod.text = formatReportingPeriod(
                 isMeasured = false,
                 lastMeasurementTimeMs = lastMeasurementTimeMs,
@@ -440,7 +469,10 @@ class MainActivity : AppCompatActivity() {
             binding.textTodayScreenTime.textSize = 28f
             binding.textTodayScreenTime.setTextColor(ContextCompat.getColor(this, R.color.accent))
 
-            // 2. Reporting Period and Last Measured Context for successful measurement
+            binding.dotLiveIndicator.visibility = View.VISIBLE
+            binding.textLiveStatus.visibility = View.VISIBLE
+
+            // Legacy reporting period and last measured (hidden from UI)
             binding.textReportingPeriod.text = formatReportingPeriod(
                 isMeasured = true,
                 lastMeasurementTimeMs = lastMeasurementTimeMs,
@@ -862,6 +894,24 @@ class MainActivity : AppCompatActivity() {
         binding.cardDailyLimitAlert.visibility = View.VISIBLE
         binding.progressDailyLimitAlert.progress = percent
 
+        val isLocked = ScreenTimeLimitManager.isLockedForToday(this)
+        val isExtActive = ScreenTimeLimitManager.isExtensionActive(this)
+
+        if (isLocked) {
+            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_red)
+            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.status_red_light))
+            binding.textDailyLimitAlertTitle.text = getString(R.string.time_over_locked_title)
+            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+
+            binding.textDailyLimitAlertBadge.text = "LOCKED TODAY"
+            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+
+            binding.textDailyLimitAlertBody.text = getString(R.string.time_over_locked_body)
+            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
+            binding.progressDailyLimitAlert.progress = 100
+            return
+        }
+
         if (usedMinutes >= dailyLimitMin) {
             // Limit reached or exceeded
             binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_red)
@@ -869,8 +919,13 @@ class MainActivity : AppCompatActivity() {
             binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_reached_title)
             binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
 
-            binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_reached_badge)
-            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+            if (isExtActive) {
+                binding.textDailyLimitAlertBadge.text = "+5M EXTENSION ACTIVE"
+                binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_yellow)
+            } else {
+                binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_reached_badge)
+                binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+            }
 
             binding.textDailyLimitAlertBody.text = getString(
                 R.string.daily_limit_reached_body,
@@ -958,57 +1013,7 @@ class MainActivity : AppCompatActivity() {
             policy: DevicePolicyResponse?,
             now: Calendar = Calendar.getInstance()
         ): Boolean {
-            if (policy == null || !policy.quietHoursEnabled) {
-                return false
-            }
-
-            val startStr = policy.quietHoursStart ?: return false
-            val endStr = policy.quietHoursEnd ?: return false
-
-            val (startH, startM) = parseHourMinute(startStr) ?: return false
-            val (endH, endM) = parseHourMinute(endStr) ?: return false
-
-            val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
-            val startMinutes = startH * 60 + startM
-            val endMinutes = endH * 60 + endM
-
-            val dayName = when (now.get(Calendar.DAY_OF_WEEK)) {
-                Calendar.SUNDAY -> "sunday"
-                Calendar.MONDAY -> "monday"
-                Calendar.TUESDAY -> "tuesday"
-                Calendar.WEDNESDAY -> "wednesday"
-                Calendar.THURSDAY -> "thursday"
-                Calendar.FRIDAY -> "friday"
-                Calendar.SATURDAY -> "saturday"
-                else -> ""
-            }
-
-            val activeDays = policy.quietHoursDays.map { it.lowercase() }
-            val isDayActive = activeDays.isEmpty() || activeDays.contains(dayName)
-
-            return if (startMinutes < endMinutes) {
-                isDayActive && (currentMinutes in startMinutes until endMinutes)
-            } else if (startMinutes > endMinutes) {
-                if (currentMinutes >= startMinutes && isDayActive) {
-                    true
-                } else if (currentMinutes < endMinutes) {
-                    val prevDay = when (now.get(Calendar.DAY_OF_WEEK)) {
-                        Calendar.SUNDAY -> "saturday"
-                        Calendar.MONDAY -> "sunday"
-                        Calendar.TUESDAY -> "monday"
-                        Calendar.WEDNESDAY -> "tuesday"
-                        Calendar.THURSDAY -> "wednesday"
-                        Calendar.FRIDAY -> "thursday"
-                        Calendar.SATURDAY -> "friday"
-                        else -> ""
-                    }
-                    activeDays.isEmpty() || activeDays.contains(prevDay)
-                } else {
-                    false
-                }
-            } else {
-                isDayActive
-            }
+            return ScreenTimeLimitManager.isQuietHoursActive(policy, now)
         }
 
         fun formatTime12Hour(time24: String?): String {
@@ -1101,5 +1106,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun formatMinutesHuman(totalMinutes: Int): String = formatMinutesHuman(totalMinutes.toLong())
+
+        fun formatRealTime(timeMs: Long = System.currentTimeMillis()): String {
+            val timeFormat = SimpleDateFormat("h:mm a", Locale.US)
+            return "Real Time: " + timeFormat.format(Date(timeMs))
+        }
     }
 }

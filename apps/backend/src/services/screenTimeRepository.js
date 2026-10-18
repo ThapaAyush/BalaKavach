@@ -67,6 +67,7 @@ export const mongoScreenTimeRepository = Object.freeze({
             familyId: data.familyId,
             childProfileId: data.childProfileId,
             totalScreenTimeSeconds: data.totalScreenTimeSeconds,
+            deviceUnlockCount: data.deviceUnlockCount ?? 0,
             reportingPeriod: data.reportingPeriod,
             permissionGranted: data.permissionGranted,
             source: data.source,

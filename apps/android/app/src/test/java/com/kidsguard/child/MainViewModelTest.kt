@@ -317,6 +317,14 @@ class MainViewModelTest {
     }
 
     @Test
+    fun `formatRealTime formats current timestamp cleanly`() {
+        val testTime = 1776340000000L
+        val formatted = MainActivity.formatRealTime(testTime)
+        assertTrue(formatted.startsWith("Real Time: "))
+        assertTrue(formatted.contains("AM") || formatted.contains("PM"))
+    }
+
+    @Test
     fun `MainViewModel keeps refresh time and successful measurement time conceptually distinct`() {
         val mockRepo = mock(DeviceRepository::class.java)
         val mockPolicyRepo = mock(PolicyRepository::class.java)

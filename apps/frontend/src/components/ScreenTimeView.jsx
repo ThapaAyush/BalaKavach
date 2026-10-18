@@ -59,13 +59,17 @@ export default function ScreenTimeView({ child }) {
   const isOverLimit = data?.limitExceeded;
   const isPermissionDenied = data?.permissionStatus === 'denied';
 
+  // Metrics: mobile unlock / open count and total app open count
+  const deviceOpens = data?.deviceUnlockCount ?? 0;
+  const totalAppOpens = data?.totalAppOpens ?? (data?.appUsage?.reduce((acc, app) => acc + (app.openCount || 0), 0) || 0);
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
       {/* Header and Date Selector */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
           <h3 className="text-lg font-bold text-slate-900">Daily Screen Time: {child.displayName}</h3>
-          <p className="text-xs text-slate-500">Aggregated foreground device usage measured on-device.</p>
+          <p className="text-xs text-slate-500">Aggregated foreground device usage, mobile opens, and app launches measured on-device.</p>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600">Date:</label>
@@ -97,40 +101,88 @@ export default function ScreenTimeView({ child }) {
         </div>
       )}
 
-      {/* Daily Usage Summary Card */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 p-5 shadow-xs">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Total Screen Time Today</span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-              {formatDuration(totalSecs)}
-            </span>
-            {limitMins && (
-              <span className="text-xs font-semibold text-slate-500">
-                / {Math.floor(limitMins / 60)}h {limitMins % 60 ? `${limitMins % 60}m` : ''} limit
+      {/* 4-Card Summary Metrics Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Metric 1: Total Screen Time */}
+        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Total Screen Time</span>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                {formatDuration(totalSecs)}
               </span>
-            )}
+              {limitMins && (
+                <span className="text-xs font-semibold text-slate-500">
+                  / {Math.floor(limitMins / 60)}h {limitMins % 60 ? `${limitMins % 60}m` : ''}
+                </span>
+              )}
+            </div>
           </div>
 
-          {limitSecs && totalSecs !== null && (
+          {limitSecs && totalSecs !== null ? (
             <div className="mt-3">
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/60">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/60">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${getProgressColor(percentUsed)}`}
                   style={{ width: `${percentUsed}%` }}
                 />
               </div>
               <div className="mt-1.5 flex justify-between text-[11px] font-semibold text-slate-600">
-                <span>{percentUsed}% of budget</span>
-                {isOverLimit && <span className="font-bold text-rose-600">Daily limit reached</span>}
+                <span>{percentUsed}% budget</span>
+                {isOverLimit && <span className="font-bold text-rose-600">Limit reached</span>}
               </div>
             </div>
+          ) : (
+            <p className="mt-2 text-[11px] text-slate-400">No daily budget limit configured</p>
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 flex flex-col justify-between shadow-xs">
+        {/* Metric 2: Mobile Device Opens / Pickups */}
+        <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50/70 via-white to-purple-50/30 p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Data Freshness & Provenance</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-violet-800">Mobile Pickups & Opens</span>
+              <span className="text-lg" aria-hidden="true">📱</span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                {deviceOpens}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                times opened
+              </span>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">
+            Number of times the phone was unlocked &amp; active today.
+          </p>
+        </div>
+
+        {/* Metric 3: Total App Launches */}
+        <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-white to-orange-50/30 p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Total App Launches</span>
+              <span className="text-lg" aria-hidden="true">🚀</span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                {totalAppOpens}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                app opens
+              </span>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">
+            Total times applications were opened or switched into today.
+          </p>
+        </div>
+
+        {/* Metric 4: Data Freshness & Sync */}
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Device Sync &amp; Freshness</span>
             <div className="mt-2 text-xs space-y-1.5 text-slate-700">
               {data?.dataFreshness ? (
                 <>
@@ -155,23 +207,40 @@ export default function ScreenTimeView({ child }) {
         </div>
       </div>
 
-      {/* App Breakdown Table */}
+      {/* App Breakdown Table with Per-App Open Frequency */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <h4 className="text-sm font-bold text-slate-900 mb-3">Application Usage Breakdown</h4>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Application Usage &amp; Launch Frequency</h4>
+            <p className="text-xs text-slate-500">Foreground duration and open count per application.</p>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {data?.appUsage?.length || 0} active {data?.appUsage?.length === 1 ? 'app' : 'apps'}
+          </span>
+        </div>
+
         {data?.appUsage && data.appUsage.length > 0 ? (
           <div className="divide-y divide-slate-100">
             {data.appUsage.map((app) => {
               const appPercent = totalSecs ? Math.round((app.durationSeconds / totalSecs) * 100) : 0;
+              const opens = app.openCount ?? 0;
               return (
-                <div key={app.packageName} className="py-3 flex items-center justify-between gap-4">
+                <div key={app.packageName} className="py-3.5 flex items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="font-semibold text-slate-800 truncate">{app.appName}</span>
-                      <span className="text-slate-600 font-mono font-medium">{formatDuration(app.durationSeconds)} ({appPercent}%)</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-slate-800 truncate">{app.appName}</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 text-violet-700 px-2 py-0.5 text-[10.5px] font-bold border border-violet-200/60">
+                          📱 {opens} {opens === 1 ? 'open' : 'opens'}
+                        </span>
+                      </div>
+                      <span className="text-slate-600 font-mono font-medium">
+                        {formatDuration(app.durationSeconds)} ({appPercent}%)
+                      </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full bg-gradient-to-r from-sky-500 to-indigo-600 rounded-full transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-600 rounded-full transition-all duration-300"
                         style={{ width: `${appPercent}%` }}
                       />
                     </div>

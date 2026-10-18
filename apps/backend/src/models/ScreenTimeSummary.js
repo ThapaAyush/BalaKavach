@@ -4,6 +4,7 @@ const appUsageItemSchema = new Schema({
   packageName: { type: String, required: true, trim: true, maxlength: 150 },
   appName: { type: String, required: true, trim: true, maxlength: 100 },
   durationSeconds: { type: Number, required: true, min: 0, max: 86400 },
+  openCount: { type: Number, default: 0, min: 0 },
 }, { _id: false });
 
 const screenTimeSummarySchema = new Schema({
@@ -35,6 +36,11 @@ const screenTimeSummarySchema = new Schema({
     default: null,
     min: 0,
     max: 86400,
+  },
+  deviceUnlockCount: {
+    type: Number,
+    default: 0,
+    min: 0,
   },
   reportingPeriod: {
     start: { type: Date, required: true },

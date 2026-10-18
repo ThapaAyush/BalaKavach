@@ -6,6 +6,7 @@ const appUsageItemSchema = z.object({
   packageName: z.string().trim().min(1).max(150),
   appName: z.string().trim().min(1).max(100),
   durationSeconds: z.number().int().min(0).max(86400),
+  openCount: z.number().int().min(0).max(100000).optional(),
 }).strict();
 
 export const ingestScreenTimeSchema = z.object({
@@ -14,6 +15,7 @@ export const ingestScreenTimeSchema = z.object({
     z.number().int().min(0).max(86400),
     z.null(),
   ]),
+  deviceUnlockCount: z.number().int().min(0).max(100000).optional(),
   reportingPeriod: z.object({
     start: z.string().datetime({ message: 'Reporting period start must be a valid ISO 8601 datetime.' }),
     end: z.string().datetime({ message: 'Reporting period end must be a valid ISO 8601 datetime.' }),

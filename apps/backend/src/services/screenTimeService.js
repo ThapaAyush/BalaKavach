@@ -34,6 +34,7 @@ export function createScreenTimeService({
 
       // Strict enforcement: if permission is not granted, duration is null and apps empty
       const totalScreenTimeSeconds = permissionGranted ? payload.totalScreenTimeSeconds : null;
+      const deviceUnlockCount = permissionGranted ? (payload.deviceUnlockCount ?? 0) : 0;
       const appUsage = permissionGranted ? (payload.appUsage ?? []) : [];
       const source = permissionGranted ? (payload.source ?? 'measured') : 'unavailable';
 
@@ -43,6 +44,7 @@ export function createScreenTimeService({
         deviceId: device.id,
         date: payload.date,
         totalScreenTimeSeconds,
+        deviceUnlockCount,
         reportingPeriod: {
           start: new Date(payload.reportingPeriod.start),
           end: new Date(payload.reportingPeriod.end),
@@ -101,6 +103,7 @@ export function createScreenTimeService({
       // Aggregate across devices for this child on this date
       let hasPermission = false;
       let totalSeconds = 0;
+      let totalDeviceUnlocks = 0;
       let hasMeasuredData = false;
       let latestReportedAt = new Date(0);
       let reportingDeviceName = null;
@@ -112,6 +115,9 @@ export function createScreenTimeService({
           if (typeof summary.totalScreenTimeSeconds === 'number') {
             hasMeasuredData = true;
             totalSeconds += summary.totalScreenTimeSeconds;
+          }
+          if (typeof summary.deviceUnlockCount === 'number') {
+            totalDeviceUnlocks += summary.deviceUnlockCount;
           }
         }
         const repAt = new Date(summary.reportedAt || summary.updatedAt || 0);
@@ -125,8 +131,10 @@ export function createScreenTimeService({
             packageName: app.packageName,
             appName: app.appName,
             durationSeconds: 0,
+            openCount: 0,
           };
           current.durationSeconds += app.durationSeconds;
+          current.openCount = (current.openCount || 0) + (app.openCount || 0);
           appMap.set(app.packageName, current);
         }
       }
@@ -141,9 +149,13 @@ export function createScreenTimeService({
         .sort((a, b) => b.durationSeconds - a.durationSeconds)
         .slice(0, 30);
 
+      const totalAppOpens = appUsageList.reduce((acc, app) => acc + (app.openCount || 0), 0);
+
       return {
         date: targetDate,
         totalScreenTimeSeconds: hasMeasuredData ? totalSeconds : null,
+        deviceUnlockCount: hasMeasuredData ? totalDeviceUnlocks : 0,
+        totalAppOpens: hasMeasuredData ? totalAppOpens : 0,
         dailyLimitMinutes,
         limitExceeded,
         permissionStatus: hasPermission ? 'granted' : 'denied',

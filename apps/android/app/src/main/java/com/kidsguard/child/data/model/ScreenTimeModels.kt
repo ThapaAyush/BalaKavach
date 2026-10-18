@@ -4,18 +4,20 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * App usage breakdown entry
+ * App usage breakdown entry with duration and open/launch counts
  */
 data class AppUsageItemDto(
     val packageName: String,
     val appName: String,
-    val durationSeconds: Long
+    val durationSeconds: Long,
+    val openCount: Int = 0
 ) {
     fun toJsonObject(): JSONObject {
         val obj = JSONObject()
         obj.put("packageName", packageName)
         obj.put("appName", appName)
         obj.put("durationSeconds", durationSeconds)
+        obj.put("openCount", openCount)
         return obj
     }
 
@@ -24,7 +26,8 @@ data class AppUsageItemDto(
             return AppUsageItemDto(
                 packageName = json.getString("packageName"),
                 appName = json.getString("appName"),
-                durationSeconds = json.getLong("durationSeconds")
+                durationSeconds = json.getLong("durationSeconds"),
+                openCount = json.optInt("openCount", 0)
             )
         }
     }
@@ -48,6 +51,7 @@ data class ReportingPeriodDto(
 /**
  * Screen time report payload sent to POST /api/v1/devices/screen-time
  * Strictly enforces zero-fabrication: when permissionGranted is false, totalScreenTimeSeconds is null.
+ * Includes mobile open (unlock) count and per-app open counts.
  */
 data class ScreenTimeReportRequest(
     val date: String,
@@ -55,7 +59,8 @@ data class ScreenTimeReportRequest(
     val reportingPeriod: ReportingPeriodDto,
     val permissionGranted: Boolean,
     val source: String = if (permissionGranted) "measured" else "unavailable",
-    val appUsage: List<AppUsageItemDto> = emptyList()
+    val appUsage: List<AppUsageItemDto> = emptyList(),
+    val deviceUnlockCount: Int = 0
 ) {
     fun toJson(): String {
         val json = JSONObject()
@@ -66,6 +71,7 @@ data class ScreenTimeReportRequest(
             // Strictly null when permission is false (no fabrication)
             json.put("totalScreenTimeSeconds", JSONObject.NULL)
         }
+        json.put("deviceUnlockCount", if (permissionGranted) deviceUnlockCount else 0)
         json.put("reportingPeriod", reportingPeriod.toJsonObject())
         json.put("permissionGranted", permissionGranted)
         json.put("source", source)

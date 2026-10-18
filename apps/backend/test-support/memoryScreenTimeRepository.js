@@ -24,6 +24,7 @@ export function createMemoryScreenTimeRepository() {
         deviceId: data.deviceId.toString(),
         date: data.date,
         totalScreenTimeSeconds: data.totalScreenTimeSeconds,
+        deviceUnlockCount: data.deviceUnlockCount ?? 0,
         reportingPeriod: data.reportingPeriod,
         permissionGranted: data.permissionGranted,
         source: data.source,
