@@ -463,21 +463,14 @@ export default function WelcomePage() {
               </nav>
             )}
 
-            {/* Right: Active Child Selector (Authenticated) + API Status Badge */}
+            {/* Right: Parent Profile Badge (Authenticated) + API Status Badge */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 order-2 md:order-3">
-              {auth.state === 'authenticated' && children.items.length > 0 && (
-                <div className="flex items-center gap-1.5 sm:gap-2 rounded-xl bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-2xs">
-                  <span className="text-slate-500 text-[11px] sm:text-xs shrink-0">Active Child:</span>
-                  <select
-                    value={selectedChildId || children.items[0]?.id || ''}
-                    onChange={(e) => setSelectedChildId(e.target.value)}
-                    className="rounded-lg bg-white border border-slate-200 px-2 py-1 text-xs font-bold text-sky-700 outline-none focus:border-sky-500 transition cursor-pointer min-h-[30px]"
-                    aria-label="Active Child selector"
-                  >
-                    {children.items.map((c) => (
-                      <option key={c.id} value={c.id}>Child: {c.displayName}</option>
-                    ))}
-                  </select>
+              {auth.state === 'authenticated' && auth.parent?.email && (
+                <div className="hidden sm:flex items-center gap-2 rounded-full bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-xs text-slate-600 shadow-2xs">
+                  <div className="size-5 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">
+                    {auth.parent.email[0].toUpperCase()}
+                  </div>
+                  <span className="font-semibold text-slate-700">Parent Portal</span>
                 </div>
               )}
 
@@ -491,16 +484,16 @@ export default function WelcomePage() {
 
           {/* Bottom Row: Authenticated Dashboard Views Navigation Bar */}
           {auth.state === 'authenticated' && (
-            <nav aria-label="Dashboard Views" className="border-t border-slate-100 bg-slate-50/70 px-3 sm:px-6 py-2 flex items-center justify-between gap-2 transition">
-              <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto w-full py-0.5 touch-scroll-x no-scrollbar">
+            <nav aria-label="Dashboard Views" className="border-t border-slate-100 bg-slate-50/60 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 transition">
+              <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 shadow-2xs overflow-x-auto touch-scroll-x no-scrollbar max-w-full">
                 <button
                   type="button"
                   aria-label="Overview"
                   onClick={() => setCurrentPage('overview')}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[36px] ${
                     currentPage === 'overview'
                       ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                   }`}
                 >
                   <span>🏠</span>
@@ -516,10 +509,10 @@ export default function WelcomePage() {
                       setSelectedChildId(children.items[0].id);
                     }
                   }}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[36px] ${
                     currentPage === 'screentime'
                       ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                   }`}
                 >
                   <span>⏱️</span>
@@ -535,10 +528,10 @@ export default function WelcomePage() {
                       setSelectedChildId(children.items[0].id);
                     }
                   }}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[36px] ${
                     currentPage === 'rules'
                       ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                   }`}
                 >
                   <span>🛡️</span>
@@ -552,10 +545,10 @@ export default function WelcomePage() {
                     setCurrentPage('devices');
                     loadDevices();
                   }}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[36px] ${
                     currentPage === 'devices'
                       ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                   }`}
                 >
                   <span>📱</span>
@@ -571,16 +564,36 @@ export default function WelcomePage() {
                   type="button"
                   aria-label="Downloads"
                   onClick={() => setCurrentPage('downloads')}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[36px] ${
                     currentPage === 'downloads'
                       ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                   }`}
                 >
                   <span>📥</span>
                   <span>Downloads</span>
                 </button>
               </div>
+
+              {/* Right: Active Child Switcher Pill */}
+              {children.items.length > 0 && (
+                <div className="flex items-center gap-2 rounded-2xl bg-white border border-slate-200/90 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-2xs shrink-0">
+                  <span className="flex items-center gap-1.5 text-slate-500 text-[11px] sm:text-xs shrink-0">
+                    <span className="size-2 rounded-full bg-emerald-500" />
+                    <span>Active Child:</span>
+                  </span>
+                  <select
+                    value={selectedChildId || children.items[0]?.id || ''}
+                    onChange={(e) => setSelectedChildId(e.target.value)}
+                    className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-xs font-bold text-sky-700 outline-none focus:border-sky-500 transition cursor-pointer min-h-[28px]"
+                    aria-label="Active Child selector"
+                  >
+                    {children.items.map((c) => (
+                      <option key={c.id} value={c.id}>Child: {c.displayName}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </nav>
           )}
         </header>
