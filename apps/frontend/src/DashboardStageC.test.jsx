@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App.jsx';
 
 const parent = { id: 'parent-id', email: 'parent@example.com' };
@@ -295,4 +295,72 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
     fireEvent.click(screen.getByRole('button', { name: 'Devices & Sync' }));
     expect(await screen.findByText(/Sync Pending \(v1 \/ v2\)/)).toBeInTheDocument();
   });
+
+  it('navigates to separate pages via top navigation bar options', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith('/health')) return response(200, { ok: true, data: { status: 'ready' } });
+      if (path.endsWith('/auth/me')) return response(200, { ok: true, data: { parent } });
+      if (path.endsWith('/children') && options.method === 'GET') {
+        return response(200, { ok: true, data: { children: [child] } });
+      }
+      if (path.endsWith('/devices') && options.method === 'GET') {
+        return response(200, { ok: true, data: { devices: [] } });
+      }
+      if (path.endsWith('/children/child-1/policy')) {
+        return response(200, { ok: true, data: { policy: { version: 1, screenTime: { dailyLimitMinutes: 60 } } } });
+      }
+      if (path.endsWith('/children/child-1/screen-time')) {
+        return response(200, {
+          ok: true,
+          data: {
+            date: '2026-10-15',
+            totalScreenTimeSeconds: 1800,
+            dailyLimitMinutes: 60,
+            limitExceeded: false,
+            permissionStatus: 'granted',
+            appUsage: [],
+          },
+        });
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    }));
+
+    render(<App />);
+
+    // Initially on Overview
+    expect(await screen.findByText('Alex')).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation', { name: 'Dashboard Views' });
+
+    // 1. Click top option: Screen Time
+    const screenTimeNavBtn = within(nav).getByRole('button', { name: 'Screen Time' });
+    fireEvent.click(screenTimeNavBtn);
+    expect(await screen.findByText('Screen Time Analytics')).toBeInTheDocument();
+    expect(screen.getByText('Daily Screen Time: Alex')).toBeInTheDocument();
+
+    // 2. Click top option: Rules & Limits
+    const rulesNavBtn = within(nav).getByRole('button', { name: 'Rules & Limits' });
+    fireEvent.click(rulesNavBtn);
+    expect(await screen.findByText('Rules & Safety Limits')).toBeInTheDocument();
+    expect(await screen.findByText('Rules & Schedules: Alex')).toBeInTheDocument();
+
+    // 3. Click top option: Paired Devices
+    const devicesNavBtn = within(nav).getByRole('button', { name: 'Paired Devices' });
+    fireEvent.click(devicesNavBtn);
+    expect(await screen.findByText('Paired Devices & Sync Status')).toBeInTheDocument();
+
+    // 4. Click top option: Downloads
+    const downloadsNavBtn = within(nav).getByRole('button', { name: 'Downloads' });
+    fireEvent.click(downloadsNavBtn);
+    expect(await screen.findByText('Child Device Apps')).toBeInTheDocument();
+    expect(screen.getByText('Android App')).toBeInTheDocument();
+    expect(screen.getByText('Chrome Extension')).toBeInTheDocument();
+
+    // 5. Click top option: Overview to return
+    const overviewNavBtn = within(nav).getByRole('button', { name: 'Overview' });
+    fireEvent.click(overviewNavBtn);
+    expect(await screen.findByText('Child profiles')).toBeInTheDocument();
+  });
 });
+
