@@ -370,7 +370,7 @@ export default function WelcomePage() {
         <div className="absolute bottom-10 -left-40 size-[420px] rounded-full bg-indigo-200/20 blur-3xl" />
       </div>
 
-      <main className="mx-auto max-w-6xl px-3.5 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-6">
+      <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 space-y-6">
         {/* Brand Header */}
         <header className="rounded-2xl border border-slate-200/80 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-3.5 sm:py-4 shadow-sm shadow-slate-200/40 flex flex-wrap items-center justify-between gap-3 sm:gap-4 transition">
           <div className="flex items-center gap-3">
@@ -676,6 +676,16 @@ export default function WelcomePage() {
                                   </a>
                                 </div>
                               </div>
+                              <details className="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/60 p-2 text-[11px] text-amber-900 group">
+                                <summary className="font-semibold cursor-pointer select-none flex items-center justify-between">
+                                  <span>⚠️ "App blocked" by Play Protect or Extension help?</span>
+                                  <span className="text-amber-700 text-[10px] group-open:rotate-180 transition-transform">▼</span>
+                                </summary>
+                                <div className="mt-1.5 pt-1.5 border-t border-amber-200/60 space-y-1.5 text-slate-700">
+                                  <p><strong>Android:</strong> Open Play Store → Profile (top right) → Play Protect → ⚙️ Settings → turn OFF <em>"Scan apps with Play Protect"</em>, then tap the downloaded APK to install.</p>
+                                  <p><strong>Chrome Extension:</strong> Extract ZIP → open <code>chrome://extensions</code> → turn ON Developer Mode → click <em>Load unpacked</em> → enter this pairing code.</p>
+                                </div>
+                              </details>
                             </>
                           ) : (
                             <div className="flex items-center justify-between gap-2">
@@ -819,9 +829,9 @@ export default function WelcomePage() {
         ) : auth.state === 'checking' ? (
           <p className="mt-8 text-sm text-slate-500" role="status">Checking sign-in status…</p>
         ) : (
-          <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch max-w-5xl mx-auto">
+          <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch w-full">
             {/* Left Column: Sign In / Register Card */}
-            <div className="lg:col-span-7 flex flex-col">
+            <div className="flex flex-col w-full">
               <div className="flex-1 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-6 sm:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition">
                 <div>
                   {/* Top Header inside Left Card */}
@@ -954,7 +964,7 @@ export default function WelcomePage() {
             </div>
 
             {/* Right Column: Clean Child Device Apps Download */}
-            <div className="lg:col-span-5 flex flex-col">
+            <div className="flex flex-col w-full">
               <div className="flex-1 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-6 sm:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition">
                 <div>
                   {/* Top Header inside Right Card */}
@@ -1033,24 +1043,46 @@ export default function WelcomePage() {
                     </div>
                   </div>
 
-                  {/* Collapsible Quick Setup Guide */}
-                  <div className="mt-4">
-                    <details className="group rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs text-slate-600 transition hover:bg-slate-50">
-                      <summary className="flex cursor-pointer items-center justify-between font-bold text-slate-700 select-none">
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-sky-600">ℹ️</span>
-                          How to install Chrome Extension
-                        </span>
-                        <span className="text-slate-400 group-open:rotate-180 transition-transform text-[10px]">▼</span>
-                      </summary>
-                      <ol className="mt-3 list-decimal list-inside space-y-2 pl-0.5 text-[11.5px] text-slate-600 border-t border-slate-200/70 pt-2.5">
-                        <li>Download &amp; extract <code className="bg-white px-1.5 py-0.5 rounded-md border border-slate-200 font-mono text-[10.5px] text-sky-700">balakavach-chrome-extension.zip</code></li>
-                        <li>Go to <code className="bg-white px-1.5 py-0.5 rounded-md border border-slate-200 font-mono text-[10.5px] text-sky-700">chrome://extensions</code> in Chrome</li>
-                        <li>Enable <strong>Developer mode</strong> and click <strong>Load unpacked</strong></li>
-                        <li>Select extracted folder and enter pairing code from parent portal</li>
-                      </ol>
-                    </details>
-                  </div>
+                  {/* Installation Guide & Play Protect Notice */}
+                  <details className="mt-3 rounded-2xl border border-amber-200/90 bg-amber-50/60 p-3.5 text-xs text-amber-900 group transition hover:border-amber-300">
+                    <summary className="font-bold cursor-pointer select-none flex items-center justify-between text-slate-800">
+                      <span className="flex items-center gap-1.5">
+                        <span>🛡️</span>
+                        <span>Play Protect blocked APK or Extension help?</span>
+                      </span>
+                      <span className="text-amber-700 text-xs font-semibold group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="mt-2.5 pt-2 border-t border-amber-200/70 space-y-2.5 text-slate-700">
+                      <div className="bg-white/80 rounded-xl p-2.5 border border-amber-100">
+                        <p className="font-bold text-emerald-900 flex items-center gap-1">
+                          <span>📱</span> Android Play Protect Fix:
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Because BalaKavach monitors screen time and apps locally, Google Play Protect's web sideload scanner blocks installation.
+                        </p>
+                        <ol className="list-decimal list-inside space-y-1 text-[11.5px] text-slate-700 mt-1 ml-0.5">
+                          <li>Open <strong>Google Play Store</strong> app on child's phone</li>
+                          <li>Tap your <strong>Profile picture</strong> (top right) → <strong>Play Protect</strong></li>
+                          <li>Tap the <strong>⚙️ Settings gear</strong> in top right</li>
+                          <li>Turn OFF <strong>"Scan apps with Play Protect"</strong></li>
+                          <li>Open Downloads &amp; tap <strong>balakavach-companion.apk</strong> to install!</li>
+                        </ol>
+                      </div>
+
+                      <div className="bg-white/80 rounded-xl p-2.5 border border-amber-100">
+                        <p className="font-bold text-sky-900 flex items-center gap-1">
+                          <span>🌐</span> Chrome Extension Setup:
+                        </p>
+                        <ol className="list-decimal list-inside space-y-1 text-[11.5px] text-slate-700 mt-1 ml-0.5">
+                          <li>Extract downloaded <strong>balakavach-chrome-extension.zip</strong></li>
+                          <li>Open <code>chrome://extensions</code> in Chrome browser</li>
+                          <li>Toggle ON <strong>Developer mode</strong> (top right)</li>
+                          <li>Click <strong>Load unpacked</strong> &amp; select the extracted folder</li>
+                          <li>Open extension popup and enter pairing code!</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </details>
                 </div>
 
                 {/* Minimal Feature Highlights */}

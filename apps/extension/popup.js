@@ -24,6 +24,10 @@ export function createPopupController({
   const deviceSyncMode = document.querySelector('#device-sync-mode');
   const syncButton = document.querySelector('#sync-button');
   const deviceError = document.querySelector('#device-error');
+  const apiUrlInput = document.querySelector('#api-url-input');
+  const presetCloudBtn = document.querySelector('#preset-cloud-btn');
+  const presetLocalBtn = document.querySelector('#preset-local-btn');
+  const deviceServerDisplay = document.querySelector('#device-server-display');
 
   let pairingBusy = false;
   let syncBusy = false;
@@ -152,6 +156,9 @@ export function createPopupController({
         }
       }
 
+      if (deviceServerDisplay) {
+        deviceServerDisplay.textContent = device?.apiBaseUrl || 'Default';
+      }
       if (deviceSyncMode) deviceSyncMode.textContent = 'Automatic (live)';
       if (pairingForm) pairingForm.hidden = true;
       if (syncButton) syncButton.hidden = true;
@@ -320,13 +327,18 @@ export function createPopupController({
     setDeviceError(null);
     setPairingBusy(true);
 
+    const payload = {
+      action: 'redeemPairingCode',
+      code,
+      name,
+      platform: 'unknown',
+    };
+    if (apiUrlInput && typeof apiUrlInput.value === 'string' && apiUrlInput.value.trim()) {
+      payload.apiBaseUrl = apiUrlInput.value.trim();
+    }
+
     try {
-      const response = await send({
-        action: 'redeemPairingCode',
-        code,
-        name,
-        platform: 'unknown',
-      });
+      const response = await send(payload);
 
       if (!response?.ok) {
         setDeviceError(response?.error ?? 'Pairing failed. Check code and network.');
@@ -346,6 +358,30 @@ export function createPopupController({
   }
 
   function init() {
+    presetCloudBtn?.addEventListener('click', () => {
+      if (apiUrlInput) {
+        apiUrlInput.value = 'https://balakavach-be.onrender.com/api/v1';
+        presetCloudBtn.classList.add('active');
+        presetLocalBtn?.classList.remove('active');
+      }
+    });
+
+    presetLocalBtn?.addEventListener('click', () => {
+      if (apiUrlInput) {
+        apiUrlInput.value = 'http://localhost:5000/api/v1';
+        presetLocalBtn.classList.add('active');
+        presetCloudBtn?.classList.remove('active');
+      }
+    });
+
+    apiUrlInput?.addEventListener('input', () => {
+      const val = apiUrlInput.value?.trim() || '';
+      if (presetCloudBtn && presetLocalBtn) {
+        presetCloudBtn.classList.toggle('active', val.includes('onrender.com'));
+        presetLocalBtn.classList.toggle('active', val.includes('localhost') || val.includes('127.0.0.1'));
+      }
+    });
+
     pairingForm?.addEventListener('submit', (event) => {
       void handlePairingSubmit(event);
     });

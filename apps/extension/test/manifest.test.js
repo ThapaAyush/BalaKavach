@@ -9,7 +9,9 @@ test('declares only the permissions required for local rules and storage', async
   assert.deepEqual(manifest.permissions, ['alarms', 'declarativeNetRequest', 'storage']);
   assert.deepEqual(manifest.host_permissions, [
     'http://localhost:5000/*',
-    'http://127.0.0.1:5000/*'
+    'http://127.0.0.1:5000/*',
+    'https://balakavach-be.onrender.com/*',
+    'https://*.onrender.com/*'
   ]);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.host_permissions.some((p) => p.includes('*://*/*')), false);

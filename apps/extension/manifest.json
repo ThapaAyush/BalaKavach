@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "KidsGuard Local Website Filter",
+  "name": "BalaKavach Browser Companion",
   "version": "0.2.1",
-  "description": "Apply a small, locally configured blocklist to website navigations.",
+  "description": "Parent-managed website filtering companion for BalaKavach.",
   "minimum_chrome_version": "101",
   "permissions": [
     "alarms",
@@ -11,14 +11,16 @@
   ],
   "host_permissions": [
     "http://localhost:5000/*",
-    "http://127.0.0.1:5000/*"
+    "http://127.0.0.1:5000/*",
+    "https://balakavach-be.onrender.com/*",
+    "https://*.onrender.com/*"
   ],
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_title": "KidsGuard local website filter",
+    "default_title": "BalaKavach Browser Companion",
     "default_popup": "popup.html"
   }
 }

@@ -1,5 +1,7 @@
 export const DEFAULT_API_BASE_URL = 'http://localhost:5000/api/v1';
+export const DEFAULT_CLOUD_API_BASE_URL = 'https://balakavach-be.onrender.com/api/v1';
 export const DEVICE_SESSION_STORAGE_KEY = 'kidsguard_device_session';
+export const CONFIG_API_BASE_URL_KEY = 'kidsguard_api_base_url';
 
 const VALID_PLATFORMS = new Set(['android', 'ios', 'windows', 'macos', 'linux', 'unknown']);
 
@@ -54,7 +56,7 @@ export function sanitizeDeviceStatus(session) {
     };
   }
 
-  return {
+  const result = {
     isPaired: session.pairingStatus === 'paired',
     pairingStatus: session.pairingStatus,
     deviceId: session.deviceId,
@@ -69,6 +71,12 @@ export function sanitizeDeviceStatus(session) {
     lastPolicySyncAt: session.lastPolicySyncAt ?? null,
     policyVersion: session.policyVersion ?? null,
   };
+
+  if (session.apiBaseUrl) {
+    result.apiBaseUrl = session.apiBaseUrl;
+  }
+
+  return result;
 }
 
 export function createDeviceClient({
@@ -76,7 +84,7 @@ export function createDeviceClient({
   fetch = globalThis.fetch,
   apiBaseUrl = DEFAULT_API_BASE_URL,
 } = {}) {
-  const baseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  const fallbackBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
 
   async function getStoredSession() {
     try {
@@ -91,13 +99,47 @@ export function createDeviceClient({
     await storage.set({ [DEVICE_SESSION_STORAGE_KEY]: session });
   }
 
+  async function resolveBaseUrl(explicitUrl) {
+    if (typeof explicitUrl === 'string' && explicitUrl.trim()) {
+      return normalizeApiBaseUrl(explicitUrl);
+    }
+    const session = await getStoredSession();
+    if (session?.apiBaseUrl) {
+      return normalizeApiBaseUrl(session.apiBaseUrl);
+    }
+    try {
+      const data = await storage.get(CONFIG_API_BASE_URL_KEY);
+      if (data?.[CONFIG_API_BASE_URL_KEY]) {
+        return normalizeApiBaseUrl(data[CONFIG_API_BASE_URL_KEY]);
+      }
+    } catch {
+      // ignore
+    }
+    return fallbackBaseUrl;
+  }
+
   return {
     async getStatus() {
       const session = await getStoredSession();
       return sanitizeDeviceStatus(session);
     },
 
-    async redeemPairingCode({ code, name, platform = 'unknown' }) {
+    async getApiBaseUrl() {
+      return await resolveBaseUrl();
+    },
+
+    async setApiBaseUrl(newUrl) {
+      const normalized = normalizeApiBaseUrl(newUrl);
+      await storage.set({ [CONFIG_API_BASE_URL_KEY]: normalized });
+      const session = await getStoredSession();
+      if (session) {
+        session.apiBaseUrl = normalized;
+        await saveStoredSession(session);
+      }
+      return normalized;
+    },
+
+    async redeemPairingCode({ code, name, platform = 'unknown', apiBaseUrl: explicitUrl } = {}) {
       if (typeof code !== 'string' || !/^[A-Za-z0-9_-]{22}$/u.test(code.trim())) {
         throw new TypeError('Pairing code must be a 22-character base64url string.');
       }
@@ -105,6 +147,7 @@ export function createDeviceClient({
         throw new TypeError('Device name must be between 1 and 60 characters.');
       }
 
+      const currentBaseUrl = await resolveBaseUrl(explicitUrl);
       const safePlatform = VALID_PLATFORMS.has(platform) ? platform : 'unknown';
       const requestBody = JSON.stringify({
         code: code.trim(),
@@ -114,7 +157,7 @@ export function createDeviceClient({
 
       let response;
       try {
-        response = await fetch(`${baseUrl}/device-pairing/redeem`, {
+        response = await fetch(`${currentBaseUrl}/device-pairing/redeem`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -169,10 +212,14 @@ export function createDeviceClient({
         acknowledgedPolicyVersion: 0,
         lastPolicySyncAt: null,
         policyVersion: null,
+        apiBaseUrl: currentBaseUrl,
       };
 
       try {
-        await saveStoredSession(session);
+        await storage.set({
+          [CONFIG_API_BASE_URL_KEY]: currentBaseUrl,
+          [DEVICE_SESSION_STORAGE_KEY]: session,
+        });
       } catch {
         throw new Error('Failed to save device pairing session to extension storage.');
       }
@@ -198,9 +245,10 @@ export function createDeviceClient({
         };
       }
 
+      const currentBaseUrl = await resolveBaseUrl();
       let response;
       try {
-        response = await fetch(`${baseUrl}/devices/heartbeat`, {
+        response = await fetch(`${currentBaseUrl}/devices/heartbeat`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -300,9 +348,10 @@ export function createDeviceClient({
         };
       }
 
+      const currentBaseUrl = await resolveBaseUrl();
       let response;
       try {
-        response = await fetch(`${baseUrl}/devices/policy`, {
+        response = await fetch(`${currentBaseUrl}/devices/policy`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',
@@ -407,9 +456,10 @@ export function createDeviceClient({
         };
       }
 
+      const currentBaseUrl = await resolveBaseUrl();
       let response;
       try {
-        response = await fetch(`${baseUrl}/devices/policy/ack`, {
+        response = await fetch(`${currentBaseUrl}/devices/policy/ack`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',

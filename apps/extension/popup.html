@@ -61,6 +61,10 @@
               <dd id="device-sync-display">Never</dd>
             </div>
             <div class="meta-row">
+              <dt>Server:</dt>
+              <dd id="device-server-display">Default</dd>
+            </div>
+            <div class="meta-row">
               <dt>Sync mode:</dt>
               <dd id="device-sync-mode">Automatic (live)</dd>
             </div>
@@ -95,6 +99,25 @@
               value="Chrome Browser"
               required
             >
+          </div>
+
+          <div class="form-group">
+            <div class="server-header">
+              <label for="api-url-input">Server URL</label>
+              <span class="server-preset-tip">Backend API</span>
+            </div>
+            <input
+              id="api-url-input"
+              name="apiUrl"
+              type="text"
+              placeholder="https://balakavach-be.onrender.com/api/v1"
+              value="https://balakavach-be.onrender.com/api/v1"
+            >
+            <div class="server-preset-buttons">
+              <button type="button" class="btn-preset active" id="preset-cloud-btn">Cloud (Render)</button>
+              <button type="button" class="btn-preset" id="preset-local-btn">Local (5000)</button>
+            </div>
+            <p class="hint">Matches your BalaKavach parent web dashboard.</p>
           </div>
 
           <button id="pair-button" type="submit">Pair device</button>

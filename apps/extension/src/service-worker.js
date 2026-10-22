@@ -229,7 +229,7 @@ export function createServiceWorker({
         }
 
       case 'redeemPairingCode': {
-        const { code, name, platform } = message;
+        const { code, name, platform, apiBaseUrl } = message;
         if (typeof code !== 'string' || !/^[A-Za-z0-9_-]{22}$/u.test(code.trim())) {
           return { ok: false, error: 'Pairing code must be a 22-character base64url string.' };
         }
@@ -244,6 +244,7 @@ export function createServiceWorker({
             code: code.trim(),
             name: name.trim(),
             platform,
+            apiBaseUrl,
           });
           // Immediately perform initial policy synchronization upon pairing
           void serialize(() => executePolicySync({ deviceClient: client, ruleManager: manager }));
@@ -254,6 +255,24 @@ export function createServiceWorker({
             ok: false,
             error: error?.message || 'Failed to redeem pairing code.',
           };
+        }
+      }
+
+      case 'getApiBaseUrl': {
+        try {
+          const url = typeof client.getApiBaseUrl === 'function' ? await client.getApiBaseUrl() : undefined;
+          return { ok: true, url };
+        } catch (error) {
+          return { ok: false, error: error?.message || 'Failed to get API base URL.' };
+        }
+      }
+
+      case 'setApiBaseUrl': {
+        try {
+          const url = typeof client.setApiBaseUrl === 'function' ? await client.setApiBaseUrl(message.url) : message.url;
+          return { ok: true, url };
+        } catch (error) {
+          return { ok: false, error: error?.message || 'Failed to set API base URL.' };
         }
       }
 

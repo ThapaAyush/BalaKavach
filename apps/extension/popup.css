@@ -489,3 +489,45 @@ button:disabled {
   outline: 2px solid #0284c7;
   outline-offset: 2px;
 }
+
+.server-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.server-preset-tip {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.server-preset-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.btn-preset {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-preset:hover {
+  background: #e2e8f0;
+}
+
+.btn-preset.active {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #6ee7b7;
+}
+
