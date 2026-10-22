@@ -34,7 +34,9 @@ export function normalizeApiBaseUrl(rawUrl = DEFAULT_API_BASE_URL) {
     throw new TypeError(`Unsupported protocol '${protocol}'. Only HTTPS (or local HTTP) is permitted.`);
   }
 
-  return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/u, '');
+  const rawPath = parsed.pathname.replace(/\/+$/u, '');
+  const pathPart = (!rawPath || rawPath === '/') ? '/api/v1' : rawPath;
+  return `${parsed.origin}${pathPart}`;
 }
 
 export function sanitizeDeviceStatus(session) {

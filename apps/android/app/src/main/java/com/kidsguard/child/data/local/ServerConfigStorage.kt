@@ -90,7 +90,8 @@ class ServerConfigStorage(
             }
 
             val portPart = if (uri.port != -1) ":${uri.port}" else ""
-            val pathPart = uri.path?.trimEnd('/') ?: ""
+            val rawPath = uri.path?.trimEnd('/') ?: ""
+            val pathPart = if (rawPath.isEmpty() || rawPath == "/") "/api/v1" else rawPath
             return "$scheme://$host$portPart$pathPart"
         }
 

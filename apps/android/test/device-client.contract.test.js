@@ -34,7 +34,9 @@ function normalizeApiBaseUrl(rawUrl) {
     throw new TypeError(`Unsupported protocol '${protocol}'. Only HTTPS (or local HTTP) is permitted.`);
   }
 
-  return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/u, '');
+  const rawPath = parsed.pathname.replace(/\/+$/u, '');
+  const pathPart = (!rawPath || rawPath === '/') ? '/api/v1' : rawPath;
+  return `${parsed.origin}${pathPart}`;
 }
 
 function validatePairingInput(code, name) {
