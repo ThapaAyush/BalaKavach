@@ -5,11 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.kidsguard.child.data.local.ServerConfigStorage
 import com.kidsguard.child.data.model.ApiResult
+import com.kidsguard.child.data.model.AppUpdateInfo
 import com.kidsguard.child.data.model.DevicePolicyResponse
 import com.kidsguard.child.data.model.DeviceSession
 import com.kidsguard.child.data.model.ScreenTimeReportRequest
 import com.kidsguard.child.data.repository.DeviceRepository
 import com.kidsguard.child.data.repository.PolicyRepository
+import com.kidsguard.child.service.update.AppUpdateManager
 import com.kidsguard.child.service.usage.UsageStatsReader
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,11 +45,21 @@ class MainViewModel(
     private val deviceRepository: DeviceRepository,
     private val policyRepository: PolicyRepository,
     private val usageStatsReader: UsageStatsReader,
-    private val serverConfigStorage: ServerConfigStorage
+    private val serverConfigStorage: ServerConfigStorage,
+    val appUpdateManager: AppUpdateManager? = null
 ) : ViewModel() {
 
     val deviceSession: StateFlow<DeviceSession> = deviceRepository.deviceSession
     val cachedPolicy: StateFlow<DevicePolicyResponse?> = policyRepository.cachedPolicy
+
+    private val _appUpdateInfo = MutableStateFlow<AppUpdateInfo?>(null)
+    val appUpdateInfo: StateFlow<AppUpdateInfo?> = _appUpdateInfo.asStateFlow()
+
+    private val _updateCheckLoading = MutableStateFlow(false)
+    val updateCheckLoading: StateFlow<Boolean> = _updateCheckLoading.asStateFlow()
+
+    private val _updateCheckStatusMessage = MutableStateFlow<String?>(null)
+    val updateCheckStatusMessage: StateFlow<String?> = _updateCheckStatusMessage.asStateFlow()
 
     private val _todayUsage = MutableStateFlow<ScreenTimeReportRequest?>(null)
     val todayUsage: StateFlow<ScreenTimeReportRequest?> = _todayUsage.asStateFlow()
@@ -251,15 +263,64 @@ class MainViewModel(
         }
     }
 
+    fun checkForAppUpdate(currentVersionCode: Int, currentVersionName: String, isManual: Boolean = false) {
+        val manager = appUpdateManager ?: return
+        viewModelScope.launch {
+            if (isManual) {
+                _updateCheckLoading.value = true
+                _updateCheckStatusMessage.value = null
+            }
+            try {
+                when (val result = manager.checkForUpdates(currentVersionCode, currentVersionName)) {
+                    is ApiResult.Success -> {
+                        val info = result.data
+                        if (info.updateAvailable) {
+                            _appUpdateInfo.value = info
+                            if (isManual) {
+                                _updateCheckStatusMessage.value = "New update available: v${info.latestVersionName}"
+                            }
+                        } else {
+                            if (isManual) {
+                                _updateCheckStatusMessage.value = "You are on the latest version!"
+                            }
+                        }
+                    }
+                    is ApiResult.Error -> {
+                        if (isManual) {
+                            _updateCheckStatusMessage.value = "Check failed: ${result.message}"
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                if (isManual) {
+                    _updateCheckStatusMessage.value = "Check failed. Try again later."
+                }
+            } finally {
+                if (isManual) {
+                    _updateCheckLoading.value = false
+                }
+            }
+        }
+    }
+
+    fun dismissUpdate() {
+        _appUpdateInfo.value = null
+    }
+
+    fun clearUpdateStatusMessage() {
+        _updateCheckStatusMessage.value = null
+    }
+
     class Factory(
         private val deviceRepository: DeviceRepository,
         private val policyRepository: PolicyRepository,
         private val usageStatsReader: UsageStatsReader,
-        private val serverConfigStorage: ServerConfigStorage
+        private val serverConfigStorage: ServerConfigStorage,
+        private val appUpdateManager: AppUpdateManager? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MainViewModel(deviceRepository, policyRepository, usageStatsReader, serverConfigStorage) as T
+            return MainViewModel(deviceRepository, policyRepository, usageStatsReader, serverConfigStorage, appUpdateManager) as T
         }
     }
 }

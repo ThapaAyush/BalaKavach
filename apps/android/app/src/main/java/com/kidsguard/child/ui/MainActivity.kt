@@ -58,7 +58,8 @@ class MainActivity : AppCompatActivity() {
             deviceRepository = app.deviceRepository,
             policyRepository = app.policyRepository,
             usageStatsReader = app.usageStatsReader,
-            serverConfigStorage = app.serverConfigStorage
+            serverConfigStorage = app.serverConfigStorage,
+            appUpdateManager = app.appUpdateManager
         )
     }
 
@@ -87,6 +88,12 @@ class MainActivity : AppCompatActivity() {
         updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
         // Update daily limit alert banner
         updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
+        // Check for application updates from backend (non-intrusive)
+        viewModel.checkForAppUpdate(
+            currentVersionCode = com.kidsguard.child.BuildConfig.VERSION_CODE,
+            currentVersionName = com.kidsguard.child.BuildConfig.VERSION_NAME,
+            isManual = false
+        )
         // Start live ticker to update real-time screen stats while active on screen
         startLiveRealTimeTicker()
     }
@@ -210,6 +217,59 @@ class MainActivity : AppCompatActivity() {
         binding.btnResetApiUrl.setOnClickListener {
             viewModel.resetApiUrl()
             binding.editApiUrl.setText(viewModel.apiUrl.value)
+        }
+
+        // Current version display in Settings
+        binding.textCurrentVersion.text = "Current Version: v${com.kidsguard.child.BuildConfig.VERSION_NAME} (Build ${com.kidsguard.child.BuildConfig.VERSION_CODE})"
+
+        // App Update Banner Buttons
+        binding.btnDismissUpdate.setOnClickListener {
+            viewModel.dismissUpdate()
+        }
+
+        binding.btnUpdateNow.setOnClickListener {
+            val updateInfo = viewModel.appUpdateInfo.value ?: return@setOnClickListener
+            val app = application as KidsGuardApp
+            binding.progressUpdateDownload.visibility = View.VISIBLE
+            binding.textUpdateStatus.visibility = View.VISIBLE
+            binding.textUpdateStatus.text = "Starting update download..."
+            binding.btnUpdateNow.isEnabled = false
+
+            val downloadId = app.appUpdateManager.startDownloadAndInstall(
+                updateInfo = updateInfo,
+                onDownloadStarted = {
+                    runOnUiThread {
+                        binding.textUpdateStatus.text = "Downloading update in background..."
+                    }
+                },
+                onError = { errorMsg ->
+                    runOnUiThread {
+                        binding.progressUpdateDownload.visibility = View.GONE
+                        binding.textUpdateStatus.text = "Download error: $errorMsg"
+                        binding.btnUpdateNow.isEnabled = true
+                        Toast.makeText(this@MainActivity, "Download error: $errorMsg. Try downloading from web.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            )
+
+            if (downloadId == -1L) {
+                binding.progressUpdateDownload.visibility = View.GONE
+                binding.btnUpdateNow.isEnabled = true
+            }
+        }
+
+        binding.btnUpdateBrowser.setOnClickListener {
+            val updateInfo = viewModel.appUpdateInfo.value ?: return@setOnClickListener
+            val app = application as KidsGuardApp
+            app.appUpdateManager.openInBrowser(this, updateInfo)
+        }
+
+        binding.btnCheckForUpdates.setOnClickListener {
+            viewModel.checkForAppUpdate(
+                currentVersionCode = com.kidsguard.child.BuildConfig.VERSION_CODE,
+                currentVersionName = com.kidsguard.child.BuildConfig.VERSION_NAME,
+                isManual = true
+            )
         }
     }
 
@@ -363,6 +423,44 @@ class MainActivity : AppCompatActivity() {
                         if (!msg.isNullOrBlank()) {
                             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
                             viewModel.clearApiUrlSavedMessage()
+                        }
+                    }
+                }
+
+                // App Update Info Banner Observer
+                launch {
+                    viewModel.appUpdateInfo.collect { updateInfo ->
+                        if (updateInfo != null && updateInfo.updateAvailable) {
+                            binding.cardAppUpdateBanner.visibility = View.VISIBLE
+                            binding.textUpdateTitle.text = "New Update Available: v${updateInfo.latestVersionName}"
+                            binding.textUpdateSubtitle.text = if (updateInfo.releaseNotes.isNotBlank()) {
+                                updateInfo.releaseNotes
+                            } else {
+                                "Tap update to install latest companion build smoothly."
+                            }
+                        } else {
+                            binding.cardAppUpdateBanner.visibility = View.GONE
+                        }
+                    }
+                }
+
+                // Manual Update Check Loading Observer
+                launch {
+                    viewModel.updateCheckLoading.collect { loading ->
+                        binding.btnCheckForUpdates.isEnabled = !loading
+                        binding.btnCheckForUpdates.text = if (loading) "Checking..." else "Check for Updates"
+                    }
+                }
+
+                // Manual Update Check Status Message Observer
+                launch {
+                    viewModel.updateCheckStatusMessage.collect { status ->
+                        if (!status.isNullOrBlank()) {
+                            binding.textManualUpdateStatus.visibility = View.VISIBLE
+                            binding.textManualUpdateStatus.text = status
+                            Toast.makeText(this@MainActivity, status, Toast.LENGTH_SHORT).show()
+                        } else {
+                            binding.textManualUpdateStatus.visibility = View.GONE
                         }
                     }
                 }

@@ -39,6 +39,8 @@ class KidsGuardApp : Application() {
         private set
     lateinit var policyRepository: PolicyRepository
         private set
+    lateinit var appUpdateManager: com.kidsguard.child.service.update.AppUpdateManager
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -53,6 +55,7 @@ class KidsGuardApp : Application() {
         apiClient = KidsGuardApiClient()
         heartbeatScheduler = HeartbeatScheduler(this)
         usageStatsReader = AndroidUsageStatsReader(this)
+        appUpdateManager = com.kidsguard.child.service.update.AppUpdateManager(this, apiClient, serverConfigStorage)
 
         deviceRepository = DeviceRepository(
             apiClient = apiClient,

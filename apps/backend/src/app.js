@@ -17,6 +17,7 @@ import { createChildRouter } from './routes/childRoutes.js';
 import { createDevicePairingRouter } from './routes/devicePairingRoutes.js';
 import { createPolicyRouter } from './routes/policyRoutes.js';
 import { createScreenTimeRouter } from './routes/screenTimeRoutes.js';
+import { createAppUpdateRouter } from './routes/appUpdateRoutes.js';
 import { getHealth } from './controllers/healthController.js';
 import healthRoutes from './routes/healthRoutes.js';
 
@@ -123,6 +124,7 @@ export function createApp({
     nodeEnv: runtimeEnv.NODE_ENV,
     rateLimitConfig: runtimeEnv.rateLimitConfig,
   }));
+  app.use('/api/v1/app-update', createAppUpdateRouter({ runtimeEnv }));
   app.get('/', (req, res) => {
     res.status(200).json({
       ok: true,
@@ -135,6 +137,7 @@ export function createApp({
         children: '/api/v1/children',
         policies: '/api/v1/policies',
         screenTime: '/api/v1/screen-time',
+        appUpdate: '/api/v1/app-update',
       },
     });
   });

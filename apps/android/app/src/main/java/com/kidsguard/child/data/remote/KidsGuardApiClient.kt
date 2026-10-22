@@ -1,6 +1,7 @@
 package com.kidsguard.child.data.remote
 
 import com.kidsguard.child.data.model.ApiResult
+import com.kidsguard.child.data.model.AppUpdateInfo
 import com.kidsguard.child.data.model.DevicePolicyResponse
 import com.kidsguard.child.data.model.HeartbeatResponse
 import com.kidsguard.child.data.model.PairingRequest
@@ -473,6 +474,73 @@ class KidsGuardApiClient(
             }
         } catch (e: Exception) {
             classifyNetworkException(e, "Network unavailable. Screen-time report will retry later.")
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    /**
+     * Checks if a new version of the Android companion app is available from the backend.
+     * Fails safely without disrupting active phone usage or child monitoring.
+     */
+    suspend fun checkForAppUpdate(
+        apiBaseUrl: String,
+        currentVersionCode: Int,
+        currentVersionName: String
+    ): ApiResult<AppUpdateInfo> = withContext(Dispatchers.IO) {
+        val trimmedBase = apiBaseUrl.trimEnd('/')
+        val endpointUrl = "$trimmedBase/app-update?platform=android&currentVersionCode=$currentVersionCode&currentVersionName=$currentVersionName"
+        var connection: HttpURLConnection? = null
+
+        try {
+            val url = URL(endpointUrl)
+            connection = connectionFactory(url).apply {
+                requestMethod = "GET"
+                connectTimeout = connectTimeoutMs
+                readTimeout = readTimeoutMs
+                doInput = true
+                setRequestProperty("Accept", "application/json")
+            }
+
+            val statusCode = connection.responseCode
+            val responseStream = if (statusCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream ?: connection.inputStream
+            }
+
+            val responseBody = responseStream?.let { stream ->
+                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
+            } ?: ""
+
+            if (statusCode in 200..299) {
+                val json = JSONObject(responseBody)
+                val dataObj = json.optJSONObject("data") ?: json
+                val updateInfo = AppUpdateInfo(
+                    platform = dataObj.optString("platform", "android"),
+                    latestVersionName = dataObj.optString("latestVersionName", currentVersionName),
+                    latestVersionCode = dataObj.optInt("latestVersionCode", currentVersionCode),
+                    updateAvailable = dataObj.optBoolean("updateAvailable", false),
+                    downloadUrl = dataObj.optString("downloadUrl", "/api/v1/app-update/download"),
+                    directApkUrl = dataObj.optString("directApkUrl", "/balakavach-companion.apk"),
+                    releaseNotes = dataObj.optString("releaseNotes", ""),
+                    publishedAt = dataObj.optString("publishedAt", ""),
+                    fileSizeBytes = dataObj.optLong("fileSizeBytes", 0L),
+                    mandatory = dataObj.optBoolean("mandatory", false)
+                )
+                ApiResult.Success(updateInfo)
+            } else {
+                val errorMessage = parseErrorMessage(responseBody, statusCode)
+                ApiResult.Error(
+                    message = errorMessage,
+                    statusCode = statusCode,
+                    isAuthError = false,
+                    isServerError = statusCode in 500..599,
+                    isRateLimitError = statusCode == 429
+                )
+            }
+        } catch (e: Exception) {
+            classifyNetworkException(e, "Could not check for app updates.")
         } finally {
             connection?.disconnect()
         }

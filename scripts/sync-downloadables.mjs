@@ -173,12 +173,15 @@ export function syncAndroidApk(options = { buildApk: false }) {
   fs.mkdirSync(FRONTEND_PUBLIC_DIR, { recursive: true });
 
   let version = '0.1.0';
+  let versionCode = 1;
   const gradlePath = path.join(ANDROID_DIR, 'app', 'build.gradle.kts');
   if (fs.existsSync(gradlePath)) {
     try {
       const gradleText = fs.readFileSync(gradlePath, 'utf8');
       const match = gradleText.match(/versionName\s*=\s*"([^"]+)"/);
       if (match && match[1]) version = match[1];
+      const codeMatch = gradleText.match(/versionCode\s*=\s*(\d+)/);
+      if (codeMatch && codeMatch[1]) versionCode = parseInt(codeMatch[1], 10);
     } catch {
       // Keep default
     }
@@ -248,6 +251,7 @@ export function syncAndroidApk(options = { buildApk: false }) {
     console.warn('[sync-downloads] balakavach-companion.apk not found in public directory.');
     return {
       version,
+      versionCode,
       versionName: `v${version}`,
       fileName: 'balakavach-companion.apk',
       downloadUrl: '/balakavach-companion.apk',
@@ -261,6 +265,7 @@ export function syncAndroidApk(options = { buildApk: false }) {
   const finalStat = fs.statSync(destinationApk);
   return {
     version,
+    versionCode,
     versionName: `v${version}`,
     fileName: 'balakavach-companion.apk',
     downloadUrl: '/balakavach-companion.apk',
@@ -285,6 +290,11 @@ export function syncAll(options = {}) {
   fs.mkdirSync(GENERATED_DIR, { recursive: true });
   const metaOutPath = path.join(GENERATED_DIR, 'downloadMeta.json');
   fs.writeFileSync(metaOutPath, JSON.stringify(meta, null, 2), 'utf8');
+
+  // Also write to backend generated directory for direct server-side version detection
+  const backendGenDir = path.join(REPO_ROOT, 'apps', 'backend', 'src', 'generated');
+  fs.mkdirSync(backendGenDir, { recursive: true });
+  fs.writeFileSync(path.join(backendGenDir, 'downloadMeta.json'), JSON.stringify(meta, null, 2), 'utf8');
 
   console.log('[sync-downloads] Download metadata generated:');
   console.log(`  • Android Companion: ${androidMeta.versionName} (${androidMeta.sizeFormatted})`);
