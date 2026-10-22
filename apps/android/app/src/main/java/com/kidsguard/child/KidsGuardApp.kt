@@ -1,6 +1,7 @@
 package com.kidsguard.child
 
 import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
 import com.kidsguard.child.data.local.FilePolicyStorage
 import com.kidsguard.child.data.local.KeystoreCredentialStorage
 import com.kidsguard.child.data.local.LocalPolicyStorage
@@ -41,6 +42,9 @@ class KidsGuardApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Enforce light theme consistency across all Android devices and dark-mode settings
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
 
         secureCredentialStorage = KeystoreCredentialStorage(this)
         sessionStorage = SessionStorage(this)
