@@ -472,106 +472,6 @@ export default function WelcomePage() {
               </div>
             </div>
 
-            {/* Child Profile Controls (When Child is Selected) */}
-            {selectedChild && (
-              <div className="rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50/30 via-white to-white p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-100 pb-4">
-                  <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-                    <div className="flex items-center gap-2.5 sm:gap-3">
-                      <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-bold text-sm sm:text-base shadow-xs">
-                        {selectedChild.displayName[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-600">Parent Control Center</span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">{selectedChild.displayName}</h3>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedChildId(null)}
-                      className="sm:hidden rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
-                      aria-label="Close child controls"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="w-full sm:w-auto grid grid-cols-3 sm:flex gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('screentime')}
-                        className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
-                          activeTab === 'screentime'
-                            ? 'bg-white text-sky-700 shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Screen Time
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('policy')}
-                        className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
-                          activeTab === 'policy'
-                            ? 'bg-white text-sky-700 shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Rules & Schedules
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveTab('devices');
-                          loadDevices();
-                        }}
-                        className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
-                          activeTab === 'devices'
-                            ? 'bg-white text-sky-700 shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Devices & Sync
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedChildId(null)}
-                      className="hidden sm:inline-block rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs shrink-0"
-                      aria-label="Close child controls"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-
-                {activeTab === 'screentime' && <ScreenTimeView child={selectedChild} />}
-                {activeTab === 'policy' && (
-                  <PolicyManager
-                    child={selectedChild}
-                    onPolicyVersionChange={(ver) => {
-                      setChildPolicyVersions((prev) => ({ ...prev, [selectedChild.id]: ver }));
-                    }}
-                    onPolicySaved={() => {
-                      loadDevices();
-                      setTimeout(() => loadDevices(), 2500);
-                      setTimeout(() => loadDevices(), 5000);
-                    }}
-                  />
-                )}
-                {activeTab === 'devices' && (
-                  <DeviceStatusView
-                    devices={devices.items}
-                    activeChild={selectedChild}
-                    policyVersion={childPolicyVersions[selectedChild.id] ?? 1}
-                    onRequestPairing={requestPairingCode}
-                    onRevokeDevice={(d) => revokeDevice(d.id)}
-                    revokingId={deviceAction.busyId}
-                  />
-                )}
-              </div>
-            )}
-
             {/* Child Profiles Section */}
             <section aria-labelledby="children-title" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
               <div className="flex items-center justify-between">
@@ -598,9 +498,23 @@ export default function WelcomePage() {
                         <div className="flex items-center gap-2 w-full sm:w-auto">
                           <button
                             type="button"
-                            className="flex-1 sm:flex-initial rounded-xl border border-sky-200 bg-sky-50 px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 shadow-xs transition text-center"
+                            className={`flex-1 sm:flex-initial rounded-xl border px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold shadow-xs transition text-center ${
+                              selectedChildId === child.id
+                                ? 'border-sky-500 bg-sky-600 text-white hover:bg-sky-700 shadow-sky-100'
+                                : 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                            }`}
                             onClick={() => {
-                              setSelectedChildId(selectedChildId === child.id ? null : child.id);
+                              if (selectedChildId === child.id) {
+                                setSelectedChildId(null);
+                              } else {
+                                setSelectedChildId(child.id);
+                                setTimeout(() => {
+                                  const el = document.getElementById(`child-control-center-${child.id}`);
+                                  if (typeof el?.scrollIntoView === 'function') {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                  }
+                                }, 50);
+                              }
                             }}
                             aria-label={`Manage rules & screen time for ${child.displayName}`}
                           >
@@ -720,6 +634,109 @@ export default function WelcomePage() {
                                 Dismiss
                               </button>
                             </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Child Profile Controls (Rendered inline directly underneath this child) */}
+                      {selectedChildId === child.id && (
+                        <div
+                          id={`child-control-center-${child.id}`}
+                          className="mt-4 rounded-2xl border border-sky-200 bg-gradient-to-b from-sky-50/40 via-white to-white p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-100 pb-4">
+                            <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+                              <div className="flex items-center gap-2.5 sm:gap-3">
+                                <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-bold text-sm sm:text-base shadow-xs">
+                                  {child.displayName[0].toUpperCase()}
+                                </div>
+                                <div>
+                                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-600">Parent Control Center</span>
+                                  <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">{child.displayName}</h3>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedChildId(null)}
+                                className="sm:hidden rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
+                                aria-label="Close child controls"
+                              >
+                                Close
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <div className="w-full sm:w-auto grid grid-cols-3 sm:flex gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab('screentime')}
+                                  className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
+                                    activeTab === 'screentime'
+                                      ? 'bg-white text-sky-700 shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  Screen Time
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab('policy')}
+                                  className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
+                                    activeTab === 'policy'
+                                      ? 'bg-white text-sky-700 shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  Rules & Schedules
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveTab('devices');
+                                    loadDevices();
+                                  }}
+                                  className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
+                                    activeTab === 'devices'
+                                      ? 'bg-white text-sky-700 shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  Devices & Sync
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedChildId(null)}
+                                className="hidden sm:inline-block rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs shrink-0"
+                                aria-label="Close child controls"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+
+                          {activeTab === 'screentime' && <ScreenTimeView child={child} />}
+                          {activeTab === 'policy' && (
+                            <PolicyManager
+                              child={child}
+                              onPolicyVersionChange={(ver) => {
+                                setChildPolicyVersions((prev) => ({ ...prev, [child.id]: ver }));
+                              }}
+                              onPolicySaved={() => {
+                                loadDevices();
+                                setTimeout(() => loadDevices(), 2500);
+                                setTimeout(() => loadDevices(), 5000);
+                              }}
+                            />
+                          )}
+                          {activeTab === 'devices' && (
+                            <DeviceStatusView
+                              devices={devices.items}
+                              activeChild={child}
+                              policyVersion={childPolicyVersions[child.id] ?? 1}
+                              onRequestPairing={requestPairingCode}
+                              onRevokeDevice={(d) => revokeDevice(d.id)}
+                              revokingId={deviceAction.busyId}
+                            />
                           )}
                         </div>
                       )}
