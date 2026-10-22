@@ -31,14 +31,24 @@ class ServerConfigStorage(
         const val UNCONFIGURED_PLACEHOLDER = "UNCONFIGURED_PRODUCTION_URL"
 
         /**
-         * Standard emulator loopback URL for local backend development.
+         * Standard production cloud backend URL hosted on Render.
          */
-        const val DEFAULT_DEBUG_API_BASE_URL = "http://10.0.2.2:5000/api/v1"
+        const val DEFAULT_CLOUD_API_BASE_URL = "https://balakavach-be.onrender.com/api/v1"
 
         /**
-         * Backwards-compatible alias for default debug URL.
+         * Standard emulator loopback URL for local backend development.
          */
-        const val DEFAULT_API_BASE_URL = DEFAULT_DEBUG_API_BASE_URL
+        const val DEFAULT_EMULATOR_API_BASE_URL = "http://10.0.2.2:5000/api/v1"
+
+        /**
+         * Default API base URL for mobile devices (points to Render cloud).
+         */
+        const val DEFAULT_DEBUG_API_BASE_URL = DEFAULT_CLOUD_API_BASE_URL
+
+        /**
+         * Backwards-compatible alias for default URL.
+         */
+        const val DEFAULT_API_BASE_URL = DEFAULT_CLOUD_API_BASE_URL
 
         /**
          * Normalizes and validates an API base URL.
@@ -118,6 +128,12 @@ class ServerConfigStorage(
             return validateReleaseApiBaseUrl(defaultBaseUrl)
         }
         val stored = prefs.getString(KEY_API_BASE_URL, null)
+        // Auto-migration: If stored preference points to obsolete 10.0.2.2 emulator loopback
+        // (which causes timeouts on physical phones) while default is cloud, clean it up.
+        if (stored != null && stored.contains("10.0.2.2") && !defaultBaseUrl.contains("10.0.2.2")) {
+            prefs.edit().remove(KEY_API_BASE_URL).apply()
+            return normalizeApiBaseUrl(defaultBaseUrl)
+        }
         return try {
             normalizeApiBaseUrl(stored ?: defaultBaseUrl)
         } catch (_: Exception) {

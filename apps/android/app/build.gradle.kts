@@ -9,7 +9,7 @@ val releaseApiBaseUrl: String = (project.findProperty("KIDSGUARD_RELEASE_API_URL
     ?.trim()
     ?.takeIf { it.isNotEmpty() }
     ?: System.getenv("KIDSGUARD_RELEASE_API_URL")?.trim()?.takeIf { it.isNotEmpty() }
-    ?: "UNCONFIGURED_PRODUCTION_URL"
+    ?: "https://balakavach-be.onrender.com/api/v1"
 
 android {
     namespace = "com.kidsguard.child"
@@ -37,7 +37,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
-            buildConfigField("String", "DEFAULT_API_BASE_URL", "\"http://10.0.2.2:5000/api/v1\"")
+            buildConfigField("String", "DEFAULT_API_BASE_URL", "\"https://balakavach-be.onrender.com/api/v1\"")
         }
     }
 

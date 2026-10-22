@@ -33,15 +33,15 @@ class KidsGuardApiClient(
 
     companion object {
         /**
-         * Default connection timeout: 45 seconds. Accommodates slow cold starts and TLS handshakes.
+         * Default connection timeout: 60 seconds. Accommodates slow cloud cold starts (e.g. Render) and TLS handshakes.
          */
-        const val DEFAULT_CONNECT_TIMEOUT_MS = 45000
+        const val DEFAULT_CONNECT_TIMEOUT_MS = 60000
 
         /**
-         * Default read timeout: 45 seconds. Maximum waiting ceiling for server responses.
+         * Default read timeout: 60 seconds. Maximum waiting ceiling for server responses.
          * This does not add delay to fast responses; it simply prevents early aborts during cold starts.
          */
-        const val DEFAULT_READ_TIMEOUT_MS = 45000
+        const val DEFAULT_READ_TIMEOUT_MS = 60000
 
         private val PAIRING_CODE_REGEX = Regex("^[A-Za-z0-9_-]{22}$")
         private val DEVICE_CREDENTIAL_REGEX = Regex("^[A-Za-z0-9_-]{43}$")

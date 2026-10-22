@@ -184,6 +184,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Settings API URL buttons
+        binding.btnPresetCloud.setOnClickListener {
+            val cloudUrl = "https://balakavach-be.onrender.com/api/v1"
+            binding.editApiUrl.setText(cloudUrl)
+            if (viewModel.saveApiUrl(cloudUrl)) {
+                Toast.makeText(this, "Connected to Render Cloud backend", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnPresetEmulator.setOnClickListener {
+            val emuUrl = "http://10.0.2.2:5000/api/v1"
+            binding.editApiUrl.setText(emuUrl)
+            if (viewModel.saveApiUrl(emuUrl)) {
+                Toast.makeText(this, "Set to Local Emulator loopback", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         binding.btnSaveApiUrl.setOnClickListener {
             val rawUrl = binding.editApiUrl.text?.toString() ?: ""
             if (viewModel.saveApiUrl(rawUrl)) {
