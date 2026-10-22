@@ -166,6 +166,21 @@ describe('Production Readiness & Deployment Configuration', () => {
       assert.equal(res.headers['access-control-allow-credentials'], 'true');
     });
 
+    it('permits browser extension origins with credentials', async () => {
+      const app = createApp({
+        runtimeEnv: { NODE_ENV: 'production', CLIENT_ORIGIN: 'http://localhost:5173' },
+      });
+
+      const res = await request(app)
+        .options('/api/v1/device-pairing/redeem')
+        .set('Origin', 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456')
+        .set('Access-Control-Request-Method', 'POST')
+        .expect(204);
+
+      assert.equal(res.headers['access-control-allow-origin'], 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456');
+      assert.equal(res.headers['access-control-allow-credentials'], 'true');
+    });
+
     it('does not emit Access-Control-Allow-Origin for untrusted origins', async () => {
       const app = createApp({
         runtimeEnv: { NODE_ENV: 'production', CLIENT_ORIGIN: 'http://localhost:5173' },
