@@ -2,7 +2,7 @@ import { downloadMeta } from '../lib/downloadMeta.js';
 
 export default function DownloadsView({ isStandalone = false }) {
   return (
-    <div className={`rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-6 sm:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition ${isStandalone ? 'max-w-4xl mx-auto' : 'w-full'}`}>
+    <div className={`rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-4 sm:p-6 lg:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition ${isStandalone ? 'max-w-4xl mx-auto' : 'w-full'}`}>
       <div>
         {/* Top Header inside Card */}
         <div className="mb-6 border-b border-slate-100 pb-5">
