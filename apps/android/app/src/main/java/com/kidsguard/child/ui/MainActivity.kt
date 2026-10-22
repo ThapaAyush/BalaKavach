@@ -80,8 +80,10 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Refresh usage permission status and measured stats when returning to the app
         viewModel.refreshUsageData()
-        // Automatically synchronize any policy changes made from the website
-        viewModel.autoSync()
+        // Proactively synchronize policies, heartbeat, and measured screen-time to the cloud backend
+        if (viewModel.deviceSession.value.isPaired) {
+            viewModel.autoSync(uploadScreenTime = true)
+        }
         // Update quiet hours alert status for current time
         updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
         // Update app restrictions alert banner
@@ -104,6 +106,8 @@ class MainActivity : AppCompatActivity() {
         liveTickerJob = null
     }
 
+    private var lastScreenTimeUploadTimeMs = 0L
+
     private fun startLiveRealTimeTicker() {
         liveTickerJob?.cancel()
         liveTickerJob = lifecycleScope.launch {
@@ -112,6 +116,13 @@ class MainActivity : AppCompatActivity() {
                 viewModel.refreshUsageData()
                 updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
                 updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
+
+                // Periodically upload updated screen-time telemetry while app is active in foreground
+                val now = System.currentTimeMillis()
+                if (now - lastScreenTimeUploadTimeMs >= 45000L && viewModel.deviceSession.value.isPaired) {
+                    lastScreenTimeUploadTimeMs = now
+                    viewModel.autoSync(uploadScreenTime = true)
+                }
             }
         }
     }
@@ -180,6 +191,23 @@ class MainActivity : AppCompatActivity() {
         // Grant Usage Access button from Screen Time banner
         binding.btnGrantPermissionFromScreenTime.setOnClickListener {
             openUsageSettings()
+        }
+
+        // Manual Sync Buttons to push telemetry and pull policies immediately
+        binding.btnSyncScreenTime.setOnClickListener {
+            if (viewModel.deviceSession.value.isPaired) {
+                viewModel.syncNow(isSilent = false)
+            } else {
+                Toast.makeText(this, "Device is not paired yet.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnSyncDevice.setOnClickListener {
+            if (viewModel.deviceSession.value.isPaired) {
+                viewModel.syncNow(isSilent = false)
+            } else {
+                Toast.makeText(this, "Device is not paired yet.", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnEnableAppBlocking.setOnClickListener {
@@ -342,14 +370,41 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
+                // Sync Loading State
+                launch {
+                    viewModel.syncLoading.collect { loading ->
+                        binding.syncProgressBar.visibility = if (loading) View.VISIBLE else View.GONE
+                        binding.progressScreenTimeSync.visibility = if (loading) View.VISIBLE else View.GONE
+                        binding.btnSyncScreenTime.isEnabled = !loading
+                        binding.btnSyncDevice.isEnabled = !loading
+                        if (loading) {
+                            binding.btnSyncScreenTime.text = "Syncing…"
+                            binding.btnSyncDevice.text = "Syncing with Dashboard…"
+                        } else {
+                            binding.btnSyncScreenTime.text = "Sync with Dashboard"
+                            binding.btnSyncDevice.text = "Sync with Dashboard Now"
+                        }
+                    }
+                }
+
                 // Sync Message
                 launch {
                     viewModel.syncMessage.collect { message ->
                         if (!message.isNullOrBlank()) {
                             binding.textSyncMessage.text = message
                             binding.textSyncMessage.visibility = View.VISIBLE
+                            binding.textScreenTimeSyncStatus.text = message
+                            binding.textScreenTimeSyncStatus.visibility = View.VISIBLE
+                            val isSuccess = message.startsWith("Synced with Dashboard")
+                            val colorRes = if (isSuccess) R.color.status_green else R.color.status_red
+                            binding.textSyncMessage.setTextColor(ContextCompat.getColor(this@MainActivity, colorRes))
+                            binding.textScreenTimeSyncStatus.setTextColor(ContextCompat.getColor(this@MainActivity, colorRes))
+                            if (isSuccess) {
+                                Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                            }
                         } else {
                             binding.textSyncMessage.visibility = View.GONE
+                            binding.textScreenTimeSyncStatus.visibility = View.GONE
                         }
                     }
                 }

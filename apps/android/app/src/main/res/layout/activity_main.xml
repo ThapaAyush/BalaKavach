@@ -789,6 +789,21 @@
                             android:textColor="@color/text_secondary"
                             android:textSize="12.5sp" />
 
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSyncDevice"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="10dp"
+                            android:text="Sync with Dashboard Now"
+                            android:textColor="@color/accent"
+                            android:textSize="13sp"
+                            app:cornerRadius="10dp"
+                            app:icon="@android:drawable/ic_popup_sync"
+                            app:iconTint="@color/accent"
+                            app:strokeColor="@color/accent"
+                            app:strokeWidth="1dp" />
+
                         <TextView
                             android:id="@+id/textSyncMessage"
                             android:layout_width="wrap_content"
@@ -941,6 +956,49 @@
                                 android:textColor="@color/status_green"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <!-- Manual Sync with Web Dashboard Button & Feedback -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnSyncScreenTime"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="38dp"
+                                android:text="Sync with Dashboard"
+                                android:textColor="@color/accent"
+                                android:textSize="12sp"
+                                app:cornerRadius="10dp"
+                                app:icon="@android:drawable/ic_popup_sync"
+                                app:iconSize="16dp"
+                                app:iconTint="@color/accent"
+                                app:strokeColor="@color/accent"
+                                app:strokeWidth="1dp" />
+
+                            <ProgressBar
+                                android:id="@+id/progressScreenTimeSync"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="10dp"
+                                android:indeterminate="true"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/textScreenTimeSyncStatus"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:textColor="@color/status_green"
+                                android:textSize="11.5sp"
+                                android:textStyle="bold"
+                                android:visibility="gone" />
                         </LinearLayout>
 
                         <!-- Hidden fields to preserve API compatibility -->

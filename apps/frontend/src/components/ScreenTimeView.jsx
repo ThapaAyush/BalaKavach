@@ -3,9 +3,30 @@ import { apiGet } from '../lib/api.js';
 
 export default function ScreenTimeView({ child }) {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const loadData = (isSilent = false) => {
+    if (!isSilent) setRefreshing(true);
+    return apiGet(`/children/${child.id}/screen-time?date=${date}`)
+      .then((res) => {
+        setData(res);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!isSilent) {
+          setError(err.message || 'Failed to load screen-time report.');
+        }
+      })
+      .finally(() => {
+        if (!isSilent) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      });
+  };
 
   useEffect(() => {
     let active = true;
@@ -24,7 +45,22 @@ export default function ScreenTimeView({ child }) {
         setLoading(false);
       });
 
-    return () => { active = false; };
+    // Auto-refresh periodically (every 20s) while parent has this view open
+    const interval = setInterval(() => {
+      if (active) {
+        apiGet(`/children/${child.id}/screen-time?date=${date}`)
+          .then((res) => {
+            if (!active) return;
+            setData(res);
+          })
+          .catch(() => {});
+      }
+    }, 20000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, [child.id, date]);
 
   function formatDuration(totalSeconds) {
@@ -72,14 +108,26 @@ export default function ScreenTimeView({ child }) {
           <p className="text-xs text-slate-500">Aggregated foreground device usage, mobile opens, and app launches measured on-device.</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-          <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600">Date:</label>
-          <input
-            id="screenTimeDate"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
-          />
+          <div className="flex items-center gap-1.5">
+            <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600">Date:</label>
+            <input
+              id="screenTimeDate"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => loadData(false)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 transition disabled:opacity-50"
+            title="Refresh latest screen time reported from child device"
+          >
+            <span className={refreshing ? 'animate-spin inline-block' : 'inline-block'}>🔄</span>
+            <span>{refreshing ? 'Syncing…' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 

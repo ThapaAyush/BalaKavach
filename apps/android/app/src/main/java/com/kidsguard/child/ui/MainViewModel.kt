@@ -21,6 +21,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 /**
  * High-level connection states mapped from device session and network sync states:
  * - UNPAIRED: Device is not yet linked to a parent account.
@@ -118,6 +122,7 @@ class MainViewModel(
     }
 
     fun refreshUsageData() {
+        val previousPermission = _hasUsagePermission.value
         val permission = usageStatsReader.hasPermission()
         _hasUsagePermission.value = permission
         val usage = usageStatsReader.measureTodayUsage()
@@ -129,6 +134,11 @@ class MainViewModel(
             _lastSuccessfulMeasurementTime.value = now
         } else {
             _lastSuccessfulMeasurementTime.value = null
+        }
+
+        // Proactively synchronize telemetry to parent dashboard when usage permission is newly granted
+        if (!previousPermission && permission && deviceSession.value.isPaired) {
+            syncNow(isSilent = true)
         }
     }
 
@@ -167,9 +177,11 @@ class MainViewModel(
         }
     }
 
-    fun syncNow() {
+    fun syncNow(isSilent: Boolean = false) {
         if (_syncLoading.value) return
-        _syncLoading.value = true
+        if (!isSilent) {
+            _syncLoading.value = true
+        }
         _syncMessage.value = null
 
         viewModelScope.launch {
@@ -177,15 +189,22 @@ class MainViewModel(
                 refreshUsageData()
                 when (val result = deviceRepository.syncAll(policyRepository, usageStatsReader)) {
                     is ApiResult.Success -> {
-                        _syncMessage.value = null
+                        val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+                        _syncMessage.value = "Synced with Dashboard at $timeStr"
                         refreshUsageData()
                     }
                     is ApiResult.Error -> {
                         _syncMessage.value = result.message
                     }
                 }
+            } catch (_: Exception) {
+                if (!isSilent) {
+                    _syncMessage.value = "Failed to sync with dashboard."
+                }
             } finally {
-                _syncLoading.value = false
+                if (!isSilent) {
+                    _syncLoading.value = false
+                }
             }
         }
     }
@@ -193,17 +212,22 @@ class MainViewModel(
     private var isAutoSyncing = false
 
     /**
-     * Seamlessly and automatically synchronizes parental policy changes without user intervention.
+     * Seamlessly and automatically synchronizes parental policy changes and uploads measured screen time.
      * Operates silently without setting syncLoading, preserving continuous Paired & Active status.
      */
-    fun autoSync() {
+    fun autoSync(uploadScreenTime: Boolean = true) {
         val session = deviceSession.value
         if (!session.isPaired || isAutoSyncing || _syncLoading.value) return
         isAutoSyncing = true
 
         viewModelScope.launch {
             try {
-                deviceRepository.syncPolicyOnly(policyRepository)
+                if (uploadScreenTime) {
+                    refreshUsageData()
+                    deviceRepository.syncAll(policyRepository, usageStatsReader)
+                } else {
+                    deviceRepository.syncPolicyOnly(policyRepository)
+                }
             } catch (_: Exception) {
                 // Background auto-sync handles transient network failures silently
             } finally {

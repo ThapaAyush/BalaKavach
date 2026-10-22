@@ -180,10 +180,10 @@ class KidsGuardApiClientTest {
     }
 
     @Test
-    fun `KidsGuardApiClient defaults to 45-second timeouts and allows configuration`() {
+    fun `KidsGuardApiClient defaults to timeouts and allows configuration`() {
         val client = KidsGuardApiClient()
-        assertEquals(45000, client.connectTimeoutMs)
-        assertEquals(45000, client.readTimeoutMs)
+        assertEquals(KidsGuardApiClient.DEFAULT_CONNECT_TIMEOUT_MS, client.connectTimeoutMs)
+        assertEquals(KidsGuardApiClient.DEFAULT_READ_TIMEOUT_MS, client.readTimeoutMs)
 
         val customClient = KidsGuardApiClient(connectTimeoutMs = 12000, readTimeoutMs = 18000)
         assertEquals(12000, customClient.connectTimeoutMs)
