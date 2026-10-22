@@ -1,0 +1,23 @@
+{
+  "updatedAt": "2026-10-22T12:17:28.836Z",
+  "android": {
+    "version": "0.1.0",
+    "versionName": "v0.1.0",
+    "fileName": "balakavach-companion.apk",
+    "downloadUrl": "/balakavach-companion.apk",
+    "sizeBytes": 9424587,
+    "sizeFormatted": "9.0 MB",
+    "updatedAt": "2026-10-22T12:07:19.857Z",
+    "versionHash": "9424587-1792670839856"
+  },
+  "extension": {
+    "version": "0.2.1",
+    "versionName": "v0.2.1",
+    "fileName": "balakavach-chrome-extension.zip",
+    "downloadUrl": "/balakavach-chrome-extension.zip",
+    "sizeBytes": 260059,
+    "sizeFormatted": "254 KB",
+    "updatedAt": "2026-10-22T12:17:28.835Z",
+    "versionHash": "260059-1792671448835"
+  }
+}

@@ -1,0 +1,32 @@
+name: Build and Sync Downloadables
+
+on:
+  push:
+    branches: [main, master, feature/**]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Synchronize downloadables and package Chrome extension
+        run: node scripts/sync-downloadables.mjs
+
+      - name: Run test suites
+        run: npm test
+
+      - name: Build frontend production bundle
+        run: npm run build --workspace @kidsguard/frontend

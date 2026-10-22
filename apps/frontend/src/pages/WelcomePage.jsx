@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiDelete, apiGet, apiPost } from '../lib/api.js';
+import { downloadMeta } from '../lib/downloadMeta.js';
 import PolicyManager from '../components/PolicyManager.jsx';
 import ScreenTimeView from '../components/ScreenTimeView.jsx';
 import DeviceStatusView from '../components/DeviceStatusView.jsx';
@@ -1016,16 +1017,21 @@ export default function WelcomePage() {
                           📱
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="text-sm font-bold text-slate-900">Android App</h3>
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md">8.6 MB</span>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md">
+                              {downloadMeta.android.sizeFormatted}
+                            </span>
+                            <span className="text-[10px] font-bold text-teal-800 bg-teal-100/60 px-1.5 py-0.5 rounded-md">
+                              {downloadMeta.android.versionName}
+                            </span>
                           </div>
-                          <p className="text-[11px] font-medium text-slate-500">Phones &amp; tablets</p>
+                          <p className="text-[11px] font-medium text-slate-500">Phones &amp; tablets • Always latest version</p>
                         </div>
                       </div>
                       <a
-                        href="/balakavach-companion.apk"
-                        download="balakavach-companion.apk"
+                        href={`${downloadMeta.android.downloadUrl}?v=${downloadMeta.android.versionHash}`}
+                        download={downloadMeta.android.fileName}
                         className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 hover:shadow-md transition active:scale-95 shrink-0"
                         id="download-apk-btn"
                       >
@@ -1043,16 +1049,21 @@ export default function WelcomePage() {
                           🌐
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="text-sm font-bold text-slate-900">Chrome Extension</h3>
-                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-1.5 py-0.5 rounded-md">258 KB</span>
+                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-1.5 py-0.5 rounded-md">
+                              {downloadMeta.extension.sizeFormatted}
+                            </span>
+                            <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100/60 px-1.5 py-0.5 rounded-md">
+                              {downloadMeta.extension.versionName}
+                            </span>
                           </div>
-                          <p className="text-[11px] font-medium text-slate-500">Desktop browsing</p>
+                          <p className="text-[11px] font-medium text-slate-500">Desktop browsing • Always latest version</p>
                         </div>
                       </div>
                       <a
-                        href="/balakavach-chrome-extension.zip"
-                        download="balakavach-chrome-extension.zip"
+                        href={`${downloadMeta.extension.downloadUrl}?v=${downloadMeta.extension.versionHash}`}
+                        download={downloadMeta.extension.fileName}
                         className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-sky-600/20 hover:from-sky-500 hover:to-indigo-500 hover:shadow-md transition active:scale-95 shrink-0"
                         id="download-extension-btn"
                       >

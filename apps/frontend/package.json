@@ -7,8 +7,11 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "predev": "node ./scripts/update-downloads.mjs",
     "dev": "vite",
+    "prebuild": "node ./scripts/update-downloads.mjs",
     "build": "vite build",
+    "sync:downloads": "node ./scripts/update-downloads.mjs",
     "test": "vitest run"
   },
   "dependencies": {

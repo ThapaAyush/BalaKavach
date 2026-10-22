@@ -1,3 +1,5 @@
+import { downloadMeta } from '../lib/downloadMeta.js';
+
 export default function DeviceStatusView({
   devices,
   activeChild,
@@ -62,24 +64,24 @@ export default function DeviceStatusView({
           <p className="text-xs text-slate-500">No paired devices found for this profile.</p>
           <div className="flex flex-wrap items-center justify-center gap-2.5">
             <a
-              href="/balakavach-companion.apk"
-              download="balakavach-companion.apk"
+              href={`${downloadMeta.android.downloadUrl}?v=${downloadMeta.android.versionHash}`}
+              download={downloadMeta.android.fileName}
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-500 transition"
             >
               <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              <span>Download Android App (8.6 MB)</span>
+              <span>Download Android App ({downloadMeta.android.sizeFormatted})</span>
             </a>
             <a
-              href="/balakavach-chrome-extension.zip"
-              download="balakavach-chrome-extension.zip"
+              href={`${downloadMeta.extension.downloadUrl}?v=${downloadMeta.extension.versionHash}`}
+              download={downloadMeta.extension.fileName}
               className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-sky-500 transition"
             >
               <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              <span>Download Chrome Extension (ZIP)</span>
+              <span>Download Chrome Extension ({downloadMeta.extension.sizeFormatted})</span>
             </a>
           </div>
         </div>
