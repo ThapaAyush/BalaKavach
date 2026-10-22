@@ -107,22 +107,22 @@ export default function ScreenTimeView({ child }) {
           <h3 className="text-base sm:text-lg font-bold text-slate-900">Daily Screen Time: {child.displayName}</h3>
           <p className="text-xs text-slate-500">Aggregated foreground device usage, mobile opens, and app launches measured on-device.</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-          <div className="flex items-center gap-1.5">
-            <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600">Date:</label>
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <label htmlFor="screenTimeDate" className="text-xs font-semibold text-slate-600 shrink-0">Date:</label>
             <input
               id="screenTimeDate"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
+              className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition min-h-[36px]"
             />
           </div>
           <button
             type="button"
             onClick={() => loadData(false)}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 transition disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 transition disabled:opacity-50 min-h-[36px] shrink-0"
             title="Refresh latest screen time reported from child device"
           >
             <span className={refreshing ? 'animate-spin inline-block' : 'inline-block'}>🔄</span>

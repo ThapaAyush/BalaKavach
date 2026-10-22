@@ -402,39 +402,39 @@ export default function WelcomePage() {
         <div className="absolute bottom-10 -left-40 size-[420px] rounded-full bg-indigo-200/20 blur-3xl" />
       </div>
 
-      <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 space-y-5">
+      <main className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-4 sm:space-y-6">
         {/* Brand Header */}
-        <header className="rounded-2xl border border-slate-200/80 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-3.5 sm:py-4 shadow-sm shadow-slate-200/40 flex flex-wrap items-center justify-between gap-3 sm:gap-4 transition">
-          <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center size-11 sm:size-12 rounded-2xl bg-gradient-to-br from-sky-50 via-indigo-50/40 to-white border border-sky-100/80 p-1.5 shadow-2xs">
+        <header className="rounded-2xl border border-slate-200/80 bg-white/85 backdrop-blur-md px-3.5 sm:px-6 py-3 sm:py-4 shadow-sm shadow-slate-200/40 flex items-center justify-between gap-2.5 sm:gap-4 transition">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="relative flex items-center justify-center size-10 sm:size-12 rounded-2xl bg-gradient-to-br from-sky-50 via-indigo-50/40 to-white border border-sky-100/80 p-1 sm:p-1.5 shadow-2xs shrink-0">
               <img src="/balakavach_logo.png" alt="BalaKavach Logo" className="size-full object-contain" />
               <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 sm:size-3 rounded-full ring-2 ring-white ${apiAvailable ? 'bg-emerald-500' : 'bg-amber-400'}`} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">BalaKavach</span>
                 <span className="hidden sm:inline-block rounded-md bg-sky-50 border border-sky-200/60 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">PLATFORM</span>
               </div>
               <p className="text-[11px] sm:text-xs font-medium text-slate-500">Parental Control &amp; Family Safety</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center justify-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide border shadow-2xs whitespace-nowrap transition-all duration-300 ${apiAvailable ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 shadow-emerald-500/5' : 'bg-amber-50 text-amber-700 border-amber-200/80'}`}>
-              <span className={`size-2 rounded-full ${apiAvailable ? 'bg-emerald-500 animate-pulse ring-4 ring-emerald-100' : 'bg-amber-500 ring-4 ring-amber-100'}`} />
-              {apiAvailable ? 'Protected & Active' : 'Connecting…'}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold tracking-wide border shadow-2xs whitespace-nowrap transition-all duration-300 ${apiAvailable ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 shadow-emerald-500/5' : 'bg-amber-50 text-amber-700 border-amber-200/80'}`}>
+              <span className={`size-1.5 sm:size-2 rounded-full ${apiAvailable ? 'bg-emerald-500 animate-pulse ring-4 ring-emerald-100' : 'bg-amber-500 ring-4 ring-amber-100'}`} />
+              <span>{apiAvailable ? 'Protected & Active' : 'Connecting…'}</span>
             </span>
           </div>
         </header>
 
         {/* TOP NAVIGATION BAR: OPTIONS AT THE TOP FOR SEPARATE PAGES */}
         {auth.state === 'authenticated' ? (
-          <nav aria-label="Dashboard Views" className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-1.5 sm:p-2 shadow-xs flex flex-wrap items-center justify-between gap-2 transition">
-            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto w-full sm:w-auto py-0.5 no-scrollbar">
+          <nav aria-label="Dashboard Views" className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-1.5 sm:p-2 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-2 transition">
+            <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto w-full md:w-auto py-0.5 touch-scroll-x no-scrollbar">
               <button
                 type="button"
                 aria-label="Overview"
                 onClick={() => setCurrentPage('overview')}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                   currentPage === 'overview'
                     ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -453,7 +453,7 @@ export default function WelcomePage() {
                     setSelectedChildId(children.items[0].id);
                   }
                 }}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                   currentPage === 'screentime'
                     ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -472,7 +472,7 @@ export default function WelcomePage() {
                     setSelectedChildId(children.items[0].id);
                   }
                 }}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                   currentPage === 'rules'
                     ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -489,7 +489,7 @@ export default function WelcomePage() {
                   setCurrentPage('devices');
                   loadDevices();
                 }}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                   currentPage === 'devices'
                     ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -508,7 +508,7 @@ export default function WelcomePage() {
                 type="button"
                 aria-label="Downloads"
                 onClick={() => setCurrentPage('downloads')}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                   currentPage === 'downloads'
                     ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -521,12 +521,12 @@ export default function WelcomePage() {
 
             {/* Active Child quick indicator/dropdown on the right */}
             {children.items.length > 0 && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                <span className="hidden sm:inline">Active Child:</span>
+              <div className="flex items-center justify-between md:justify-end gap-2 text-xs font-semibold text-slate-500 w-full md:w-auto pt-1.5 md:pt-0 border-t md:border-t-0 border-slate-100">
+                <span className="shrink-0 text-[11px] sm:text-xs">Active Child:</span>
                 <select
                   value={selectedChildId || children.items[0]?.id || ''}
                   onChange={(e) => setSelectedChildId(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 font-bold text-sky-700 outline-none focus:border-sky-500 focus:bg-white transition cursor-pointer"
+                  className="rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs font-bold text-sky-700 outline-none focus:border-sky-500 focus:bg-white transition cursor-pointer min-h-[36px]"
                   aria-label="Active Child selector"
                 >
                   {children.items.map((c) => (
@@ -537,11 +537,11 @@ export default function WelcomePage() {
             )}
           </nav>
         ) : (
-          <nav aria-label="Portal options" className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-1.5 sm:p-2 shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <nav aria-label="Portal options" className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-1.5 sm:p-2 shadow-xs flex items-center gap-1.5 overflow-x-auto touch-scroll-x no-scrollbar">
             <button
               type="button"
               onClick={() => setUnauthPage('auth')}
-              className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+              className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                 unauthPage === 'auth'
                   ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -553,7 +553,7 @@ export default function WelcomePage() {
             <button
               type="button"
               onClick={() => setUnauthPage('downloads')}
-              className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+              className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                 unauthPage === 'downloads'
                   ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -565,7 +565,7 @@ export default function WelcomePage() {
             <button
               type="button"
               onClick={() => setUnauthPage('features')}
-              className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+              className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[38px] ${
                 unauthPage === 'features'
                   ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -763,19 +763,19 @@ export default function WelcomePage() {
                           <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">One-time pairing code ({pairingCode.childName})</span>
                           <span className="rounded-full bg-emerald-200/60 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800">Active</span>
                         </div>
-                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-emerald-200">
+                        <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-emerald-200">
                           <code
                             onClick={() => copyPairingCode(pairingCode.code)}
                             title="Click to copy pairing code"
-                            className="font-mono text-xl sm:text-2xl font-bold tracking-widest text-emerald-900 select-all cursor-pointer hover:text-emerald-700 transition"
+                            className="font-mono text-xl sm:text-2xl font-bold tracking-widest text-emerald-900 select-all cursor-pointer hover:text-emerald-700 transition text-center sm:text-left"
                           >
                             {pairingCode.code}
                           </code>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
                             <button
                               type="button"
                               onClick={() => copyPairingCode(pairingCode.code)}
-                              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition active:scale-95 ${
+                              className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition active:scale-95 min-h-[36px] ${
                                 copiedCode
                                   ? 'bg-emerald-600 text-white'
                                   : 'border border-emerald-300 bg-emerald-100/80 text-emerald-900 hover:bg-emerald-200'
@@ -785,7 +785,7 @@ export default function WelcomePage() {
                             </button>
                             <button
                               type="button"
-                              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition"
+                              className="flex-1 sm:flex-initial rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition min-h-[36px] text-center"
                               disabled={pairingAction.cancelling}
                               onClick={cancelPairingCode}
                             >
@@ -906,10 +906,10 @@ export default function WelcomePage() {
                                 {child.dateOfBirth && <p className="mt-0.5 text-xs text-slate-500">Date of birth: {child.dateOfBirth}</p>}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                               <button
                                 type="button"
-                                className={`flex-1 sm:flex-initial rounded-xl border px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold shadow-xs transition text-center ${
+                                className={`col-span-2 sm:col-span-1 rounded-xl border px-3 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold shadow-xs transition text-center min-h-[38px] ${
                                   selectedChildId === child.id
                                     ? 'border-sky-500 bg-sky-600 text-white hover:bg-sky-700 shadow-sky-100'
                                     : 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
@@ -933,7 +933,7 @@ export default function WelcomePage() {
                               </button>
                               <button
                                 type="button"
-                                className="flex-1 sm:flex-initial rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 shadow-xs transition disabled:opacity-50 text-center"
+                                className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 sm:px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 shadow-xs transition disabled:opacity-50 text-center min-h-[38px]"
                                 disabled={pairingAction.busyChildId === child.id}
                                 onClick={() => requestPairingCode(child)}
                                 aria-label={`Pair a device for ${child.displayName}`}
@@ -942,7 +942,7 @@ export default function WelcomePage() {
                               </button>
                               <button
                                 type="button"
-                                className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-xs transition shrink-0"
+                                className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-xs transition shrink-0 min-h-[38px]"
                                 onClick={() => setConfirmDeleteChildId(child.id)}
                                 aria-label={`Delete ${child.displayName}`}
                               >
@@ -985,19 +985,19 @@ export default function WelcomePage() {
                                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">One-time pairing code</span>
                                     <span className="rounded-full bg-emerald-200/60 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">Active</span>
                                   </div>
-                                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-emerald-200">
+                                  <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-emerald-200">
                                     <code
                                       onClick={() => copyPairingCode(pairingCode.code)}
                                       title="Click to copy pairing code"
-                                      className="font-mono text-xl sm:text-2xl font-bold tracking-widest text-emerald-900 select-all cursor-pointer hover:text-emerald-700 transition"
+                                      className="font-mono text-xl sm:text-2xl font-bold tracking-widest text-emerald-900 select-all cursor-pointer hover:text-emerald-700 transition text-center sm:text-left"
                                     >
                                       {pairingCode.code}
                                     </code>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 w-full sm:w-auto">
                                       <button
                                         type="button"
                                         onClick={() => copyPairingCode(pairingCode.code)}
-                                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition active:scale-95 ${
+                                        className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition active:scale-95 min-h-[36px] ${
                                           copiedCode
                                             ? 'bg-emerald-600 text-white'
                                             : 'border border-emerald-300 bg-emerald-100/80 text-emerald-900 hover:bg-emerald-200'
@@ -1022,7 +1022,7 @@ export default function WelcomePage() {
                                       </button>
                                       <button
                                         type="button"
-                                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition"
+                                        className="flex-1 sm:flex-initial rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition min-h-[36px] text-center"
                                         disabled={pairingAction.cancelling}
                                         onClick={cancelPairingCode}
                                       >
@@ -1088,11 +1088,11 @@ export default function WelcomePage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                  <div className="w-full sm:w-auto grid grid-cols-3 sm:flex gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs">
+                                  <div className="w-full sm:w-auto flex items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs overflow-x-auto touch-scroll-x no-scrollbar">
                                     <button
                                       type="button"
                                       onClick={() => setActiveTab('screentime')}
-                                      className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
+                                      className={`flex-1 sm:flex-initial whitespace-nowrap rounded-lg py-2 sm:py-1.5 px-2.5 sm:px-3 text-center font-semibold transition min-h-[34px] ${
                                         activeTab === 'screentime'
                                           ? 'bg-white text-sky-700 shadow-xs'
                                           : 'text-slate-600 hover:text-slate-900'
@@ -1103,7 +1103,7 @@ export default function WelcomePage() {
                                     <button
                                       type="button"
                                       onClick={() => setActiveTab('policy')}
-                                      className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
+                                      className={`flex-1 sm:flex-initial whitespace-nowrap rounded-lg py-2 sm:py-1.5 px-2.5 sm:px-3 text-center font-semibold transition min-h-[34px] ${
                                         activeTab === 'policy'
                                           ? 'bg-white text-sky-700 shadow-xs'
                                           : 'text-slate-600 hover:text-slate-900'
@@ -1117,7 +1117,7 @@ export default function WelcomePage() {
                                         setActiveTab('devices');
                                         loadDevices();
                                       }}
-                                      className={`rounded-lg py-2 sm:py-1.5 px-1.5 sm:px-3 text-center font-semibold transition ${
+                                      className={`flex-1 sm:flex-initial whitespace-nowrap rounded-lg py-2 sm:py-1.5 px-2.5 sm:px-3 text-center font-semibold transition min-h-[34px] ${
                                         activeTab === 'devices'
                                           ? 'bg-white text-sky-700 shadow-xs'
                                           : 'text-slate-600 hover:text-slate-900'
@@ -1383,7 +1383,7 @@ export default function WelcomePage() {
               <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch w-full">
                 {/* Left Column: Sign In / Register Card */}
                 <div className="flex flex-col w-full">
-                  <div className="flex-1 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-6 sm:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition">
+                  <div className="flex-1 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-4 sm:p-6 lg:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition">
                     <div>
                       {/* Top Header inside Left Card */}
                       <div className="mb-6 border-b border-slate-100 pb-5">

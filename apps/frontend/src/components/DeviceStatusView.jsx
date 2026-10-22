@@ -86,7 +86,7 @@ export default function DeviceStatusView({
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
           {childDevices.map((device) => {
             const isRevoked = device.pairingStatus === 'revoked';
             const isStale = device.lastSeenAt
@@ -96,17 +96,19 @@ export default function DeviceStatusView({
             return (
               <div
                 key={device.id}
-                className="rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50/90 p-5 flex flex-col justify-between space-y-3.5 shadow-xs transition"
+                className="rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50/90 p-4 sm:p-5 flex flex-col justify-between space-y-3.5 shadow-xs transition"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">{device.name}</h4>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-bold text-slate-900 break-words">{device.name}</h4>
                       <span className="inline-block rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[10px] uppercase font-mono text-slate-600 mt-1 shadow-2xs">
                         {device.platform}
                       </span>
                     </div>
-                    {renderSyncBadge(device)}
+                    <div className="shrink-0">
+                      {renderSyncBadge(device)}
+                    </div>
                   </div>
 
                   <div className="mt-3 space-y-1.5 text-xs text-slate-600">
@@ -131,7 +133,7 @@ export default function DeviceStatusView({
                       type="button"
                       disabled={revokingId === device.id}
                       onClick={() => onRevokeDevice(device)}
-                      className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-2xs transition disabled:opacity-50"
+                      className="w-full sm:w-auto rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-2xs transition disabled:opacity-50 min-h-[36px] text-center"
                     >
                       {revokingId === device.id ? 'Revoking…' : 'Revoke Device'}
                     </button>

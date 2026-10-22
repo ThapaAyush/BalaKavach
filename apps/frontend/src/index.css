@@ -9,18 +9,21 @@
   color: #0f172a;
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-x: hidden;
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
   min-width: 320px;
+  width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
@@ -31,26 +34,48 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 :focus-visible {
   outline: 2px solid #0284c7;
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-/* Mobile responsive helpers */
-@media (max-width: 640px) {
-  /* Prevent iOS Safari 16px auto-zoom when tapping inputs */
-  input, select, textarea {
-    font-size: 16px !important;
-  }
+/* Ensure images, svgs, and embeds are inherently responsive */
+img, svg, video, canvas, audio, iframe, embed, object {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
-/* Hide scrollbar for smooth horizontal scrolling touch rows */
+/* Mobile responsive helpers and smooth touch momentum scrolling */
+.touch-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+
+/* Hide scrollbar for clean horizontal tab rows while preserving touch scrolling */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Interactive elements touch friendly */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Mobile typography and inputs */
+@media (max-width: 640px) {
+  /* Prevent iOS Safari auto-zoom when tapping inputs */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
