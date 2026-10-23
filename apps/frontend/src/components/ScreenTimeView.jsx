@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiGet } from '../lib/api.js';
+import { formatAppDisplayName } from '../lib/appDisplayNames.js';
 
 export default function ScreenTimeView({ child }) {
   const [loading, setLoading] = useState(true);
@@ -425,17 +426,14 @@ export default function ScreenTimeView({ child }) {
               const opens = app.openCount ?? 0;
               const openPercent = totalAppOpens ? Math.round((opens / totalAppOpens) * 100) : 0;
 
+              const cleanName = formatAppDisplayName(app.appName, app.packageName);
+
               return (
-                <div key={app.packageName} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/60 -mx-2 px-2 rounded-xl transition-colors">
+                <div key={app.packageName || cleanName} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/60 -mx-2 px-2 rounded-xl transition-colors">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-1.5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-slate-900 truncate text-[13px]">{app.appName}</span>
-                        {app.packageName && app.packageName !== app.appName && (
-                          <span className="text-[11px] text-slate-400 font-mono hidden md:inline truncate max-w-[200px]">
-                            ({app.packageName})
-                          </span>
-                        )}
+                        <span className="font-semibold text-slate-900 truncate text-[13px]">{cleanName}</span>
                       </div>
 
                       {isTimingMode ? (

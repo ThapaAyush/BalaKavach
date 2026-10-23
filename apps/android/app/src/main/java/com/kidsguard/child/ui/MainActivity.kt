@@ -969,8 +969,9 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        val cleanAppName = com.kidsguard.child.util.AppDisplayNames.formatAppDisplayName(app.appName, app.packageName)
         val nameView = TextView(this).apply {
-            text = app.appName
+            text = cleanAppName
             textSize = 13.5f
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
             typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
@@ -1157,7 +1158,7 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        val cleanName = blockedApp.appName.ifBlank { blockedApp.packageName.removePrefix("app.") }
+        val cleanName = com.kidsguard.child.util.AppDisplayNames.formatAppDisplayName(blockedApp.appName, blockedApp.packageName)
         val nameView = TextView(this).apply {
             text = "🚫 $cleanName"
             textSize = 14f
@@ -1165,18 +1166,6 @@ class MainActivity : AppCompatActivity() {
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
         infoLayout.addView(nameView)
-
-        if (blockedApp.appName.isNotBlank() &&
-            blockedApp.appName != blockedApp.packageName &&
-            !blockedApp.packageName.startsWith("app.")
-        ) {
-            val pkgView = TextView(this).apply {
-                text = blockedApp.packageName
-                textSize = 11f
-                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
-            }
-            infoLayout.addView(pkgView)
-        }
 
         val badgeView = TextView(this).apply {
             text = getString(R.string.badge_blocked)

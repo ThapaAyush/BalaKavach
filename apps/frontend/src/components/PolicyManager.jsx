@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPut } from '../lib/api.js';
+import { formatAppDisplayName } from '../lib/appDisplayNames.js';
 
 export default function PolicyManager({ child, onPolicyVersionChange, onPolicySaved }) {
   const [loading, setLoading] = useState(true);
@@ -568,7 +569,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                           (app.appName && p.appName.toLowerCase() === app.appName.toLowerCase())
                       );
                       const icon = matchedPreset?.icon || '📱';
-                      const displayName = app.appName || app.packageName;
+                      const displayName = formatAppDisplayName(app.appName, app.packageName);
 
                       return (
                         <div

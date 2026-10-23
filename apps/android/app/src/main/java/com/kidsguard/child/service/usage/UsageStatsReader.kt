@@ -222,7 +222,7 @@ class AndroidUsageStatsReader(
 
         val appUsageItems = aggregatedSeconds.entries
             .map { (pkg, durationSec) ->
-                val label = try {
+                val rawLabel = try {
                     val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         packageManager.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0))
                     } else {
@@ -231,8 +231,9 @@ class AndroidUsageStatsReader(
                     }
                     packageManager.getApplicationLabel(appInfo).toString()
                 } catch (_: Exception) {
-                    pkg
+                    null
                 }
+                val label = com.kidsguard.child.util.AppDisplayNames.formatAppDisplayName(rawLabel, pkg)
                 val trackedOpens = com.kidsguard.child.domain.rules.ScreenTimeLimitManager.getAppOpenCount(context, pkg, nowMs)
                 val opens = maxOf(appOpenCounts[pkg] ?: 0, trackedOpens)
                 AppUsageItemDto(

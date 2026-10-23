@@ -3,6 +3,7 @@ import { mongoFamilyChildRepository } from './familyChildRepository.js';
 import { mongoDevicePairingRepository } from './devicePairingRepository.js';
 import { mongoPolicyRepository } from './policyRepository.js';
 import { childProfileNotFoundError } from './familyChildErrors.js';
+import { formatAppDisplayName } from '../utils/appDisplayNames.js';
 
 export function createScreenTimeService({
   repository = mongoScreenTimeRepository,
@@ -35,7 +36,11 @@ export function createScreenTimeService({
       // Strict enforcement: if permission is not granted, duration is null and apps empty
       const totalScreenTimeSeconds = permissionGranted ? payload.totalScreenTimeSeconds : null;
       const deviceUnlockCount = permissionGranted ? (payload.deviceUnlockCount ?? 0) : 0;
-      const appUsage = permissionGranted ? (payload.appUsage ?? []) : [];
+      const rawApps = permissionGranted ? (payload.appUsage ?? []) : [];
+      const appUsage = rawApps.map((a) => ({
+        ...a,
+        appName: formatAppDisplayName(a.appName, a.packageName),
+      }));
       const source = permissionGranted ? (payload.source ?? 'measured') : 'unavailable';
 
       const record = await repository.recordScreenTime({
@@ -129,7 +134,7 @@ export function createScreenTimeService({
         for (const app of (summary.appUsage || [])) {
           const current = appMap.get(app.packageName) || {
             packageName: app.packageName,
-            appName: app.appName,
+            appName: formatAppDisplayName(app.appName, app.packageName),
             durationSeconds: 0,
             openCount: 0,
           };
