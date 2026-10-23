@@ -7,8 +7,32 @@ export default function ScreenTimeView({ child }) {
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [activeMetric, setActiveMetric] = useState('screenTime'); // 'screenTime' | 'appOpens'
+  const [date, setDate] = useState(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? window.sessionStorage?.getItem(`balakavach_screentime_date_${child?.id || 'default'}`) : null;
+      if (stored && /^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored;
+    } catch (_) {}
+    return new Date().toISOString().slice(0, 10);
+  });
+
+  const [activeMetric, setActiveMetric] = useState(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? window.sessionStorage?.getItem('balakavach_screentime_metric') : null;
+      if (stored === 'appOpens' || stored === 'screenTime') return stored;
+    } catch (_) {}
+    return 'screenTime';
+  });
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        if (child?.id) {
+          window.sessionStorage?.setItem(`balakavach_screentime_date_${child.id}`, date);
+        }
+        window.sessionStorage?.setItem('balakavach_screentime_metric', activeMetric);
+      }
+    } catch (_) {}
+  }, [date, activeMetric, child?.id]);
 
   const loadData = (isSilent = false) => {
     if (!isSilent) setRefreshing(true);

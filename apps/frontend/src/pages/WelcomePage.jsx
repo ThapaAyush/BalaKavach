@@ -6,6 +6,89 @@ import ScreenTimeView from '../components/ScreenTimeView.jsx';
 import DeviceStatusView from '../components/DeviceStatusView.jsx';
 import DownloadsView from '../components/DownloadsView.jsx';
 
+function getSafeStorage(key) {
+  try {
+    return typeof window !== 'undefined' ? window.sessionStorage?.getItem(key) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function setSafeStorage(key, value) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (value === null || value === undefined) {
+        window.sessionStorage.removeItem(key);
+      } else {
+        window.sessionStorage.setItem(key, String(value));
+      }
+    }
+  } catch (_) {}
+}
+
+function getInitialPage() {
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlPage = params.get('page');
+      if (urlPage && ['overview', 'screentime', 'rules', 'devices', 'downloads'].includes(urlPage)) {
+        return urlPage;
+      }
+      const stored = getSafeStorage('balakavach_page');
+      if (stored && ['overview', 'screentime', 'rules', 'devices', 'downloads'].includes(stored)) {
+        return stored;
+      }
+    }
+  } catch (_) {}
+  return 'overview';
+}
+
+function getInitialChildId() {
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlChild = params.get('child');
+      if (urlChild) return urlChild;
+      return getSafeStorage('balakavach_child_id');
+    }
+  } catch (_) {}
+  return null;
+}
+
+function getInitialTab() {
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab');
+      if (urlTab && ['screentime', 'policy', 'devices'].includes(urlTab)) {
+        return urlTab;
+      }
+      const stored = getSafeStorage('balakavach_active_tab');
+      if (stored && ['screentime', 'policy', 'devices'].includes(stored)) {
+        return stored;
+      }
+    }
+  } catch (_) {}
+  return 'screentime';
+}
+
+function getInitialUnauthPage() {
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlView = params.get('view');
+      if (urlView && ['auth', 'downloads', 'features'].includes(urlView)) {
+        return urlView;
+      }
+      const stored = getSafeStorage('balakavach_unauth_page');
+      if (stored && ['auth', 'downloads', 'features'].includes(stored)) {
+        return stored;
+      }
+    }
+  } catch (_) {}
+  return 'auth';
+}
+
 export default function WelcomePage() {
   const [health, setHealth] = useState({ state: 'loading', data: null });
   const [auth, setAuth] = useState({ state: 'checking', parent: null });
@@ -26,13 +109,13 @@ export default function WelcomePage() {
   const [deviceAction, setDeviceAction] = useState({ busyId: null, message: null });
 
   // Top Page Navigation State: 'overview' | 'screentime' | 'rules' | 'devices' | 'downloads'
-  const [currentPage, setCurrentPage] = useState('overview');
+  const [currentPage, setCurrentPage] = useState(getInitialPage);
   // Unauthenticated Navigation State: 'auth' | 'downloads' | 'features'
-  const [unauthPage, setUnauthPage] = useState('auth');
+  const [unauthPage, setUnauthPage] = useState(getInitialUnauthPage);
 
   // Stage C Dashboard Tab and Child Selection States
-  const [selectedChildId, setSelectedChildId] = useState(null);
-  const [activeTab, setActiveTab] = useState('screentime'); // 'screentime' | 'policy' | 'devices'
+  const [selectedChildId, setSelectedChildId] = useState(getInitialChildId);
+  const [activeTab, setActiveTab] = useState(getInitialTab); // 'screentime' | 'policy' | 'devices'
   const [confirmDeleteChildId, setConfirmDeleteChildId] = useState(null);
   const [deletingChild, setDeletingChild] = useState(false);
   const [childPolicyVersions, setChildPolicyVersions] = useState({});
@@ -49,6 +132,86 @@ export default function WelcomePage() {
         pairingAbortRef.current = null;
       }
       activePairingChildRef.current = null;
+    };
+  }, []);
+
+  // Sync page location to URL search params and sessionStorage without disrupting history or scroll
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    setSafeStorage('balakavach_page', currentPage);
+    setSafeStorage('balakavach_child_id', selectedChildId);
+    setSafeStorage('balakavach_active_tab', activeTab);
+    setSafeStorage('balakavach_unauth_page', unauthPage);
+
+    try {
+      const newParams = new URLSearchParams(window.location.search);
+      if (auth.state === 'authenticated') {
+        newParams.delete('view');
+        if (currentPage && currentPage !== 'overview') {
+          newParams.set('page', currentPage);
+        } else {
+          newParams.delete('page');
+        }
+        if (selectedChildId) {
+          newParams.set('child', selectedChildId);
+        } else {
+          newParams.delete('child');
+        }
+        if (currentPage === 'overview' && activeTab && activeTab !== 'screentime') {
+          newParams.set('tab', activeTab);
+        } else {
+          newParams.delete('tab');
+        }
+      } else {
+        newParams.delete('page');
+        newParams.delete('child');
+        newParams.delete('tab');
+        if (unauthPage && unauthPage !== 'auth') {
+          newParams.set('view', unauthPage);
+        } else {
+          newParams.delete('view');
+        }
+      }
+
+      const newQuery = newParams.toString();
+      const currentQuery = window.location.search.replace(/^\?/, '');
+      if (newQuery !== currentQuery) {
+        const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+    } catch (_) {}
+  }, [currentPage, selectedChildId, activeTab, unauthPage, auth.state]);
+
+  // Scroll position preservation across browser refreshes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleBeforeUnload = () => {
+      try {
+        setSafeStorage('balakavach_scrollY', String(window.scrollY));
+      } catch (_) {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    const savedScrollY = getSafeStorage('balakavach_scrollY');
+    if (savedScrollY !== null) {
+      const targetY = parseInt(savedScrollY, 10);
+      if (!isNaN(targetY) && targetY > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: targetY, behavior: 'instant' });
+        });
+        setTimeout(() => {
+          if (window.scrollY === 0 && targetY > 0) {
+            window.scrollTo({ top: targetY, behavior: 'instant' });
+          }
+        }, 120);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
@@ -107,7 +270,9 @@ export default function WelcomePage() {
       setPairingCode(null);
       setPairingAction({ busyChildId: null, cancelling: false, message: null });
       setDeviceAction({ busyId: null, message: null });
-      setSelectedChildId(null);
+      if (auth.state === 'signed-out') {
+        setSelectedChildId(null);
+      }
       return undefined;
     }
 
@@ -118,6 +283,14 @@ export default function WelcomePage() {
     apiGet('/children', { signal: controller.signal })
       .then((data) => {
         setChildren({ state: 'ready', items: data.children });
+        if (data.children && data.children.length > 0) {
+          const desired = getInitialChildId();
+          if (desired && data.children.some((c) => c.id === desired)) {
+            setSelectedChildId(desired);
+          } else if (currentPage === 'screentime' || currentPage === 'rules') {
+            setSelectedChildId((prev) => prev || data.children[0].id);
+          }
+        }
       })
       .catch((error) => {
         if (error.name === 'AbortError') return;
@@ -218,6 +391,16 @@ export default function WelcomePage() {
     setSelectedChildId(null);
     setCurrentPage('overview');
     setUnauthPage('auth');
+    try {
+      setSafeStorage('balakavach_page', null);
+      setSafeStorage('balakavach_child_id', null);
+      setSafeStorage('balakavach_active_tab', null);
+      setSafeStorage('balakavach_unauth_page', null);
+      setSafeStorage('balakavach_scrollY', null);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch (_) {}
     setSubmitting(true);
     setFormMessage(null);
 
