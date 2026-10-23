@@ -167,7 +167,8 @@ export function createDeviceClient({
           },
           body: requestBody,
         });
-      } catch {
+      } catch (networkErr) {
+        console.error('[KidsGuard] Device pairing network error:', networkErr);
         throw new Error('Unable to contact the KidsGuard API. Check your connection and retry.');
       }
 

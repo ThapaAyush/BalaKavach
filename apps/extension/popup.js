@@ -337,6 +337,31 @@ export function createPopupController({
       payload.apiBaseUrl = apiUrlInput.value.trim();
     }
 
+    const targetBaseUrl = payload.apiBaseUrl || 'https://balakavach-be.onrender.com/api/v1';
+    let targetOrigin = null;
+    try {
+      const parsed = new URL(targetBaseUrl);
+      targetOrigin = `${parsed.origin}/*`;
+    } catch {
+      // Ignore URL parsing errors here; backend/client will validate URL format
+    }
+
+    if (targetOrigin && chrome?.permissions?.request && chrome?.permissions?.contains) {
+      try {
+        const hasPerm = await chrome.permissions.contains({ origins: [targetOrigin] });
+        if (!hasPerm) {
+          const granted = await chrome.permissions.request({ origins: [targetOrigin] });
+          if (!granted) {
+            setDeviceError(`Network permission to access ${targetOrigin} was not granted. Please allow access in the browser prompt or reload the extension.`);
+            setPairingBusy(false);
+            return;
+          }
+        }
+      } catch (permErr) {
+        console.warn('[KidsGuard] Permission check/request error:', permErr);
+      }
+    }
+
     try {
       const response = await send(payload);
 

@@ -963,11 +963,14 @@ export default function WelcomePage() {
                               </button>
                               <button
                                 type="button"
-                                className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-xs transition shrink-0 min-h-[38px]"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:border-rose-300 shadow-xs transition shrink-0 min-h-[38px] cursor-pointer"
                                 onClick={() => setConfirmDeleteChildId(child.id)}
                                 aria-label={`Delete ${child.displayName}`}
                               >
-                                Delete
+                                <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                                <span>Delete</span>
                               </button>
                             </div>
                           </div>
@@ -982,14 +985,17 @@ export default function WelcomePage() {
                                   type="button"
                                   disabled={deletingChild}
                                   onClick={() => deleteChildProfile(child.id)}
-                                  className="rounded-lg bg-rose-600 px-3.5 py-1.5 font-semibold text-white hover:bg-rose-500 shadow-xs disabled:opacity-50 transition"
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-1.5 font-semibold text-white hover:bg-rose-500 shadow-xs disabled:opacity-50 transition cursor-pointer"
                                 >
-                                  {deletingChild ? 'Deleting…' : 'Confirm Delete'}
+                                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  <span>{deletingChild ? 'Deleting…' : 'Confirm Delete'}</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteChildId(null)}
-                                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100 transition"
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                                 >
                                   Cancel
                                 </button>
@@ -1043,11 +1049,14 @@ export default function WelcomePage() {
                                       </button>
                                       <button
                                         type="button"
-                                        className="flex-1 sm:flex-initial rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition min-h-[36px] text-center"
+                                        className="inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-initial rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:border-rose-300 disabled:opacity-50 transition min-h-[36px] text-center cursor-pointer"
                                         disabled={pairingAction.cancelling}
                                         onClick={cancelPairingCode}
                                       >
-                                        {pairingAction.cancelling ? 'Cancelling…' : 'Cancel code'}
+                                        <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        <span>{pairingAction.cancelling ? 'Cancelling…' : 'Cancel code'}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -1305,12 +1314,15 @@ export default function WelcomePage() {
                             {!isRevoked && (
                               <button
                                 type="button"
-                                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 shadow-xs disabled:opacity-50 transition"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:border-rose-300 shadow-xs disabled:opacity-50 transition cursor-pointer"
                                 disabled={deviceAction.busyId === device.id}
                                 onClick={() => revokeDevice(device.id)}
                                 aria-label={`Revoke ${device.name}`}
                               >
-                                {deviceAction.busyId === device.id ? 'Revoking…' : 'Revoke'}
+                                <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                                <span>{deviceAction.busyId === device.id ? 'Revoking…' : 'Revoke'}</span>
                               </button>
                             )}
                           </li>

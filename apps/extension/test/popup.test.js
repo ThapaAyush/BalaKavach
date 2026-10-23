@@ -452,3 +452,40 @@ test('credentials are never disclosed across popup DOM elements or state', async
     );
   }
 });
+
+test('handlePairingSubmit requests host permissions dynamically if not yet granted', async () => {
+  const { document, elements } = createMockPopupDom();
+  elements['#pairing-code-input'].value = 'ABCDEFabcdef01234567-_';
+  elements['#device-name-input'].value = 'Chrome Browser';
+
+  let containsCalledWith = null;
+  let requestCalledWith = null;
+
+  const chrome = {
+    runtime: {
+      sentMessages: [],
+      sendMessage(message, callback) {
+        chrome.runtime.sentMessages.push(message);
+        callback({ ok: true, device: { isPaired: true, pairingStatus: 'paired' } });
+      },
+    },
+    permissions: {
+      async contains(query) {
+        containsCalledWith = query;
+        return false; // simulate host permission not yet granted
+      },
+      async request(query) {
+        requestCalledWith = query;
+        return true; // granted
+      },
+    },
+  };
+
+  const controller = createPopupController({ document, chrome });
+  await controller.handlePairingSubmit();
+
+  assert.deepEqual(containsCalledWith, { origins: ['https://balakavach-be.onrender.com/*'] });
+  assert.deepEqual(requestCalledWith, { origins: ['https://balakavach-be.onrender.com/*'] });
+  assert.equal(chrome.runtime.sentMessages[0].action, 'redeemPairingCode');
+});
+

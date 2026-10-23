@@ -69,7 +69,7 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
               reportingDeviceName: "Alex's Tablet",
               isStale: false,
             },
-            appUsage: [{ packageName: 'com.duolingo', appName: 'Duolingo', durationSeconds: 3600 }],
+            appUsage: [{ packageName: 'com.duolingo', appName: 'Duolingo', durationSeconds: 3600, openCount: 5 }],
           },
         });
       }
@@ -90,7 +90,17 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
     // Default tab is Screen Time: verify screen-time report is displayed
     expect(await screen.findByText('Daily Screen Time: Alex')).toBeInTheDocument();
     expect(screen.getByText('1h 0m')).toBeInTheDocument();
+
+    // Click Total Screen Time card to reveal app breakdown
+    const totalScreenTimeButton = screen.getByRole('button', { name: 'Total Screen Time summary card' });
+    fireEvent.click(totalScreenTimeButton);
     expect(screen.getByText('Duolingo')).toBeInTheDocument();
+
+    // Click Mobile Pickups & Opens card to reveal app launch counts
+    const mobilePickupsButton = screen.getByRole('button', { name: 'Mobile Pickups & Opens summary card' });
+    fireEvent.click(mobilePickupsButton);
+    expect(screen.getByText('Application Launch Frequency & Open Counts')).toBeInTheDocument();
+    expect(screen.getByText(/5 times opened/)).toBeInTheDocument();
 
     // Switch to Rules & Schedules tab
     const rulesTab = screen.getByRole('button', { name: 'Rules & Schedules' });
