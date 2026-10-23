@@ -7,7 +7,7 @@ export default function ScreenTimeView({ child }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [activeMetric, setActiveMetric] = useState(null); // null | 'screenTime' | 'appOpens'
+  const [activeMetric, setActiveMetric] = useState('screenTime'); // 'screenTime' | 'appOpens'
 
   const loadData = (isSilent = false) => {
     if (!isSilent) setRefreshing(true);
@@ -100,6 +100,24 @@ export default function ScreenTimeView({ child }) {
   const deviceOpens = data?.deviceUnlockCount ?? 0;
   const totalAppOpens = data?.totalAppOpens ?? (data?.appUsage?.reduce((acc, app) => acc + (app.openCount || 0), 0) || 0);
 
+  // Filter and sort apps strictly according to the active setting:
+  // - 'screenTime' (Timing): only show apps run in this timing (duration > 0)
+  // - 'appOpens' (App Open): only show apps that were opened (openCount > 0)
+  const isTimingMode = activeMetric === 'screenTime';
+  const appsToShow = (data?.appUsage || [])
+    .filter((app) => {
+      if (isTimingMode) {
+        return (app.durationSeconds || 0) > 0;
+      }
+      return (app.openCount || 0) > 0;
+    })
+    .sort((a, b) => {
+      if (isTimingMode) {
+        return (b.durationSeconds || 0) - (a.durationSeconds || 0) || (b.openCount || 0) - (a.openCount || 0);
+      }
+      return (b.openCount || 0) - (a.openCount || 0) || (b.durationSeconds || 0) - (a.durationSeconds || 0);
+    });
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
       {/* Header and Date Selector */}
@@ -150,21 +168,21 @@ export default function ScreenTimeView({ child }) {
         </div>
       )}
 
-      {/* 4-Card Summary Metrics Grid */}
+      {/* 4-Card Summary Metrics Grid: Clicking switches between Timing and App Open frequency */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Metric 1: Total Screen Time (Clickable to reveal app usage breakdown) */}
+        {/* Metric 1: Total Screen Time (Clickable to switch to Timing mode) */}
         <button
           type="button"
-          onClick={() => setActiveMetric((prev) => (prev === 'screenTime' ? null : 'screenTime'))}
-          aria-expanded={activeMetric === 'screenTime'}
+          onClick={() => setActiveMetric('screenTime')}
+          aria-expanded={isTimingMode}
           aria-label="Total Screen Time summary card"
           aria-controls="app-breakdown-section"
           className={`group text-left rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-xs flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-400 ${
-            activeMetric === 'screenTime'
+            isTimingMode
               ? 'border-sky-500 bg-gradient-to-br from-sky-100/90 via-sky-50/60 to-indigo-50/50 ring-2 ring-sky-300 shadow-md scale-[1.01]'
               : 'border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 hover:border-sky-400 hover:shadow-md hover:bg-sky-50/90'
           }`}
-          title={activeMetric === 'screenTime' ? 'Click to hide screen time breakdown' : 'Click to inspect application screen time durations'}
+          title="Click to view all applications run during this timing"
         >
           <div>
             <div className="flex items-center justify-between">
@@ -172,11 +190,11 @@ export default function ScreenTimeView({ child }) {
                 Total Screen Time
               </span>
               <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2.5 py-0.5 transition-colors ${
-                activeMetric === 'screenTime'
+                isTimingMode
                   ? 'bg-sky-600 text-white shadow-xs'
                   : 'bg-sky-100 text-sky-700 group-hover:bg-sky-200'
               }`}>
-                <span>{activeMetric === 'screenTime' ? '▲ Showing Times' : '▼ View App Times'}</span>
+                <span>{isTimingMode ? '✓ Active View' : 'Tap for Timing →'}</span>
               </span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
@@ -203,36 +221,34 @@ export default function ScreenTimeView({ child }) {
                 <span>{percentUsed}% budget</span>
                 {isOverLimit && <span className="font-bold text-rose-600">Limit reached</span>}
               </div>
-              <div className="mt-2 pt-2 border-t border-sky-100 flex items-center justify-between text-[11px] text-sky-700 font-semibold">
-                <span>{data?.appUsage?.length || 0} active apps</span>
-                <span className="group-hover:underline">
-                  {activeMetric === 'screenTime' ? 'Hide app times ▲' : 'Click to inspect app times →'}
-                </span>
-              </div>
             </div>
           ) : (
-            <div className="mt-3 pt-2 border-t border-sky-100 flex items-center justify-between text-[11px] text-slate-600">
-              <span>{data?.appUsage?.length || 0} active apps</span>
-              <span className="text-sky-600 font-semibold group-hover:underline">
-                {activeMetric === 'screenTime' ? 'Hide app times ▲' : 'Click to inspect app times →'}
-              </span>
-            </div>
+            <p className="mt-3 text-[11px] text-slate-400">
+              No daily budget limit configured
+            </p>
           )}
+
+          <div className="mt-2 pt-2 border-t border-sky-100/80 flex items-center justify-between text-[11px] text-sky-700 font-semibold">
+            <span>{(data?.appUsage || []).filter((a) => (a.durationSeconds || 0) > 0).length} apps run</span>
+            <span className="group-hover:underline">
+              {isTimingMode ? 'Showing run times' : 'Tap to show times →'}
+            </span>
+          </div>
         </button>
 
-        {/* Metric 2: Mobile Device Opens / Pickups (Clickable to reveal app open counts) */}
+        {/* Metric 2: Mobile Device Opens / Pickups (Clickable to switch to App Opens mode) */}
         <button
           type="button"
-          onClick={() => setActiveMetric((prev) => (prev === 'appOpens' ? null : 'appOpens'))}
-          aria-expanded={activeMetric === 'appOpens'}
+          onClick={() => setActiveMetric('appOpens')}
+          aria-expanded={!isTimingMode}
           aria-label="Mobile Pickups & Opens summary card"
           aria-controls="app-breakdown-section"
           className={`group text-left rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-xs flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-400 ${
-            activeMetric === 'appOpens'
+            !isTimingMode
               ? 'border-violet-500 bg-gradient-to-br from-violet-100/90 via-violet-50/60 to-purple-50/50 ring-2 ring-violet-300 shadow-md scale-[1.01]'
               : 'border-violet-200/80 bg-gradient-to-br from-violet-50/70 via-white to-purple-50/30 hover:border-violet-400 hover:shadow-md hover:bg-violet-50/90'
           }`}
-          title={activeMetric === 'appOpens' ? 'Click to hide app opens breakdown' : 'Click to inspect how many times each app was opened'}
+          title="Click to inspect how many times each app was opened"
         >
           <div>
             <div className="flex items-center justify-between">
@@ -240,11 +256,11 @@ export default function ScreenTimeView({ child }) {
                 Mobile Pickups &amp; Opens
               </span>
               <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2.5 py-0.5 transition-colors ${
-                activeMetric === 'appOpens'
+                !isTimingMode
                   ? 'bg-violet-600 text-white shadow-xs'
                   : 'bg-violet-100 text-violet-700 group-hover:bg-violet-200'
               }`}>
-                <span>{activeMetric === 'appOpens' ? '▲ Showing Opens' : '▼ View App Opens'}</span>
+                <span>{!isTimingMode ? '✓ Active View' : 'Tap for Opens →'}</span>
               </span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
@@ -260,28 +276,28 @@ export default function ScreenTimeView({ child }) {
             <p className="text-[11px] text-slate-500">
               Number of times the phone was unlocked &amp; active today.
             </p>
-            <div className="mt-2 pt-2 border-t border-violet-100 flex items-center justify-between text-[11px] text-violet-700 font-semibold">
-              <span>{totalAppOpens} app launches</span>
+            <div className="mt-2 pt-2 border-t border-violet-100/80 flex items-center justify-between text-[11px] text-violet-700 font-semibold">
+              <span>{totalAppOpens} app opens</span>
               <span className="group-hover:underline">
-                {activeMetric === 'appOpens' ? 'Hide open counts ▲' : 'Click to see how many times opened →'}
+                {!isTimingMode ? 'Showing frequencies' : 'Tap to show frequencies →'}
               </span>
             </div>
           </div>
         </button>
 
-        {/* Metric 3: Total App Launches (Clickable to reveal launch frequency) */}
+        {/* Metric 3: Total App Launches (Clickable to switch to App Opens mode) */}
         <button
           type="button"
-          onClick={() => setActiveMetric((prev) => (prev === 'appOpens' ? null : 'appOpens'))}
-          aria-expanded={activeMetric === 'appOpens'}
+          onClick={() => setActiveMetric('appOpens')}
+          aria-expanded={!isTimingMode}
           aria-label="Total App Launches summary card"
           aria-controls="app-breakdown-section"
           className={`group text-left rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-xs flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 ${
-            activeMetric === 'appOpens'
+            !isTimingMode
               ? 'border-amber-500 bg-gradient-to-br from-amber-100/90 via-amber-50/60 to-orange-50/50 ring-2 ring-amber-300 shadow-md scale-[1.01]'
               : 'border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-white to-orange-50/30 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/90'
           }`}
-          title={activeMetric === 'appOpens' ? 'Click to hide app launches breakdown' : 'Click to inspect app launch frequency'}
+          title="Click to view app launch frequencies"
         >
           <div>
             <div className="flex items-center justify-between">
@@ -289,11 +305,11 @@ export default function ScreenTimeView({ child }) {
                 Total App Launches
               </span>
               <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2.5 py-0.5 transition-colors ${
-                activeMetric === 'appOpens'
+                !isTimingMode
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-amber-100 text-amber-700 group-hover:bg-amber-200'
               }`}>
-                <span>{activeMetric === 'appOpens' ? '▲ Showing Opens' : '▼ View App Opens'}</span>
+                <span>{!isTimingMode ? '✓ Active View' : 'Tap for Opens →'}</span>
               </span>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
@@ -309,10 +325,10 @@ export default function ScreenTimeView({ child }) {
             <p className="text-[11px] text-slate-500">
               Total times applications were opened or switched into today.
             </p>
-            <div className="mt-2 pt-2 border-t border-amber-100 flex items-center justify-between text-[11px] text-amber-700 font-semibold">
-              <span>{data?.appUsage?.length || 0} active apps</span>
+            <div className="mt-2 pt-2 border-t border-amber-100/80 flex items-center justify-between text-[11px] text-amber-700 font-semibold">
+              <span>{(data?.appUsage || []).filter((a) => (a.openCount || 0) > 0).length} apps opened</span>
               <span className="group-hover:underline">
-                {activeMetric === 'appOpens' ? 'Hide open counts ▲' : 'Click to see how many times opened →'}
+                {!isTimingMode ? 'Showing frequencies' : 'Tap to show frequencies →'}
               </span>
             </div>
           </div>
@@ -346,188 +362,118 @@ export default function ScreenTimeView({ child }) {
         </div>
       </div>
 
-      {/* App Breakdown Section - Revealed when clicking Total Screen Time or Mobile Pickups & Opens */}
-      {activeMetric ? (
-        <div id="app-breakdown-section" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm font-bold text-slate-900">
-                  {activeMetric === 'appOpens'
-                    ? 'Application Launch Frequency & Open Counts'
-                    : activeMetric === 'both'
-                    ? 'Application Usage & Launch Frequency'
-                    : 'Application Usage & Screen Time Breakdown'}
-                </h4>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                  activeMetric === 'appOpens'
-                    ? 'bg-violet-100 text-violet-800'
-                    : activeMetric === 'both'
-                    ? 'bg-slate-200 text-slate-800'
-                    : 'bg-sky-100 text-sky-800'
-                }`}>
-                  {data?.appUsage?.length || 0} active {data?.appUsage?.length === 1 ? 'app' : 'apps'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {activeMetric === 'appOpens'
-                  ? `Showing only how many times each application was opened today (${totalAppOpens} total app opens across ${deviceOpens} phone unlocks).`
-                  : activeMetric === 'both'
-                  ? `Showing both foreground duration and open frequency for each application.`
-                  : `Showing only foreground screen time spent on each application for ${child.displayName}.`}
-              </p>
+      {/* App Breakdown Section */}
+      <div id="app-breakdown-section" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-bold text-slate-900">
+                {isTimingMode
+                  ? 'Application Usage & Screen Time Breakdown'
+                  : 'Application Launch Frequency & Open Counts'}
+              </h4>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                isTimingMode
+                  ? 'bg-sky-100 text-sky-800'
+                  : 'bg-violet-100 text-violet-800'
+              }`}>
+                {appsToShow.length} {appsToShow.length === 1 ? (isTimingMode ? 'app run' : 'app opened') : (isTimingMode ? 'apps run' : 'apps opened')}
+              </span>
             </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setActiveMetric('screenTime')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                    activeMetric === 'screenTime'
-                      ? 'bg-white text-sky-700 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="Show only screen time duration for each app"
-                >
-                  ⏱️ Time Only
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMetric('appOpens')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                    activeMetric === 'appOpens'
-                      ? 'bg-white text-violet-700 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="Show only how many times each app was opened"
-                >
-                  📱 Opens Only
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMetric('both')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer ${
-                    activeMetric === 'both'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="Show both screen time duration and open counts"
-                >
-                  📊 Both
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveMetric(null)}
-                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-              >
-                <span>Hide ▲</span>
-              </button>
-            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isTimingMode
+                ? `Showing only apps run in this timing (${formatDuration(totalSecs)}) with foreground screen time.`
+                : `Showing only application open frequency (${totalAppOpens} total app opens across ${deviceOpens} phone unlocks).`}
+            </p>
           </div>
 
-          {data?.appUsage && data.appUsage.length > 0 ? (
-            <div className="divide-y divide-slate-100">
-              {(() => {
-                const sortedApps = [...data.appUsage].sort((a, b) => {
-                  if (activeMetric === 'appOpens') {
-                    return (b.openCount || 0) - (a.openCount || 0) || (b.durationSeconds || 0) - (a.durationSeconds || 0);
-                  }
-                  return (b.durationSeconds || 0) - (a.durationSeconds || 0);
-                });
-
-                return sortedApps.map((app) => {
-                  const appPercent = totalSecs ? Math.round((app.durationSeconds / totalSecs) * 100) : 0;
-                  const opens = app.openCount ?? 0;
-                  const openPercent = totalAppOpens ? Math.round((opens / totalAppOpens) * 100) : 0;
-
-                  return (
-                    <div key={app.packageName} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/60 -mx-2 px-2 rounded-xl transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-semibold text-slate-900 truncate text-[13px]">{app.appName}</span>
-                            {app.packageName && app.packageName !== app.appName && (
-                              <span className="text-[11px] text-slate-400 font-mono hidden md:inline truncate max-w-[200px]">
-                                ({app.packageName})
-                              </span>
-                            )}
-                            {activeMetric === 'both' && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 text-violet-700 px-2 py-0.5 text-[10.5px] font-bold border border-violet-200/60">
-                                📱 {opens} {opens === 1 ? 'open' : 'opens'}
-                              </span>
-                            )}
-                          </div>
-
-                          {activeMetric === 'appOpens' ? (
-                            <span className="text-violet-800 font-mono font-bold text-xs bg-violet-50 border border-violet-200/80 px-2.5 py-0.5 rounded-md">
-                              📱 {opens} {opens === 1 ? 'time opened' : 'times opened'} <span className="text-violet-500 font-normal">({openPercent}%)</span>
-                            </span>
-                          ) : activeMetric === 'both' ? (
-                            <span className="text-slate-800 font-mono font-bold text-xs bg-slate-100 px-2.5 py-0.5 rounded-md">
-                              {formatDuration(app.durationSeconds)} <span className="text-slate-500 font-normal">({appPercent}%)</span>
-                            </span>
-                          ) : (
-                            <span className="text-sky-900 font-mono font-bold text-xs bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-md">
-                              ⏱️ {formatDuration(app.durationSeconds)} <span className="text-sky-600 font-normal">({appPercent}%)</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/40">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              activeMetric === 'appOpens'
-                                ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600'
-                                : activeMetric === 'both'
-                                ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-600'
-                                : 'bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-600'
-                            }`}
-                            style={{
-                              width: `${Math.max(activeMetric === 'appOpens' ? openPercent : appPercent, 2)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-500 italic py-3 text-center">No application usage details reported for this day.</p>
-          )}
-        </div>
-      ) : (
-        /* Collapsed Prompt Card */
-        <div className="rounded-2xl border border-dashed border-slate-300/80 bg-gradient-to-r from-slate-50/70 via-white to-slate-50/70 p-4 sm:p-5 text-center">
-          <p className="text-xs font-semibold text-slate-700 mb-2.5">
-            Tap a card above to inspect detailed application usage:
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
+          {/* Setting Switcher: Timing vs App Open */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setActiveMetric('screenTime')}
-              aria-label="View application breakdown prompt"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100 hover:border-sky-400 transition cursor-pointer shadow-2xs"
+              aria-label="Switch to Timing view"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                isTimingMode
+                  ? 'bg-white text-sky-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Show only apps run during this timing"
             >
-              <span>⏱️ Total Screen Time ({formatDuration(totalSecs)})</span>
-              <span>→</span>
+              <span>⏱️ Timing (Screen Time)</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveMetric('appOpens')}
-              aria-label="View application opens prompt"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300 bg-violet-50 px-3.5 py-1.5 text-xs font-bold text-violet-800 hover:bg-violet-100 hover:border-violet-400 transition cursor-pointer shadow-2xs"
+              aria-label="Switch to App Open frequency view"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                !isTimingMode
+                  ? 'bg-white text-violet-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Show only how many times each app was opened (frequency)"
             >
-              <span>📱 Mobile Pickups &amp; Opens ({deviceOpens} unlocks, {totalAppOpens} app opens)</span>
-              <span>→</span>
+              <span>📱 App Open (Frequency)</span>
             </button>
           </div>
         </div>
-      )}
+
+        {appsToShow.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {appsToShow.map((app) => {
+              const appPercent = totalSecs ? Math.round(((app.durationSeconds || 0) / totalSecs) * 100) : 0;
+              const opens = app.openCount ?? 0;
+              const openPercent = totalAppOpens ? Math.round((opens / totalAppOpens) * 100) : 0;
+
+              return (
+                <div key={app.packageName} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/60 -mx-2 px-2 rounded-xl transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-slate-900 truncate text-[13px]">{app.appName}</span>
+                        {app.packageName && app.packageName !== app.appName && (
+                          <span className="text-[11px] text-slate-400 font-mono hidden md:inline truncate max-w-[200px]">
+                            ({app.packageName})
+                          </span>
+                        )}
+                      </div>
+
+                      {isTimingMode ? (
+                        <span className="text-sky-900 font-mono font-bold text-xs bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-md">
+                          ⏱️ {formatDuration(app.durationSeconds)} <span className="text-sky-600 font-normal">({appPercent}%)</span>
+                        </span>
+                      ) : (
+                        <span className="text-violet-800 font-mono font-bold text-xs bg-violet-50 border border-violet-200/80 px-2.5 py-0.5 rounded-md">
+                          📱 {opens} {opens === 1 ? 'time opened' : 'times opened'} <span className="text-violet-500 font-normal">({openPercent}%)</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/40">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isTimingMode
+                            ? 'bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-600'
+                            : 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600'
+                        }`}
+                        style={{
+                          width: `${Math.max(isTimingMode ? appPercent : openPercent, 2)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500 italic py-6 text-center">
+            {isTimingMode
+              ? 'No applications recorded active screen time or running usage on this date.'
+              : 'No application launches or open events recorded on this date.'}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

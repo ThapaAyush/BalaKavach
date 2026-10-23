@@ -91,16 +91,24 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
     expect(await screen.findByText('Daily Screen Time: Alex')).toBeInTheDocument();
     expect(screen.getByText('1h 0m')).toBeInTheDocument();
 
-    // Click Total Screen Time card to reveal app breakdown
+    // Click Total Screen Time card to switch to Timing mode
     const totalScreenTimeButton = screen.getByRole('button', { name: 'Total Screen Time summary card' });
     fireEvent.click(totalScreenTimeButton);
     expect(screen.getByText('Duolingo')).toBeInTheDocument();
+    expect(screen.getByText('Application Usage & Screen Time Breakdown')).toBeInTheDocument();
+    expect(screen.queryByText(/5 times opened/)).not.toBeInTheDocument();
 
-    // Click Mobile Pickups & Opens card to reveal app launch counts
+    // Click Mobile Pickups & Opens card to switch to App Opens frequency mode
     const mobilePickupsButton = screen.getByRole('button', { name: 'Mobile Pickups & Opens summary card' });
     fireEvent.click(mobilePickupsButton);
     expect(screen.getByText('Application Launch Frequency & Open Counts')).toBeInTheDocument();
     expect(screen.getByText(/5 times opened/)).toBeInTheDocument();
+
+    // Switch back to Timing via setting switcher
+    const timingTabBtn = screen.getByRole('button', { name: 'Switch to Timing view' });
+    fireEvent.click(timingTabBtn);
+    expect(screen.getByText('Application Usage & Screen Time Breakdown')).toBeInTheDocument();
+    expect(screen.queryByText(/5 times opened/)).not.toBeInTheDocument();
 
     // Switch to Rules & Schedules tab
     const rulesTab = screen.getByRole('button', { name: 'Rules & Schedules' });

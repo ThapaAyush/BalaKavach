@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-23T11:39:57.415Z",
+  "updatedAt": "2026-10-23T14:38:12.560Z",
   "android": {
     "version": "0.1.0",
     "versionCode": 1,
@@ -18,7 +18,7 @@
     "downloadUrl": "/balakavach-chrome-extension.zip",
     "sizeBytes": 260424,
     "sizeFormatted": "254 KB",
-    "updatedAt": "2026-10-23T11:39:57.411Z",
-    "versionHash": "260424-1792755597410"
+    "updatedAt": "2026-10-23T14:38:12.559Z",
+    "versionHash": "260424-1792766292559"
   }
 }
