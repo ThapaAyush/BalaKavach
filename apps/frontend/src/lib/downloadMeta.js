@@ -2,20 +2,21 @@ import generatedData from '../generated/downloadMeta.json';
 
 const defaultMeta = {
   android: {
-    version: '0.1.0',
-    versionName: 'v0.1.0',
+    version: '0.1.1',
+    versionCode: 2,
+    versionName: 'v0.1.1',
     fileName: 'balakavach-companion.apk',
     downloadUrl: '/balakavach-companion.apk',
-    sizeBytes: 9424587,
-    sizeFormatted: '9.0 MB',
+    sizeBytes: 8378634,
+    sizeFormatted: '8.0 MB',
     versionHash: 'latest',
   },
   extension: {
-    version: '0.2.1',
-    versionName: 'v0.2.1',
+    version: '0.2.2',
+    versionName: 'v0.2.2',
     fileName: 'balakavach-chrome-extension.zip',
     downloadUrl: '/balakavach-chrome-extension.zip',
-    sizeBytes: 260059,
+    sizeBytes: 260425,
     sizeFormatted: '254 KB',
     versionHash: 'latest',
   },

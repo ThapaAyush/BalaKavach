@@ -30,7 +30,7 @@ export function createAppUpdateRouter({ runtimeEnv = process.env } = {}) {
     }
 
     const latestVersionName = runtimeEnv.LATEST_ANDROID_VERSION_NAME || meta?.android?.version || '0.1.0';
-    const latestVersionCode = parseInt(runtimeEnv.LATEST_ANDROID_VERSION_CODE || '1', 10);
+    const latestVersionCode = parseInt(runtimeEnv.LATEST_ANDROID_VERSION_CODE || meta?.android?.versionCode || '1', 10);
     const fileSizeBytes = meta?.android?.sizeBytes || 9424587;
     const downloadUrl = runtimeEnv.ANDROID_DOWNLOAD_URL || '/api/v1/app-update/download';
 
