@@ -47,6 +47,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var liveTickerJob: Job? = null
+    private var activeMetric: String = "screenTime" // "screenTime" | "appOpens"
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private val isDebuggable: Boolean by lazy {
         (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -216,6 +219,53 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 Toast.makeText(this, "Please open Android Settings > Accessibility to enable KidsGuard.", Toast.LENGTH_LONG).show()
             }
+        }
+
+        // Summary Card Clicks to switch modes (Timing vs App Opens)
+        binding.cardScreenTimeSummary.setOnClickListener {
+            activeMetric = "screenTime"
+            updateScreenTimeUi(
+                usage = viewModel.todayUsage.value,
+                policy = viewModel.cachedPolicy.value,
+                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
+            )
+        }
+
+        binding.cardMetricMobilePickups.setOnClickListener {
+            activeMetric = "appOpens"
+            updateScreenTimeUi(
+                usage = viewModel.todayUsage.value,
+                policy = viewModel.cachedPolicy.value,
+                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
+            )
+        }
+
+        binding.cardMetricAppLaunches.setOnClickListener {
+            activeMetric = "appOpens"
+            updateScreenTimeUi(
+                usage = viewModel.todayUsage.value,
+                policy = viewModel.cachedPolicy.value,
+                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
+            )
+        }
+
+        // In-table Capsule Switcher Clicks
+        binding.btnFilterTiming.setOnClickListener {
+            activeMetric = "screenTime"
+            updateScreenTimeUi(
+                usage = viewModel.todayUsage.value,
+                policy = viewModel.cachedPolicy.value,
+                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
+            )
+        }
+
+        binding.btnFilterAppOpens.setOnClickListener {
+            activeMetric = "appOpens"
+            updateScreenTimeUi(
+                usage = viewModel.todayUsage.value,
+                policy = viewModel.cachedPolicy.value,
+                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
+            )
         }
 
         // Settings API URL buttons
@@ -607,6 +657,15 @@ class MainActivity : AppCompatActivity() {
             binding.textTodayScreenTime.textSize = 18f
             binding.textTodayScreenTime.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
             binding.cardUsageMissingBanner.visibility = View.VISIBLE
+            binding.textScreenTimeActiveApps.text = "Usage access required"
+            binding.textBadgeScreenTime.text = "Needs Permission"
+            binding.textBadgeScreenTime.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill_danger)
+            binding.textBadgeScreenTime.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+
+            binding.textDeviceOpens.text = "0"
+            binding.textTotalAppLaunches.text = "0"
+            binding.textBadgeMobilePickups.text = "Access required"
+            binding.textBadgeAppLaunches.text = "Access required"
 
             binding.dotLiveIndicator.visibility = View.GONE
             binding.textLiveStatus.visibility = View.GONE
@@ -637,6 +696,13 @@ class MainActivity : AppCompatActivity() {
             }
             binding.textTodayScreenTime.textSize = 28f
             binding.textTodayScreenTime.setTextColor(ContextCompat.getColor(this, R.color.accent))
+
+            val deviceOpens = usage.deviceUnlockCount
+            val totalAppOpens = usage.appUsage.sumOf { it.openCount }
+            binding.textDeviceOpens.text = "$deviceOpens"
+            binding.textDeviceOpensUnit.text = if (deviceOpens == 1) "time opened" else "times opened"
+            binding.textTotalAppLaunches.text = "$totalAppOpens"
+            binding.textTotalAppLaunchesUnit.text = if (totalAppOpens == 1) "app open" else "app opens"
 
             binding.dotLiveIndicator.visibility = View.VISIBLE
             binding.textLiveStatus.visibility = View.VISIBLE
@@ -776,19 +842,103 @@ class MainActivity : AppCompatActivity() {
         if (usage != null && !usage.permissionGranted) {
             binding.textEmptyApps.text = getString(R.string.apps_unavailable_no_perm)
             binding.textEmptyApps.visibility = View.VISIBLE
+            binding.textAppUsageCountBadge.visibility = View.GONE
         } else if (appList.isEmpty()) {
             binding.textEmptyApps.text = getString(R.string.no_apps_recorded)
             binding.textEmptyApps.visibility = View.VISIBLE
+            binding.textAppUsageCountBadge.visibility = View.GONE
         } else {
-            binding.textEmptyApps.visibility = View.GONE
-            val displayList = appList.take(25)
-            for ((index, app) in displayList.withIndex()) {
-                val rowView = createAppUsageRow(
-                    app = app,
-                    totalSec = totalSec,
-                    showDivider = (index < displayList.size - 1)
-                )
-                binding.containerAppUsageList.addView(rowView)
+            val totalAppOpens = appList.sumOf { it.openCount }
+            val isTiming = activeMetric == "screenTime"
+            val runApps = appList.filter { it.durationSeconds > 0 }.sortedByDescending { it.durationSeconds }
+            val openedApps = appList.filter { it.openCount > 0 }.sortedByDescending { it.openCount }
+
+            if (isTiming) {
+                binding.cardScreenTimeSummary.strokeColor = ContextCompat.getColor(this, R.color.accent)
+                binding.cardScreenTimeSummary.strokeWidth = dp(2)
+                binding.cardMetricMobilePickups.strokeColor = ContextCompat.getColor(this, R.color.border)
+                binding.cardMetricMobilePickups.strokeWidth = dp(1)
+                binding.cardMetricAppLaunches.strokeColor = ContextCompat.getColor(this, R.color.border)
+                binding.cardMetricAppLaunches.strokeWidth = dp(1)
+
+                binding.textBadgeScreenTime.text = "✓ Active: Timing"
+                binding.textBadgeScreenTime.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill_success)
+                binding.textBadgeScreenTime.setTextColor(ContextCompat.getColor(this, R.color.status_green_dark))
+                binding.textBadgeMobilePickups.text = "Tap for Opens →"
+                binding.textBadgeAppLaunches.text = "Tap for Opens →"
+
+                binding.btnFilterTiming.background = ContextCompat.getDrawable(this, R.drawable.bg_tab_active_pill)
+                binding.btnFilterTiming.setTextColor(ContextCompat.getColor(this, R.color.accent_dark))
+                binding.btnFilterAppOpens.background = null
+                binding.btnFilterAppOpens.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+
+                binding.textAppUsageTitle.text = "Application Usage & Screen Time Breakdown"
+                binding.textAppUsageSubtitle.text = "Showing foreground duration for each active application"
+                binding.textAppUsageCountBadge.text = "${runApps.size} apps run"
+                binding.textAppUsageCountBadge.setTextColor(ContextCompat.getColor(this, R.color.accent_dark))
+                binding.textAppUsageCountBadge.visibility = View.VISIBLE
+                binding.textScreenTimeActiveApps.text = "${runApps.size} active apps run today"
+
+                val displayList = runApps.take(30)
+                if (displayList.isEmpty()) {
+                    binding.textEmptyApps.text = "No applications recorded active screen time or running usage today."
+                    binding.textEmptyApps.visibility = View.VISIBLE
+                } else {
+                    binding.textEmptyApps.visibility = View.GONE
+                    for ((index, app) in displayList.withIndex()) {
+                        val rowView = createAppUsageRow(
+                            app = app,
+                            totalSec = totalSec,
+                            totalAppOpens = totalAppOpens,
+                            mode = "screenTime",
+                            showDivider = (index < displayList.size - 1)
+                        )
+                        binding.containerAppUsageList.addView(rowView)
+                    }
+                }
+            } else {
+                binding.cardScreenTimeSummary.strokeColor = ContextCompat.getColor(this, R.color.border)
+                binding.cardScreenTimeSummary.strokeWidth = dp(1)
+                binding.cardMetricMobilePickups.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
+                binding.cardMetricMobilePickups.strokeWidth = dp(2)
+                binding.cardMetricAppLaunches.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
+                binding.cardMetricAppLaunches.strokeWidth = dp(2)
+
+                binding.textBadgeScreenTime.text = "Tap for Timing →"
+                binding.textBadgeScreenTime.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill)
+                binding.textBadgeScreenTime.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                binding.textBadgeMobilePickups.text = "✓ Active: Opens"
+                binding.textBadgeAppLaunches.text = "✓ Active: Opens"
+
+                binding.btnFilterTiming.background = null
+                binding.btnFilterTiming.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                binding.btnFilterAppOpens.background = ContextCompat.getDrawable(this, R.drawable.bg_tab_active_pill)
+                binding.btnFilterAppOpens.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
+
+                binding.textAppUsageTitle.text = "Application Launch Frequency & Open Counts"
+                binding.textAppUsageSubtitle.text = "Showing only application open frequency today"
+                binding.textAppUsageCountBadge.text = "${openedApps.size} apps opened"
+                binding.textAppUsageCountBadge.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
+                binding.textAppUsageCountBadge.visibility = View.VISIBLE
+                binding.textScreenTimeActiveApps.text = "${openedApps.size} apps opened today"
+
+                val displayList = openedApps.take(30)
+                if (displayList.isEmpty()) {
+                    binding.textEmptyApps.text = "No application launches or open events recorded today."
+                    binding.textEmptyApps.visibility = View.VISIBLE
+                } else {
+                    binding.textEmptyApps.visibility = View.GONE
+                    for ((index, app) in displayList.withIndex()) {
+                        val rowView = createAppUsageRow(
+                            app = app,
+                            totalSec = totalSec,
+                            totalAppOpens = totalAppOpens,
+                            mode = "appOpens",
+                            showDivider = (index < displayList.size - 1)
+                        )
+                        binding.containerAppUsageList.addView(rowView)
+                    }
+                }
             }
         }
     }
@@ -796,15 +946,10 @@ class MainActivity : AppCompatActivity() {
     private fun createAppUsageRow(
         app: AppUsageItemDto,
         totalSec: Long,
+        totalAppOpens: Int,
+        mode: String,
         showDivider: Boolean
     ): View {
-        val density = resources.displayMetrics.density
-        fun dp(value: Int): Int = (value * density).toInt()
-
-        val percent = if (totalSec > 0) {
-            Math.round((app.durationSeconds.toDouble() / totalSec) * 100).toInt()
-        } else 0
-
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
@@ -814,7 +959,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(8), 0, if (showDivider) dp(8) else dp(2))
         }
 
-        // Header row with Name and Duration with Percentage
+        // Header row with Name and Tag (Duration or Frequency)
         val headerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -835,33 +980,51 @@ class MainActivity : AppCompatActivity() {
         }
         headerRow.addView(nameView)
 
-        val hours = app.durationSeconds / 3600
-        val minutes = (app.durationSeconds % 3600) / 60
-        val durationStr = when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            minutes > 0 -> "${minutes}m"
-            else -> "< 1 min"
-        }
-
-        val durationView = TextView(this).apply {
-            text = "$durationStr ($percent%)"
-            textSize = 12.5f
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+        val percent: Int
+        val tagView = TextView(this).apply {
+            textSize = 12f
             typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        headerRow.addView(durationView)
+
+        if (mode == "appOpens") {
+            val opens = app.openCount
+            percent = if (totalAppOpens > 0) {
+                Math.round((opens.toDouble() / totalAppOpens) * 100).toInt()
+            } else 0
+            val openText = if (opens == 1) "1 time opened" else "$opens times opened"
+            tagView.text = "📱 $openText ($percent%)"
+            tagView.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.status_purple))
+        } else {
+            val durationSec = app.durationSeconds
+            percent = if (totalSec > 0) {
+                Math.round((durationSec.toDouble() / totalSec) * 100).toInt()
+            } else 0
+            val hours = durationSec / 3600
+            val minutes = (durationSec % 3600) / 60
+            val durationStr = when {
+                hours > 0 -> "${hours}h ${minutes}m"
+                minutes > 0 -> "${minutes}m"
+                else -> "< 1 min"
+            }
+            tagView.text = "⏱️ $durationStr ($percent%)"
+            tagView.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_dark))
+        }
+        headerRow.addView(tagView)
         container.addView(headerRow)
 
         // Horizontal Progress Bar matching web dashboard gradient
         val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             isIndeterminate = false
             max = 100
-            progress = percent
-            progressDrawable = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_progress_usage)
+            progress = percent.coerceIn(2, 100)
+            progressDrawable = ContextCompat.getDrawable(
+                this@MainActivity,
+                if (mode == "appOpens") R.drawable.bg_progress_opens else R.drawable.bg_progress_usage
+            )
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(6)
