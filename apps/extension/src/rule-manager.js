@@ -1,12 +1,16 @@
 import {
   createBlockRules,
+  createAdultBlockRules,
   isKidsGuardRuleId,
   MAX_BLOCKED_DOMAINS,
+  ADULT_18_PLUS_DOMAINS,
+  ADULT_FIRST_RULE_ID,
   normalizeDomainInput,
   normalizeDomainList
 } from './domain-rules.js';
 
 export const BLOCKLIST_STORAGE_KEY = 'localBlockedDomains';
+export const ADULT_PROTECTION_STORAGE_KEY = 'localAdultProtectionEnabled';
 
 function sameRule(actual, expected) {
   if (!actual || actual.id !== expected.id || actual.priority !== expected.priority || actual.action?.type !== 'block') return false;
@@ -38,14 +42,36 @@ export function createRuleManager({ declarativeNetRequest, storage, maxDomains =
     return normalized;
   }
 
+  async function getAdultProtectionEnabled() {
+    const stored = await storage.get(ADULT_PROTECTION_STORAGE_KEY);
+    return stored[ADULT_PROTECTION_STORAGE_KEY] ?? false;
+  }
+
+  async function saveAdultProtectionEnabled(enabled) {
+    const val = Boolean(enabled);
+    await storage.set({ [ADULT_PROTECTION_STORAGE_KEY]: val });
+    return val;
+  }
+
   async function getStatus() {
     const configuredDomains = await getConfiguredDomains();
-    const expectedRules = createBlockRules(configuredDomains, maxDomains);
+    const adultEnabled = await getAdultProtectionEnabled();
+    const customRules = createBlockRules(configuredDomains, maxDomains);
+    const adultRules = adultEnabled ? createAdultBlockRules(ADULT_18_PLUS_DOMAINS, ADULT_FIRST_RULE_ID) : [];
+    const expectedRules = [...customRules, ...adultRules];
+
     let existing;
     try {
       existing = await declarativeNetRequest.getDynamicRules();
     } catch {
-      return { configuredDomains, appliedDomains: [], applied: false, error: 'Chrome rules could not be read.' };
+      return {
+        configuredDomains,
+        appliedDomains: [],
+        adultProtectionEnabled: adultEnabled,
+        appliedAdultDomains: [],
+        applied: false,
+        error: 'Chrome rules could not be read.'
+      };
     }
     const managedRules = existing.filter((rule) => isKidsGuardRuleId(rule.id, maxDomains));
     const same = managedRules.length === expectedRules.length && expectedRules.every((expected) => {
@@ -55,13 +81,19 @@ export function createRuleManager({ declarativeNetRequest, storage, maxDomains =
     return {
       configuredDomains,
       appliedDomains: same ? configuredDomains : [],
+      adultProtectionEnabled: adultEnabled,
+      appliedAdultDomains: (same && adultEnabled) ? [...ADULT_18_PLUS_DOMAINS] : [],
       applied: same
     };
   }
 
   async function applyConfiguredRules() {
     const configuredDomains = await getConfiguredDomains();
-    const addRules = createBlockRules(configuredDomains, maxDomains);
+    const adultEnabled = await getAdultProtectionEnabled();
+    const customRules = createBlockRules(configuredDomains, maxDomains);
+    const adultRules = adultEnabled ? createAdultBlockRules(ADULT_18_PLUS_DOMAINS, ADULT_FIRST_RULE_ID) : [];
+    const addRules = [...customRules, ...adultRules];
+
     const currentRules = await declarativeNetRequest.getDynamicRules();
     const removeRuleIds = currentRules
       .filter((rule) => isKidsGuardRuleId(rule.id, maxDomains))
@@ -92,6 +124,10 @@ export function createRuleManager({ declarativeNetRequest, storage, maxDomains =
       : [];
     const normalized = normalizeDomainList(rawDomains, maxDomains);
     await saveConfiguredDomains(normalized);
+
+    if (webRestrictions && typeof webRestrictions.blockAdultContent === 'boolean') {
+      await saveAdultProtectionEnabled(webRestrictions.blockAdultContent);
+    }
     return await applyConfiguredRules();
   }
 
@@ -120,6 +156,8 @@ export function createRuleManager({ declarativeNetRequest, storage, maxDomains =
   return {
     getConfiguredDomains,
     saveConfiguredDomains,
+    getAdultProtectionEnabled,
+    saveAdultProtectionEnabled,
     getStatus,
     applyConfiguredRules,
     syncParentPolicy,

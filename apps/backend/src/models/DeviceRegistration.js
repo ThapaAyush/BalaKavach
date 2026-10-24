@@ -50,6 +50,10 @@ const deviceRegistrationSchema = new Schema({
     type: Date,
     default: null,
   },
+  uninstalledAt: {
+    type: Date,
+    default: null,
+  },
   acknowledgedPolicyVersion: {
     type: Number,
     default: 0,

@@ -59,6 +59,7 @@ export function createMemoryDevicePairingRepository() {
         pairingCodeId: pairing._id,
         lastSeenAt: null,
         revokedAt: null,
+        uninstalledAt: null,
         acknowledgedPolicyVersion: 0,
         lastPolicyAckAt: null,
         lastScreenTimeReportAt: null,
@@ -80,6 +81,13 @@ export function createMemoryDevicePairingRepository() {
       if (!device || device.familyId !== familyId || device.revokedAt) return false;
       device.revokedAt = revokedAt;
       return true;
+    },
+
+    async recordDeviceUninstall({ deviceId, uninstalledAt }) {
+      const device = devicesById.get(deviceId);
+      if (!device) return null;
+      device.uninstalledAt = uninstalledAt;
+      return copy(device);
     },
 
     async findDeviceByCredentialHash(credentialHash) {

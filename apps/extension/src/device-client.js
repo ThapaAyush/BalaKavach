@@ -82,7 +82,7 @@ export function sanitizeDeviceStatus(session) {
 }
 
 export function createDeviceClient({
-  storage = chrome.storage.local,
+  storage = typeof chrome !== 'undefined' ? chrome.storage?.local : undefined,
   fetch = globalThis.fetch,
   apiBaseUrl = DEFAULT_API_BASE_URL,
 } = {}) {
@@ -525,6 +525,85 @@ export function createDeviceClient({
         status: 'ok',
         acknowledgedVersion: session.acknowledgedPolicyVersion,
         syncedAt: session.lastPolicySyncAt,
+      };
+    },
+
+    async sendWebHistory(visits) {
+      if (!Array.isArray(visits) || visits.length === 0) {
+        return { ok: true, status: 'noop', ingestedCount: 0 };
+      }
+
+      const session = await getStoredSession();
+      if (!session || !session.deviceCredential) {
+        return {
+          ok: false,
+          status: 'unpaired',
+          error: 'Device is not paired.',
+        };
+      }
+
+      if (session.pairingStatus === 'invalid_session') {
+        return {
+          ok: false,
+          status: 'invalid_session',
+          error: 'Device session is invalid or expired. Re-pairing is required.',
+        };
+      }
+
+      const currentBaseUrl = await resolveBaseUrl();
+      let response;
+      try {
+        response = await fetch(`${currentBaseUrl}/devices/web-history`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.deviceCredential}`,
+          },
+          body: JSON.stringify({ visits }),
+        });
+      } catch {
+        return {
+          ok: false,
+          status: 'offline',
+          error: 'Network unavailable. History sync will retry later.',
+        };
+      }
+
+      if (response.status === 401) {
+        session.pairingStatus = 'invalid_session';
+        session.lastHeartbeatStatus = 'invalid_session';
+        try {
+          await saveStoredSession(session);
+        } catch {
+          // Ignore storage write failure on invalid session
+        }
+        return {
+          ok: false,
+          status: 'invalid_session',
+          error: 'Device session is invalid or expired. Re-pairing is required.',
+        };
+      }
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: 'error',
+          error: payload?.error?.message ?? `Web history upload failed (${response.status}).`,
+        };
+      }
+
+      return {
+        ok: true,
+        status: 'ok',
+        ingestedCount: payload?.data?.ingestedCount ?? visits.length,
       };
     },
 

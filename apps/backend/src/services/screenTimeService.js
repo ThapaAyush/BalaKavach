@@ -92,6 +92,25 @@ export function createScreenTimeService({
 
       const dailyLimitMinutes = policy?.screenTime?.dailyLimitMinutes ?? null;
 
+      let recentSummaries = [];
+      try {
+        recentSummaries = await repository.findRecentSummariesByChild?.(scope.familyId, scope.childId, 14) || [];
+      } catch {
+        recentSummaries = [];
+      }
+
+      const recentHistory = recentSummaries.map((s) => ({
+        date: s.date,
+        totalScreenTimeSeconds: s.totalScreenTimeSeconds,
+        deviceUnlockCount: s.deviceUnlockCount || 0,
+        appCount: (s.appUsage || []).length,
+        permissionGranted: s.permissionGranted,
+        source: s.source,
+        reportedAt: s.reportedAt,
+      }));
+
+      const latestAvailableDate = recentSummaries.length > 0 ? recentSummaries[0].date : null;
+
       if (!summaries || summaries.length === 0) {
         return {
           date: targetDate,
@@ -102,6 +121,8 @@ export function createScreenTimeService({
           dataFreshness: null,
           appUsage: [],
           source: 'unavailable',
+          recentHistory,
+          latestAvailableDate,
         };
       }
 
@@ -171,6 +192,8 @@ export function createScreenTimeService({
           isStale,
         },
         appUsage: appUsageList,
+        recentHistory,
+        latestAvailableDate,
       };
     },
 
@@ -182,6 +205,8 @@ export function createScreenTimeService({
       return summaries.map((s) => ({
         date: s.date,
         totalScreenTimeSeconds: s.totalScreenTimeSeconds,
+        deviceUnlockCount: s.deviceUnlockCount || 0,
+        appCount: (s.appUsage || []).length,
         permissionGranted: s.permissionGranted,
         source: s.source,
         reportedAt: s.reportedAt,

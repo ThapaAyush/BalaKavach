@@ -10,6 +10,7 @@ import { devicePairingService as defaultDevicePairingService } from './services/
 import { familyChildService as defaultFamilyChildService } from './services/familyChildService.js';
 import { policyService as defaultPolicyService } from './services/policyService.js';
 import { screenTimeService as defaultScreenTimeService } from './services/screenTimeService.js';
+import { webHistoryService as defaultWebHistoryService } from './services/webHistoryService.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
 import { createAuthRouter } from './routes/authRoutes.js';
@@ -17,6 +18,7 @@ import { createChildRouter } from './routes/childRoutes.js';
 import { createDevicePairingRouter } from './routes/devicePairingRoutes.js';
 import { createPolicyRouter } from './routes/policyRoutes.js';
 import { createScreenTimeRouter } from './routes/screenTimeRoutes.js';
+import { createWebHistoryRouter } from './routes/webHistoryRoutes.js';
 import { createAppUpdateRouter } from './routes/appUpdateRoutes.js';
 import { getHealth } from './controllers/healthController.js';
 import healthRoutes from './routes/healthRoutes.js';
@@ -27,6 +29,7 @@ export function createApp({
   devicePairingService = defaultDevicePairingService,
   policyService = defaultPolicyService,
   screenTimeService = defaultScreenTimeService,
+  webHistoryService = defaultWebHistoryService,
   runtimeEnv = env,
 } = {}) {
   const logger = pino({ level: runtimeEnv.NODE_ENV === 'test' ? 'silent' : 'info' });
@@ -121,6 +124,13 @@ export function createApp({
     authService,
     devicePairingService,
     screenTimeService,
+    nodeEnv: runtimeEnv.NODE_ENV,
+    rateLimitConfig: runtimeEnv.rateLimitConfig,
+  }));
+  app.use('/api/v1', createWebHistoryRouter({
+    authService,
+    devicePairingService,
+    webHistoryService,
     nodeEnv: runtimeEnv.NODE_ENV,
     rateLimitConfig: runtimeEnv.rateLimitConfig,
   }));

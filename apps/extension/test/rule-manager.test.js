@@ -120,3 +120,40 @@ test('syncParentPolicy clears rules when web restrictions are disabled', async (
   assert.deepEqual(result.configuredDomains, []);
   assert.deepEqual(h.rules.map(({ id }) => id), [50]);
 });
+
+test('syncParentPolicy with blockAdultContent: true applies both adult protection rules and custom domain rules', async () => {
+  const h = harness();
+  const policy = {
+    version: 4,
+    webRestrictions: {
+      enabled: true,
+      blockAdultContent: true,
+      blockedDomains: ['custom.example'],
+    },
+  };
+  const result = await h.manager.syncParentPolicy(policy);
+  assert.equal(result.applied, true);
+  assert.equal(result.adultProtectionEnabled, true);
+  assert.deepEqual(result.configuredDomains, ['custom.example']);
+  assert.ok(result.appliedAdultDomains.length > 0);
+
+  // Must have rule 50 (unrelated), 1000 (custom.example), and 2000+ (adult rules)
+  const ruleIds = h.rules.map(({ id }) => id);
+  assert.ok(ruleIds.includes(50));
+  assert.ok(ruleIds.includes(1000));
+  assert.ok(ruleIds.includes(2000));
+
+  // When policy disables adult content, adult rules are removed
+  const disabledPolicy = {
+    version: 5,
+    webRestrictions: {
+      enabled: true,
+      blockAdultContent: false,
+      blockedDomains: ['custom.example'],
+    },
+  };
+  const disabledResult = await h.manager.syncParentPolicy(disabledPolicy);
+  assert.equal(disabledResult.adultProtectionEnabled, false);
+  assert.deepEqual(h.rules.map(({ id }) => id), [50, 1000]);
+});
+

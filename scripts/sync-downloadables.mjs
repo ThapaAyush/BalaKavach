@@ -165,6 +165,13 @@ export function packageExtension() {
     sizeFormatted: formatBytes(stats.size),
     updatedAt: stats.mtime.toISOString(),
     versionHash: `${stats.size}-${Math.floor(stats.mtimeMs)}`,
+    releaseNotes: 'Automatic 18+ adult content removal, spontaneous tab purge on connection, and live Chrome browsing history tracking.',
+    features: [
+      'Strict 18+ Adult Content Filter',
+      'Spontaneous Open Tab Purge on Connect',
+      'Live Chrome Browsing History Stream',
+      'Parent Dashboard Activity Stream',
+    ],
   };
 }
 
@@ -273,6 +280,13 @@ export function syncAndroidApk(options = { buildApk: false }) {
     sizeFormatted: formatBytes(finalStat.size),
     updatedAt: finalStat.mtime.toISOString(),
     versionHash: `${finalStat.size}-${Math.floor(finalStat.mtimeMs)}`,
+    releaseNotes: 'Real-time screen-time tracking, app open counts, bedtime schedule enforcement, and zero-battery VPN-free architecture.',
+    features: [
+      'Background Screen Time Measurement',
+      'Daily Usage & App Launch Limits',
+      'Quiet Bedtime Hours Enforcement',
+      'Zero VPN Battery-Friendly Engine',
+    ],
   };
 }
 
@@ -295,6 +309,18 @@ export function syncAll(options = {}) {
   const backendGenDir = path.join(REPO_ROOT, 'apps', 'backend', 'src', 'generated');
   fs.mkdirSync(backendGenDir, { recursive: true });
   fs.writeFileSync(path.join(backendGenDir, 'downloadMeta.json'), JSON.stringify(meta, null, 2), 'utf8');
+
+  // Mirror public download assets to backend public directory if needed
+  const backendPublicDir = path.join(REPO_ROOT, 'apps', 'backend', 'public');
+  fs.mkdirSync(backendPublicDir, { recursive: true });
+  const frontendApk = path.join(FRONTEND_PUBLIC_DIR, 'balakavach-companion.apk');
+  const frontendZip = path.join(FRONTEND_PUBLIC_DIR, 'balakavach-chrome-extension.zip');
+  if (fs.existsSync(frontendApk)) {
+    fs.copyFileSync(frontendApk, path.join(backendPublicDir, 'balakavach-companion.apk'));
+  }
+  if (fs.existsSync(frontendZip)) {
+    fs.copyFileSync(frontendZip, path.join(backendPublicDir, 'balakavach-chrome-extension.zip'));
+  }
 
   console.log('[sync-downloads] Download metadata generated:');
   console.log(`  • Android Companion: ${androidMeta.versionName} (${androidMeta.sizeFormatted})`);

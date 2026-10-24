@@ -49,6 +49,7 @@ const policySchema = new Schema({
   webRestrictions: {
     enabled: { type: Boolean, default: false },
     enforcementPlatform: { type: String, default: 'desktop_chrome' },
+    blockAdultContent: { type: Boolean, default: false },
     blockedDomains: {
       type: [String],
       default: [],

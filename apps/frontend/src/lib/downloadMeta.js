@@ -12,12 +12,12 @@ const defaultMeta = {
     versionHash: 'latest',
   },
   extension: {
-    version: '0.2.2',
-    versionName: 'v0.2.2',
+    version: '0.3.0',
+    versionName: 'v0.3.0',
     fileName: 'balakavach-chrome-extension.zip',
     downloadUrl: '/balakavach-chrome-extension.zip',
-    sizeBytes: 260425,
-    sizeFormatted: '254 KB',
+    sizeBytes: 264153,
+    sizeFormatted: '258 KB',
     versionHash: 'latest',
   },
 };

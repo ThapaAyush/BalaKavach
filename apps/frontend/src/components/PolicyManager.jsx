@@ -19,9 +19,21 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   const [blockedApps, setBlockedApps] = useState([]);
   const [newAppNameInput, setNewAppNameInput] = useState('');
   const [webRestrictionsEnabled, setWebRestrictionsEnabled] = useState(false);
+  const [blockAdultContent, setBlockAdultContent] = useState(true);
   const [blockedDomains, setBlockedDomains] = useState([]);
   const [newDomainInput, setNewDomainInput] = useState('');
   const [policyVersion, setPolicyVersion] = useState(1);
+
+  const TOP_ADULT_PRESETS = [
+    { name: 'Pornhub', domain: 'pornhub.com', icon: '🔞' },
+    { name: 'XVideos', domain: 'xvideos.com', icon: '🔞' },
+    { name: 'XNXX', domain: 'xnxx.com', icon: '🔞' },
+    { name: 'XHamster', domain: 'xhamster.com', icon: '🔞' },
+    { name: 'Chaturbate', domain: 'chaturbate.com', icon: '🔞' },
+    { name: 'OnlyFans', domain: 'onlyfans.com', icon: '🔞' },
+    { name: 'Stripchat', domain: 'stripchat.com', icon: '🔞' },
+    { name: 'RedTube', domain: 'redtube.com', icon: '🔞' },
+  ];
 
   const POPULAR_APPS = [
     { appName: 'YouTube', packageName: 'com.google.android.youtube', icon: '▶️' },
@@ -146,6 +158,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
           setAppRestrictionsEnabled(p.appRestrictions?.enabled ?? false);
           setBlockedApps(p.appRestrictions?.blockedApps ?? []);
           setWebRestrictionsEnabled(p.webRestrictions?.enabled ?? false);
+          setBlockAdultContent(p.webRestrictions?.blockAdultContent ?? true);
           setBlockedDomains(p.webRestrictions?.blockedDomains ?? []);
         }
         setLoading(false);
@@ -259,6 +272,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
       },
       webRestrictions: {
         enabled: webRestrictionsEnabled,
+        blockAdultContent,
         blockedDomains,
       },
     };
@@ -628,6 +642,103 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
           {webRestrictionsEnabled && (
             <div className="mt-4 space-y-4 border-t border-sky-100 pt-4">
+              {/* Strict 18+ Adult Content Protection Card */}
+              <div className="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50/80 via-white to-amber-50/40 p-4 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-rose-100 text-lg select-none shadow-2xs shrink-0" aria-hidden="true">
+                      🔞
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-slate-900">Strict 18+ & Adult Content Filter</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100/80 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+                          <span className="size-1.5 rounded-full bg-rose-600 animate-pulse"></span>
+                          Spontaneous Tab Purge
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        When the child connects the Chrome extension, any existing open tabs with 18+ content are instantly closed. Future adult browsing & searches are automatically blocked.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={blockAdultContent}
+                        onChange={(e) => setBlockAdultContent(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-600 peer-checked:after:translate-x-full"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {blockAdultContent && (
+                  <div className="mt-3.5 pt-3 border-t border-rose-100 space-y-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-700">
+                      <div className="flex items-center gap-1.5 rounded-lg bg-white/80 border border-rose-100 px-2.5 py-1.5">
+                        <span className="text-rose-600 font-bold">⚡</span>
+                        <span><strong>Spontaneous Purge:</strong> Vanishes open adult tabs on connection</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 rounded-lg bg-white/80 border border-rose-100 px-2.5 py-1.5">
+                        <span className="text-rose-600 font-bold">🔍</span>
+                        <span><strong>Search Shield:</strong> Blocks Google, Bing & YouTube adult queries</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 rounded-lg bg-white/80 border border-rose-100 px-2.5 py-1.5">
+                        <span className="text-rose-600 font-bold">🛡️</span>
+                        <span><strong>DNR Dynamic Filter:</strong> 50+ adult domains blocked</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+                      <span className="text-[11px] font-semibold text-slate-500">Quick Adult Presets:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {TOP_ADULT_PRESETS.map((preset) => {
+                          const isBlocked = blockedDomains.some((d) => d.toLowerCase() === preset.domain.toLowerCase());
+                          return (
+                            <button
+                              key={preset.domain}
+                              type="button"
+                              onClick={() => {
+                                if (isBlocked) {
+                                  handleRemoveDomain(preset.domain);
+                                } else {
+                                  setBlockedDomains([...blockedDomains, preset.domain]);
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                                isBlocked
+                                  ? 'bg-rose-100 border border-rose-300 text-rose-800'
+                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span>{preset.name}</span>
+                              <span className="text-[9px] opacity-75">{isBlocked ? '✓ Blocked' : '+ Add'}</span>
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const toAdd = TOP_ADULT_PRESETS
+                              .map((p) => p.domain.toLowerCase())
+                              .filter((d) => !blockedDomains.includes(d));
+                            if (toAdd.length > 0) {
+                              setBlockedDomains([...blockedDomains, ...toAdd]);
+                            }
+                          }}
+                          className="rounded-lg bg-rose-600 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-rose-500 shadow-2xs transition cursor-pointer"
+                        >
+                          + Add All 18+ Presets
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Popular Website Presets */}
               <div>
                 <span className="block text-xs font-semibold text-slate-600 mb-2">Quick Add Popular Websites</span>

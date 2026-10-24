@@ -104,6 +104,21 @@ export default function ScreenTimeView({ child }) {
     return 'bg-emerald-500';
   }
 
+  function formatHistoryDate(dateStr) {
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterdayDate = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (dateStr === today) return 'Today';
+    if (dateStr === yesterdayDate) return 'Yesterday';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+    } catch (_) {}
+    return dateStr;
+  }
+
   if (loading) {
     return (
       <div className="py-6 text-center text-sm text-zinc-400">
@@ -143,6 +158,10 @@ export default function ScreenTimeView({ child }) {
       return (b.openCount || 0) - (a.openCount || 0) || (b.durationSeconds || 0) - (a.durationSeconds || 0);
     });
 
+  const recentHistory = data?.recentHistory || [];
+  const latestDate = data?.latestAvailableDate;
+  const hasNoDataToday = totalSecs === null && appsToShow.length === 0;
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
       {/* Header and Date Selector */}
@@ -166,7 +185,7 @@ export default function ScreenTimeView({ child }) {
             type="button"
             onClick={() => loadData(false)}
             disabled={refreshing}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 transition disabled:opacity-50 min-h-[36px] shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 transition disabled:opacity-50 min-h-[36px] shrink-0 cursor-pointer"
             title="Refresh latest screen time reported from child device"
           >
             <span className={refreshing ? 'animate-spin inline-block' : 'inline-block'}>🔄</span>
@@ -174,6 +193,73 @@ export default function ScreenTimeView({ child }) {
           </button>
         </div>
       </div>
+
+      {/* Interactive Preserved History Timeline Bar */}
+      {recentHistory.length > 0 && (
+        <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+              <span>📅</span>
+              <span>Preserved Activity Timeline (Click day to inspect):</span>
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {recentHistory.length} recorded {recentHistory.length === 1 ? 'day' : 'days'} safely retained
+            </span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {recentHistory.map((item) => {
+              const isSelected = item.date === date;
+              const hasUsage = item.totalScreenTimeSeconds && item.totalScreenTimeSeconds > 0;
+              return (
+                <button
+                  key={item.date}
+                  type="button"
+                  onClick={() => setDate(item.date)}
+                  className={`shrink-0 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition cursor-pointer border ${
+                    isSelected
+                      ? 'border-sky-500 bg-sky-600 text-white shadow-xs font-bold'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50/60'
+                  }`}
+                  title={`View screen time report for ${item.date}`}
+                >
+                  <span>{formatHistoryDate(item.date)}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                    isSelected
+                      ? 'bg-white/20 text-white font-bold'
+                      : hasUsage
+                      ? 'bg-sky-100 text-sky-800 font-bold'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {hasUsage ? formatDuration(item.totalScreenTimeSeconds) : 'No data'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Smart Empty-State Banner: If selected date is empty because app was uninstalled or offline */}
+      {hasNoDataToday && latestDate && latestDate !== date && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/90 p-4 text-xs text-indigo-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <span className="text-xl select-none">🛡️</span>
+            <div>
+              <p className="font-bold text-indigo-950 text-sm">No new reports for {formatHistoryDate(date)}</p>
+              <p className="text-indigo-800/90 text-xs mt-0.5 leading-relaxed">
+                If the companion app or extension was uninstalled or is offline, <strong>all previous screen time and app usage records remain permanently preserved</strong> in your dashboard.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDate(latestDate)}
+            className="shrink-0 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition shadow-xs cursor-pointer whitespace-nowrap"
+          >
+            Jump to Latest Preserved Activity ({formatHistoryDate(latestDate)}) →
+          </button>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-sm font-medium text-rose-700">
@@ -495,6 +581,23 @@ export default function ScreenTimeView({ child }) {
               : 'No application launches or open events recorded on this date.'}
           </p>
         )}
+      </div>
+
+      {/* Permanent Historical Data Retention Guarantee Banner */}
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50/80 via-white to-sky-50/40 p-4 text-xs text-slate-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl select-none">💾</span>
+          <div>
+            <p className="font-bold text-slate-900">Permanent Historical Record Guarantee</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Uninstalling or disconnecting the companion Android app or Chrome extension never deletes historical usage or activity logs. All past metrics remain permanently accessible.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+          <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span>History Retained</span>
+        </div>
       </div>
     </div>
   );

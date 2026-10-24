@@ -1,6 +1,31 @@
-import { downloadMeta } from '../lib/downloadMeta.js';
+import { useState, useEffect } from 'react';
+import { downloadMeta as staticMeta } from '../lib/downloadMeta.js';
+import { apiGet } from '../lib/api.js';
 
 export default function DownloadsView({ isStandalone = false }) {
+  const [meta, setMeta] = useState(staticMeta);
+  const [syncStatus, setSyncStatus] = useState('latest');
+
+  useEffect(() => {
+    let isMounted = true;
+    apiGet('/app-update')
+      .then((data) => {
+        if (!isMounted || !data) return;
+        setMeta((prev) => ({
+          updatedAt: data.updatedAt || prev.updatedAt,
+          android: data.android ? { ...prev.android, ...data.android } : prev.android,
+          extension: data.extension ? { ...prev.extension, ...data.extension } : prev.extension,
+        }));
+        setSyncStatus('synced');
+      })
+      .catch(() => {
+        // Keep static metadata gracefully if backend is offline/unreachable
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   return (
     <div className={`rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-4 sm:p-6 lg:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition ${isStandalone ? 'max-w-4xl mx-auto' : 'w-full'}`}>
       <div>
@@ -35,18 +60,32 @@ export default function DownloadsView({ isStandalone = false }) {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h3 className="text-sm font-bold text-slate-900">Android App</h3>
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md">
-                    {downloadMeta.android.sizeFormatted}
+                    {meta.android.sizeFormatted}
                   </span>
                   <span className="text-[10px] font-bold text-teal-800 bg-teal-100/60 px-1.5 py-0.5 rounded-md">
-                    {downloadMeta.android.versionName}
+                    {meta.android.versionName}
                   </span>
+                  {syncStatus === 'synced' && (
+                    <span className="text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/60 hidden sm:inline-block">
+                      Live
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] font-medium text-slate-500 truncate">Phones &amp; tablets • Always latest version</p>
+                {Array.isArray(meta.android.features) && meta.android.features.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {meta.android.features.slice(0, 3).map((feat) => (
+                      <span key={feat} className="text-[9.5px] font-medium text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                        ✓ {feat}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <a
-              href={`${downloadMeta.android.downloadUrl}?v=${downloadMeta.android.versionHash}`}
-              download={downloadMeta.android.fileName}
+              href={`${meta.android.downloadUrl}?v=${meta.android.versionHash || 'latest'}`}
+              download={meta.android.fileName}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 hover:shadow-md transition active:scale-95 shrink-0 min-h-[40px]"
               id="download-apk-btn"
             >
@@ -67,18 +106,32 @@ export default function DownloadsView({ isStandalone = false }) {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h3 className="text-sm font-bold text-slate-900">Chrome Extension</h3>
                   <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-1.5 py-0.5 rounded-md">
-                    {downloadMeta.extension.sizeFormatted}
+                    {meta.extension.sizeFormatted}
                   </span>
                   <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100/60 px-1.5 py-0.5 rounded-md">
-                    {downloadMeta.extension.versionName}
+                    {meta.extension.versionName}
                   </span>
+                  {syncStatus === 'synced' && (
+                    <span className="text-[9.5px] font-semibold text-sky-600 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200/60 hidden sm:inline-block">
+                      Live
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] font-medium text-slate-500 truncate">Desktop browsing • Always latest version</p>
+                {Array.isArray(meta.extension.features) && meta.extension.features.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {meta.extension.features.slice(0, 3).map((feat) => (
+                      <span key={feat} className="text-[9.5px] font-medium text-sky-800 bg-sky-100/70 px-1.5 py-0.5 rounded">
+                        ✓ {feat}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <a
-              href={`${downloadMeta.extension.downloadUrl}?v=${downloadMeta.extension.versionHash}`}
-              download={downloadMeta.extension.fileName}
+              href={`${meta.extension.downloadUrl}?v=${meta.extension.versionHash || 'latest'}`}
+              download={meta.extension.fileName}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-sky-600/20 hover:from-sky-500 hover:to-indigo-500 hover:shadow-md transition active:scale-95 shrink-0 min-h-[40px]"
               id="download-extension-btn"
             >

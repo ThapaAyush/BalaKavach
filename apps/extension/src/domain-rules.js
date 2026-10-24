@@ -113,6 +113,165 @@ export const BLOCK_RESOURCE_TYPES = [
   'other'
 ];
 
+export const ADULT_FIRST_RULE_ID = 2000;
+export const MAX_ADULT_DOMAINS = 100;
+
+export const ADULT_18_PLUS_DOMAINS = Object.freeze([
+  'adultfriendfinder.com',
+  'anyporn.com',
+  'badjojo.com',
+  'bangbros.com',
+  'beeg.com',
+  'bongacams.com',
+  'brazzers.com',
+  'brazzers.network',
+  'cam4.com',
+  'camsoda.com',
+  'chaturbate.com',
+  'czechav.com',
+  'daftsex.com',
+  'drtuber.com',
+  'empflix.com',
+  'eporner.com',
+  'erome.com',
+  'fapdu.com',
+  'fuq.com',
+  'gelbooru.com',
+  'heavy-r.com',
+  'hentaihaven.xxx',
+  'hqporner.com',
+  'livejasmin.com',
+  'motherless.com',
+  'naughtyamerica.com',
+  'nhentai.net',
+  'onlyfans.com',
+  'porn.com',
+  'porn555.com',
+  'porndig.com',
+  'pornhat.com',
+  'pornhub.com',
+  'pornone.com',
+  'redgifs.com',
+  'redtube.com',
+  'rule34.xxx',
+  'sex.com',
+  'slutload.com',
+  'spankbang.com',
+  'stripchat.com',
+  'sunporno.com',
+  'thumbzilla.com',
+  'tnaflix.com',
+  'tube18.com',
+  'tube8.com',
+  'tubegalore.com',
+  'twistys.com',
+  'upornia.com',
+  'voyeurweb.com',
+  'xhamster.com',
+  'xmoviesforyou.com',
+  'xnxx.com',
+  'xvideos.com',
+  'xxx.com',
+  'youjizz.com',
+  'youporn.com'
+]);
+
+export const ADULT_KEYWORDS = Object.freeze([
+  'porn',
+  'porno',
+  'xxx',
+  'xvideos',
+  'xnxx',
+  'xhamster',
+  'redtube',
+  'pornhub',
+  'hentai',
+  'stripchat',
+  'chaturbate',
+  'spankbang',
+  'erotic',
+  'nsfw',
+  'onlyfans',
+  'cam4',
+  'youporn'
+]);
+
+export function isAdultContentUrl(urlValue, additionalBlockedDomains = []) {
+  if (typeof urlValue !== 'string' || !urlValue.trim()) return false;
+  let url;
+  try {
+    url = new URL(urlValue);
+  } catch {
+    return false;
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return false;
+
+  let hostname = url.hostname.toLowerCase().replace(/\.$/u, '');
+  if (hostname.startsWith('www.') && hostname.split('.').length > 2) {
+    hostname = hostname.slice(4);
+  }
+
+  // 1. Direct match with curated 18+ adult domains or subdomains
+  for (const adultDomain of ADULT_18_PLUS_DOMAINS) {
+    if (hostname === adultDomain || hostname.endsWith(`.${adultDomain}`)) {
+      return true;
+    }
+  }
+
+  // 2. Direct match with additional parent-blocked domains
+  if (Array.isArray(additionalBlockedDomains)) {
+    for (const blocked of additionalBlockedDomains) {
+      if (matchesBlockedDomain(urlValue, blocked)) {
+        return true;
+      }
+    }
+  }
+
+  // 3. Search engine query inspection (Google, Bing, Yahoo, DuckDuckGo, YouTube, etc.)
+  const isSearchEngine = (
+    hostname.includes('google.') ||
+    hostname.includes('bing.') ||
+    hostname.includes('yahoo.') ||
+    hostname.includes('duckduckgo.') ||
+    hostname.includes('youtube.') ||
+    hostname.includes('yandex.') ||
+    hostname.includes('baidu.')
+  );
+
+  const fullSearch = (url.search || '').toLowerCase();
+  const fullPath = (url.pathname || '').toLowerCase();
+
+  if (isSearchEngine && fullSearch) {
+    const params = url.searchParams;
+    const queryVal = (
+      params.get('q') ||
+      params.get('query') ||
+      params.get('search_query') ||
+      params.get('p') ||
+      ''
+    ).toLowerCase();
+
+    if (queryVal) {
+      for (const kw of ADULT_KEYWORDS) {
+        const regex = new RegExp(`(^|[^a-z0-9])${kw}([^a-z0-9]|$)`, 'u');
+        if (regex.test(queryVal)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // 4. URL path segment check (e.g. /porn/, /xxx/, /nsfw/)
+  const pathSegments = fullPath.split('/').filter(Boolean);
+  for (const seg of pathSegments) {
+    if (['porn', 'porno', 'xxx', 'hentai', 'nsfw'].includes(seg)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function createBlockRules(domains, maxDomains = MAX_BLOCKED_DOMAINS) {
   const normalized = normalizeDomainList(domains, maxDomains);
   return normalized.map((domain, index) => ({
@@ -127,6 +286,23 @@ export function createBlockRules(domains, maxDomains = MAX_BLOCKED_DOMAINS) {
   }));
 }
 
+export function createAdultBlockRules(domains = ADULT_18_PLUS_DOMAINS, startId = ADULT_FIRST_RULE_ID) {
+  const normalized = normalizeDomainList(domains, MAX_ADULT_DOMAINS);
+  return normalized.map((domain, index) => ({
+    id: startId + index,
+    priority: 2,
+    action: { type: 'block' },
+    condition: {
+      urlFilter: `||${domain}^`,
+      requestDomains: [domain],
+      resourceTypes: BLOCK_RESOURCE_TYPES
+    }
+  }));
+}
+
 export function isKidsGuardRuleId(id, maxDomains = MAX_BLOCKED_DOMAINS) {
-  return Number.isInteger(id) && id >= FIRST_RULE_ID && id < FIRST_RULE_ID + maxDomains;
+  return Number.isInteger(id) && (
+    (id >= FIRST_RULE_ID && id < FIRST_RULE_ID + maxDomains) ||
+    (id >= ADULT_FIRST_RULE_ID && id < ADULT_FIRST_RULE_ID + MAX_ADULT_DOMAINS)
+  );
 }

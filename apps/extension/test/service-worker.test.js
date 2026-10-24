@@ -5,6 +5,7 @@ import {
   reconcileAlarm,
   executeHeartbeat,
   executePolicySync,
+  syncWebHistory,
   HEARTBEAT_ALARM_NAME,
   HEARTBEAT_INTERVAL_MINUTES,
 } from '../src/service-worker.js';
@@ -600,3 +601,281 @@ test('runtime messages reject modification requests with parent-managed guidance
   assert.equal(badPlatform.ok, false);
   assert.match(badPlatform.error, /Platform must be a non-empty string/u);
 });
+
+function createMockTabs(initialTabs = []) {
+  let tabs = [...initialTabs];
+  const removedTabIds = [];
+  const updatedListeners = [];
+  const createdListeners = [];
+  return {
+    get currentTabs() { return tabs; },
+    get removedTabIds() { return removedTabIds; },
+    async query() {
+      return [...tabs];
+    },
+    async remove(ids) {
+      const idList = Array.isArray(ids) ? ids : [ids];
+      removedTabIds.push(...idList);
+      tabs = tabs.filter((t) => !idList.includes(t.id));
+    },
+    onUpdated: {
+      addListener(fn) { updatedListeners.push(fn); },
+    },
+    onCreated: {
+      addListener(fn) { createdListeners.push(fn); },
+    },
+    async triggerUpdate(tabId, changeInfo, tab) {
+      for (const fn of updatedListeners) {
+        await fn(tabId, changeInfo, tab);
+      }
+    },
+    async triggerCreate(tab) {
+      for (const fn of createdListeners) {
+        await fn(tab);
+      }
+    },
+  };
+}
+
+test('spontaneously closes all 18+ adult tabs when extension connects via redeemPairingCode', async () => {
+  const alarms = createMockAlarms();
+  const runtime = createMockRuntime();
+  const ruleManager = createMockRuleManager();
+  // Device starts unpaired before connection
+  const deviceClient = createMockDeviceClient({
+    initialStatus: { isPaired: false, pairingStatus: 'unpaired' }
+  });
+
+  // Child has open tabs before pairing: two adult tabs and one educational tab
+  const mockTabs = createMockTabs([
+    { id: 101, url: 'https://www.pornhub.com/video/123' },
+    { id: 102, url: 'https://en.wikipedia.org/wiki/Mathematics' },
+    { id: 103, url: 'https://www.google.com/search?q=free+xxx+clips' },
+  ]);
+
+  const sw = createServiceWorker({
+    ruleManager,
+    deviceClient,
+    alarms,
+    runtime,
+    tabs: mockTabs,
+  });
+  await sw.init();
+
+  // User connects extension by redeeming pairing code from the parent website
+  const redeemResult = await runtime.triggerMessage({
+    action: 'redeemPairingCode',
+    code: 'ABCDEFabcdef01234567-_',
+    name: "Alex's Chrome Profile",
+    platform: 'linux',
+  });
+
+  assert.equal(redeemResult.ok, true);
+  assert.equal(redeemResult.device.pairingStatus, 'paired');
+  assert.equal(redeemResult.purgedAdultTabsCount, 2);
+
+  // Both 18+ tabs (101 and 103) were spontaneously closed!
+  assert.deepEqual(mockTabs.removedTabIds, [101, 103]);
+
+  // Safe educational tab (102) remains untouched in Chrome
+  assert.equal(mockTabs.currentTabs.length, 1);
+  assert.equal(mockTabs.currentTabs[0].id, 102);
+});
+
+test('tabs.onUpdated real-time monitor spontaneously closes any tab navigating to 18+ content while paired', async () => {
+  const alarms = createMockAlarms();
+  const runtime = createMockRuntime();
+  const ruleManager = createMockRuleManager();
+  const deviceClient = createMockDeviceClient();
+
+  const mockTabs = createMockTabs([
+    { id: 201, url: 'https://google.com' },
+  ]);
+
+  const sw = createServiceWorker({
+    ruleManager,
+    deviceClient,
+    alarms,
+    runtime,
+    tabs: mockTabs,
+  });
+  await sw.init();
+
+  // Tab navigates to benign research topic: not closed
+  await mockTabs.triggerUpdate(201, { url: 'https://google.com/search?q=science+fair' }, { id: 201 });
+  assert.equal(mockTabs.removedTabIds.length, 0);
+
+  // Tab attempts to navigate to adult 18+ content: spontaneously removed!
+  await mockTabs.triggerUpdate(201, { url: 'https://xvideos.com/watch' }, { id: 201 });
+  assert.deepEqual(mockTabs.removedTabIds, [201]);
+  assert.equal(mockTabs.currentTabs.length, 0);
+});
+
+test('purgeAdultTabs runtime message cleans up open adult tabs on demand', async () => {
+  const alarms = createMockAlarms();
+  const runtime = createMockRuntime();
+  const ruleManager = createMockRuleManager();
+  const deviceClient = createMockDeviceClient();
+
+  const mockTabs = createMockTabs();
+
+  const sw = createServiceWorker({
+    ruleManager,
+    deviceClient,
+    alarms,
+    runtime,
+    tabs: mockTabs,
+  });
+  await sw.init();
+
+  // Open tabs are present after startup
+  mockTabs.currentTabs.push(
+    { id: 301, url: 'https://chaturbate.com/room' },
+    { id: 302, url: 'https://khanacademy.org' }
+  );
+
+  const result = await runtime.triggerMessage({ action: 'purgeAdultTabs' });
+  assert.equal(result.ok, true);
+  assert.equal(result.purgedCount, 1);
+  assert.deepEqual(result.removedTabIds, [301]);
+  assert.equal(mockTabs.currentTabs.length, 1);
+  assert.equal(mockTabs.currentTabs[0].id, 302);
+});
+
+test('syncWebHistory queries chrome.history.search, filters internal URLs, flags blocked visits, and sends to deviceClient', async () => {
+  const sentVisits = [];
+  const mockClient = {
+    async getStatus() {
+      return {
+        deviceId: 'dev-123',
+        pairingStatus: 'paired',
+        isPaired: true,
+      };
+    },
+    async sendWebHistory(visits) {
+      sentVisits.push(...visits);
+      return { ok: true, status: 'ok', ingestedCount: visits.length };
+    },
+  };
+
+  const mockHistory = {
+    async search() {
+      return [
+        { url: 'chrome://settings', title: 'Settings', lastVisitTime: 1792850000000, visitCount: 1 },
+        { url: 'https://en.wikipedia.org/wiki/Solar_System', title: 'Solar System - Wikipedia', lastVisitTime: 1792850100000, visitCount: 2 },
+        { url: 'https://pornhub.com/video', title: 'Video', lastVisitTime: 1792850200000, visitCount: 1 },
+      ];
+    },
+  };
+
+  const mockStorage = {
+    data: {},
+    async get(key) { return { [key]: this.data[key] }; },
+    async set(obj) { Object.assign(this.data, obj); },
+  };
+
+  const result = await syncWebHistory({
+    deviceClient: mockClient,
+    history: mockHistory,
+    storage: mockStorage,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'ok');
+  assert.equal(sentVisits.length, 2);
+
+  // Chrome settings internal URL was excluded
+  assert.equal(sentVisits.some((v) => v.url.includes('chrome://')), false);
+
+  // Wikipedia was included and safe
+  const wikiVisit = sentVisits.find((v) => v.url.includes('wikipedia.org'));
+  assert.ok(wikiVisit);
+  assert.equal(wikiVisit.domain, 'en.wikipedia.org');
+  assert.equal(wikiVisit.isBlocked, false);
+  assert.equal(wikiVisit.visitCount, 2);
+
+  // Adult URL was included and flagged as blocked
+  const adultVisit = sentVisits.find((v) => v.url.includes('pornhub.com'));
+  assert.ok(adultVisit);
+  assert.equal(adultVisit.isBlocked, true);
+
+  // Timestamp was saved to prevent re-querying old items
+  assert.ok(mockStorage.data.kidsguard_last_history_sync > 0);
+});
+
+test('redeemPairingCode spontaneously triggers web history synchronization upon pairing', async () => {
+  const alarms = createMockAlarms();
+  const runtime = createMockRuntime();
+  const ruleManager = createMockRuleManager();
+
+  const sentVisits = [];
+  const deviceClient = {
+    session: null,
+    async getStatus() {
+      return this.session ?? { isPaired: false, pairingStatus: 'unpaired' };
+    },
+    async redeemPairingCode() {
+      this.session = {
+        deviceId: 'dev-123',
+        deviceName: 'Alex Chrome',
+        pairingStatus: 'paired',
+        isPaired: true,
+      };
+      return this.session;
+    },
+    async fetchPolicy() {
+      return { ok: true, policy: { version: 1 } };
+    },
+    async acknowledgePolicy() {
+      return { ok: true };
+    },
+    async sendWebHistory(visits) {
+      sentVisits.push(...visits);
+      return { ok: true, status: 'ok', ingestedCount: visits.length };
+    },
+  };
+
+  const mockHistory = {
+    async search() {
+      return [
+        { url: 'https://nationalgeographic.com', title: 'National Geographic', lastVisitTime: 1792850300000, visitCount: 1 },
+      ];
+    },
+  };
+
+  const mockStorage = {
+    data: {},
+    async get(key) { return { [key]: this.data[key] }; },
+    async set(obj) { Object.assign(this.data, obj); },
+  };
+
+  const sw = createServiceWorker({
+    ruleManager,
+    deviceClient,
+    alarms,
+    runtime,
+    history: mockHistory,
+    storage: mockStorage,
+  });
+  await sw.init();
+
+  const response = await runtime.triggerMessage({
+    action: 'redeemPairingCode',
+    code: 'abcdefghijklmnopqrstuv',
+    name: 'Alex Laptop',
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.device.isPaired, true);
+
+  // Allow serialize queue microtask to resolve
+  await new Promise((r) => setTimeout(r, 20));
+
+  // History was spontaneously uploaded to backend
+  assert.equal(sentVisits.length, 1);
+  assert.equal(sentVisits[0].domain, 'nationalgeographic.com');
+  assert.equal(sentVisits[0].isBlocked, false);
+});
+
+
+

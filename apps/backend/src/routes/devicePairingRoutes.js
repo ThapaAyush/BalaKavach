@@ -107,6 +107,16 @@ export function createDevicePairingRouter({
     validateObjectIdParam('deviceId', deviceNotFoundError),
     controller.revokeDevice,
   );
+  router.get(
+    '/devices/:deviceId/uninstalled',
+    validateObjectIdParam('deviceId', deviceNotFoundError),
+    controller.recordDeviceUninstall,
+  );
+  router.post(
+    '/devices/:deviceId/uninstalled',
+    validateObjectIdParam('deviceId', deviceNotFoundError),
+    controller.recordDeviceUninstall,
+  );
 
   return router;
 }

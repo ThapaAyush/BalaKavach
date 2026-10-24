@@ -8,6 +8,7 @@ import { ensureFamilyChildIndexes } from './services/familyChildRepository.js';
 import { ensureDevicePairingIndexes } from './services/devicePairingRepository.js';
 import { ensurePolicyIndexes } from './services/policyRepository.js';
 import { ensureScreenTimeIndexes } from './services/screenTimeRepository.js';
+import { ensureWebHistoryIndexes } from './services/webHistoryRepository.js';
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 
@@ -41,6 +42,11 @@ export async function startServer() {
         await ensureScreenTimeIndexes();
       } catch {
         console.warn('Screen time storage could not be initialized; screen time is unavailable.');
+      }
+      try {
+        await ensureWebHistoryIndexes();
+      } catch {
+        console.warn('Web history storage could not be initialized; web history is unavailable.');
       }
     }
   } catch (error) {

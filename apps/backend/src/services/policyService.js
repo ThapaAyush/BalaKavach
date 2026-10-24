@@ -37,6 +37,7 @@ function publicPolicy(policy, childProfileId) {
       webRestrictions: {
         enabled: false,
         enforcementPlatform: 'desktop_chrome',
+        blockAdultContent: false,
         blockedDomains: [],
       },
       updatedAt: null,
@@ -62,6 +63,7 @@ function publicPolicy(policy, childProfileId) {
     webRestrictions: {
       enabled: policy.webRestrictions?.enabled ?? false,
       enforcementPlatform: policy.webRestrictions?.enforcementPlatform ?? 'desktop_chrome',
+      blockAdultContent: policy.webRestrictions?.blockAdultContent ?? false,
       blockedDomains: policy.webRestrictions?.blockedDomains ?? [],
     },
     updatedAt: policy.updatedAt ?? null,

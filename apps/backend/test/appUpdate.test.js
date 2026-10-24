@@ -64,4 +64,62 @@ describe('App Update Router (/api/v1/app-update)', () => {
       assert.match(response.headers.location, /balakavach-companion\.apk/);
     }
   });
+
+  it('returns both android and extension companion metadata', async () => {
+    const app = express();
+    app.use('/api/v1/app-update', createAppUpdateRouter({
+      runtimeEnv: {
+        LATEST_ANDROID_VERSION_NAME: '0.1.1',
+        LATEST_EXTENSION_VERSION: '0.3.0',
+      },
+    }));
+
+    const response = await request(app)
+      .get('/api/v1/app-update')
+      .expect(200);
+
+    assert.equal(response.body.ok, true);
+    assert.ok(response.body.data.android);
+    assert.ok(response.body.data.extension);
+    assert.equal(response.body.data.android.versionName, 'v0.1.1');
+    assert.equal(response.body.data.extension.versionName, 'v0.3.0');
+    assert.ok(Array.isArray(response.body.data.extension.features));
+  });
+
+  it('detects Chrome extension update when client has older version', async () => {
+    const app = express();
+    app.use('/api/v1/app-update', createAppUpdateRouter({
+      runtimeEnv: {
+        LATEST_EXTENSION_VERSION: '0.3.0',
+      },
+    }));
+
+    const response = await request(app)
+      .get('/api/v1/app-update?platform=extension&currentVersionName=0.2.2')
+      .expect(200);
+
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.data.platform, 'extension');
+    assert.equal(response.body.data.version, '0.3.0');
+    assert.equal(response.body.data.updateAvailable, true);
+  });
+
+  it('downloads extension zip or redirects when requested', async () => {
+    const app = express();
+    app.use('/api/v1/app-update', createAppUpdateRouter({
+      runtimeEnv: {
+        CHROME_EXTENSION_EXTERNAL_URL: 'https://example.com/balakavach-chrome-extension.zip',
+      },
+    }));
+
+    const response = await request(app)
+      .get('/api/v1/app-update/download?target=extension');
+
+    assert.ok(response.status === 200 || response.status === 302);
+    if (response.status === 200) {
+      assert.match(response.headers['content-disposition'], /balakavach-chrome-extension\.zip/);
+    } else {
+      assert.match(response.headers.location, /balakavach-chrome-extension\.zip/);
+    }
+  });
 });

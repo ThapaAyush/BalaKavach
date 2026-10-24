@@ -96,3 +96,58 @@ test('creates comprehensive blocking rules across resource types with a dedicate
   ]);
   assert.throws(() => createBlockRules(Array.from({ length: 101 }, (_, i) => `d${i}.example`)), { name: 'RangeError' });
 });
+
+test('isAdultContentUrl identifies adult domains, adult searches, and blocked domains while allowing benign content', async () => {
+  const { isAdultContentUrl, ADULT_18_PLUS_DOMAINS } = await import('../src/domain-rules.js');
+
+  // 1. Direct adult domain and subdomain detection
+  assert.equal(isAdultContentUrl('https://pornhub.com/video'), true);
+  assert.equal(isAdultContentUrl('https://www.pornhub.com'), true);
+  assert.equal(isAdultContentUrl('https://m.xvideos.com/new'), true);
+  assert.equal(isAdultContentUrl('https://chaturbate.com/'), true);
+  assert.equal(isAdultContentUrl('https://onlyfans.com/user'), true);
+  assert.equal(isAdultContentUrl('https://stripchat.com/broadcast'), true);
+
+  // 2. Search engine adult queries detection (Google, Bing, DuckDuckGo, YouTube)
+  assert.equal(isAdultContentUrl('https://www.google.com/search?q=porn+videos'), true);
+  assert.equal(isAdultContentUrl('https://www.google.co.uk/search?q=xxx+full+movie'), true);
+  assert.equal(isAdultContentUrl('https://www.bing.com/search?q=hentai'), true);
+  assert.equal(isAdultContentUrl('https://duckduckgo.com/?q=stripchat'), true);
+  assert.equal(isAdultContentUrl('https://www.youtube.com/results?search_query=adult+erotic+nsfw'), true);
+
+  // 3. Explicit adult path segments
+  assert.equal(isAdultContentUrl('https://example-host.com/porn/gallery'), true);
+  assert.equal(isAdultContentUrl('https://example-host.com/xxx/item'), true);
+
+  // 4. Additional parent-blocked domains
+  assert.equal(isAdultContentUrl('https://custom-gambling.com/play', ['custom-gambling.com']), true);
+  assert.equal(isAdultContentUrl('https://sub.custom-gambling.com/play', ['custom-gambling.com']), true);
+
+  // 5. Benign and educational content allowed
+  assert.equal(isAdultContentUrl('https://en.wikipedia.org/wiki/Science'), false);
+  assert.equal(isAdultContentUrl('https://kids.nationalgeographic.com/'), false);
+  assert.equal(isAdultContentUrl('https://www.google.com/search?q=math+homework+help'), false);
+  assert.equal(isAdultContentUrl('https://www.youtube.com/watch?v=abc123xyz'), false);
+  assert.equal(isAdultContentUrl('not-a-url'), false);
+  assert.equal(isAdultContentUrl(''), false);
+});
+
+test('createAdultBlockRules generates rules starting at ADULT_FIRST_RULE_ID with high priority', async () => {
+  const { createAdultBlockRules, ADULT_FIRST_RULE_ID, isKidsGuardRuleId } = await import('../src/domain-rules.js');
+
+  const rules = createAdultBlockRules(['pornhub.com', 'xvideos.com']);
+  assert.equal(rules.length, 2);
+  assert.equal(rules[0].id, ADULT_FIRST_RULE_ID);
+  assert.equal(rules[0].priority, 2);
+  assert.equal(rules[0].action.type, 'block');
+  assert.equal(rules[0].condition.urlFilter, '||pornhub.com^');
+  assert.equal(rules[1].id, ADULT_FIRST_RULE_ID + 1);
+
+  // Rule ID recognition
+  assert.equal(isKidsGuardRuleId(ADULT_FIRST_RULE_ID), true);
+  assert.equal(isKidsGuardRuleId(ADULT_FIRST_RULE_ID + 50), true);
+  assert.equal(isKidsGuardRuleId(1000), true);
+  assert.equal(isKidsGuardRuleId(50), false);
+  assert.equal(isKidsGuardRuleId(999), false);
+});
+

@@ -3,6 +3,7 @@ import { apiDelete, apiGet, apiPost } from '../lib/api.js';
 import { downloadMeta } from '../lib/downloadMeta.js';
 import PolicyManager from '../components/PolicyManager.jsx';
 import ScreenTimeView from '../components/ScreenTimeView.jsx';
+import WebHistoryView from '../components/WebHistoryView.jsx';
 import DeviceStatusView from '../components/DeviceStatusView.jsx';
 import DownloadsView from '../components/DownloadsView.jsx';
 
@@ -31,11 +32,11 @@ function getInitialPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlPage = params.get('page');
-      if (urlPage && ['overview', 'screentime', 'rules', 'devices', 'downloads'].includes(urlPage)) {
+      if (urlPage && ['overview', 'screentime', 'webhistory', 'rules', 'devices', 'downloads'].includes(urlPage)) {
         return urlPage;
       }
       const stored = getSafeStorage('balakavach_page');
-      if (stored && ['overview', 'screentime', 'rules', 'devices', 'downloads'].includes(stored)) {
+      if (stored && ['overview', 'screentime', 'webhistory', 'rules', 'devices', 'downloads'].includes(stored)) {
         return stored;
       }
     }
@@ -60,11 +61,11 @@ function getInitialTab() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlTab = params.get('tab');
-      if (urlTab && ['screentime', 'policy', 'devices'].includes(urlTab)) {
+      if (urlTab && ['screentime', 'webhistory', 'policy', 'devices'].includes(urlTab)) {
         return urlTab;
       }
       const stored = getSafeStorage('balakavach_active_tab');
-      if (stored && ['screentime', 'policy', 'devices'].includes(stored)) {
+      if (stored && ['screentime', 'webhistory', 'policy', 'devices'].includes(stored)) {
         return stored;
       }
     }
@@ -325,8 +326,58 @@ export default function WelcomePage() {
     const timer = setTimeout(() => {
       setPairingCode((curr) => (curr ? { ...curr, code: null, status: 'expired' } : null));
     }, remainingMs);
-    return () => clearTimeout(timer);
-  }, [pairingCode?.id, pairingCode?.expiresAt, pairingCode?.status]);
+
+    // Active polling while pairing code is displayed to immediately detect redemption and show data
+    const activePairingChildId = pairingCode.childId;
+    const initialDeviceIds = new Set(devices.items.map((d) => d.id));
+    const pollTimer = setInterval(async () => {
+      try {
+        const data = await apiGet('/devices');
+        if (data?.devices && Array.isArray(data.devices)) {
+          const newlyAdded = data.devices.find((d) => !initialDeviceIds.has(d.id) && d.childProfileId === activePairingChildId);
+          if (newlyAdded) {
+            setDevices({ state: 'ready', items: data.devices });
+            setPairingCode(null);
+            setPairingAction({
+              busyChildId: null,
+              cancelling: false,
+              message: {
+                type: 'success',
+                text: `🎉 Connected! ${newlyAdded.name} (${newlyAdded.platform}) is now active and reporting data.`,
+              },
+            });
+          } else if (data.devices.length !== devices.items.length) {
+            setDevices({ state: 'ready', items: data.devices });
+          }
+        }
+      } catch {
+        // Non-blocking poll catch
+      }
+    }, 2500);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(pollTimer);
+    };
+  }, [pairingCode?.id, pairingCode?.expiresAt, pairingCode?.status, pairingCode?.childId, devices.items]);
+
+  useEffect(() => {
+    if (auth.state !== 'authenticated') return undefined;
+
+    function handleFocusOrVisible() {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadDevices();
+      }
+    }
+
+    window.addEventListener('visibilitychange', handleFocusOrVisible);
+    window.addEventListener('focus', handleFocusOrVisible);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleFocusOrVisible);
+      window.removeEventListener('focus', handleFocusOrVisible);
+    };
+  }, [auth.state]);
 
   useEffect(() => {
     if (!selectedChildId) return undefined;
@@ -704,6 +755,25 @@ export default function WelcomePage() {
 
                 <button
                   type="button"
+                  aria-label="Web History"
+                  onClick={() => {
+                    setCurrentPage('webhistory');
+                    if (!selectedChildId && children.items.length > 0) {
+                      setSelectedChildId(children.items[0].id);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition whitespace-nowrap min-h-[36px] ${
+                    currentPage === 'webhistory'
+                      ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                  }`}
+                >
+                  <span>🌐</span>
+                  <span>Web History</span>
+                </button>
+
+                <button
+                  type="button"
                   aria-label="Rules & Limits"
                   onClick={() => {
                     setCurrentPage('rules');
@@ -846,6 +916,74 @@ export default function WelcomePage() {
                         className="rounded-xl bg-sky-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-sky-500 transition shadow-xs whitespace-nowrap"
                       >
                         Adjust Rules &amp; Limits →
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* SEPARATE PAGE: CHROME WEB HISTORY */}
+            {currentPage === 'webhistory' && (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-8 items-center justify-center rounded-lg bg-sky-100 text-sky-700 text-base">🌐</span>
+                      <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Chrome Browsing History</h2>
+                    </div>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Live browsing stream, top domains, and blocked 18+ content attempts from the paired Chrome companion extension.
+                    </p>
+                  </div>
+
+                  {children.items.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                      <span className="text-xs font-semibold text-slate-400 mr-1 hidden sm:inline">Select Child:</span>
+                      {children.items.map((child) => (
+                        <button
+                          key={child.id}
+                          type="button"
+                          onClick={() => setSelectedChildId(child.id)}
+                          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                            selectedChild?.id === child.id
+                              ? 'bg-sky-600 text-white shadow-sky-500/20'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/80'
+                          }`}
+                        >
+                          <span className="size-2 rounded-full bg-emerald-400" />
+                          <span>{child.displayName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {children.items.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center space-y-3">
+                    <p className="text-sm font-semibold text-slate-600">No child profiles found.</p>
+                    <p className="text-xs text-slate-400">Please create a child profile in the Overview page to track Chrome browsing history.</p>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage('overview')}
+                      className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-500 transition shadow-xs"
+                    >
+                      Go to Overview
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <WebHistoryView child={selectedChild} onNavigateToRules={() => setCurrentPage('rules')} />
+                    <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                      <span className="text-sky-900 font-medium">
+                        Need to restrict specific websites or enable 18+ adult content blocking for {selectedChild?.displayName}?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage('rules')}
+                        className="rounded-xl bg-sky-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-sky-500 transition shadow-xs whitespace-nowrap"
+                      >
+                        Manage Web Rules &amp; Limits →
                       </button>
                     </div>
                   </>
@@ -1284,7 +1422,7 @@ export default function WelcomePage() {
                                       type="button"
                                       onClick={() => {
                                         setSelectedChildId(child.id);
-                                        setCurrentPage(activeTab === 'policy' ? 'rules' : activeTab === 'devices' ? 'devices' : 'screentime');
+                                        setCurrentPage(activeTab === 'policy' ? 'rules' : activeTab === 'devices' ? 'devices' : activeTab === 'webhistory' ? 'webhistory' : 'screentime');
                                       }}
                                       className="rounded-xl border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 hover:bg-sky-100 transition shadow-2xs"
                                     >
@@ -1312,6 +1450,17 @@ export default function WelcomePage() {
                                       }`}
                                     >
                                       Screen Time
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveTab('webhistory')}
+                                      className={`flex-1 sm:flex-initial whitespace-nowrap rounded-lg py-2 sm:py-1.5 px-2.5 sm:px-3 text-center font-semibold transition min-h-[34px] ${
+                                        activeTab === 'webhistory'
+                                          ? 'bg-white text-sky-700 shadow-xs'
+                                          : 'text-slate-600 hover:text-slate-900'
+                                      }`}
+                                    >
+                                      Web History
                                     </button>
                                     <button
                                       type="button"
@@ -1343,7 +1492,7 @@ export default function WelcomePage() {
                                     type="button"
                                     onClick={() => {
                                       setSelectedChildId(child.id);
-                                      setCurrentPage(activeTab === 'policy' ? 'rules' : activeTab === 'devices' ? 'devices' : 'screentime');
+                                      setCurrentPage(activeTab === 'policy' ? 'rules' : activeTab === 'devices' ? 'devices' : activeTab === 'webhistory' ? 'webhistory' : 'screentime');
                                     }}
                                     className="hidden sm:inline-block rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 transition shadow-xs shrink-0"
                                     title="Open this section in its dedicated separate page"
@@ -1362,6 +1511,14 @@ export default function WelcomePage() {
                               </div>
 
                               {activeTab === 'screentime' && <ScreenTimeView child={child} />}
+                              {activeTab === 'webhistory' && (
+                                <WebHistoryView
+                                  child={child}
+                                  onNavigateToRules={() => {
+                                    setActiveTab('policy');
+                                  }}
+                                />
+                              )}
                               {activeTab === 'policy' && (
                                 <PolicyManager
                                   child={child}
@@ -1478,16 +1635,22 @@ export default function WelcomePage() {
                       {devices.items.map((device) => {
                         const childName = children.items.find((c) => c.id === device.childProfileId)?.displayName ?? 'Child';
                         const isRevoked = device.pairingStatus === 'revoked' || Boolean(device.revokedAt);
+                        const isUninstalled = !isRevoked && (device.pairingStatus === 'uninstalled' || Boolean(device.uninstalledAt));
                         const pairedDate = device.pairedAt ? new Date(device.pairedAt).toLocaleString() : 'Unknown';
                         const lastSeen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never seen';
                         return (
                           <li className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 shadow-xs" key={device.id}>
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-bold text-slate-900">{device.name}</p>
-                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${isRevoked ? 'bg-slate-200 text-slate-600' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-                                  {isRevoked ? 'Revoked' : 'Paired'}
+                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${isRevoked ? 'bg-slate-200 text-slate-600' : isUninstalled ? 'bg-amber-100 text-amber-800' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                                  {isRevoked ? 'Revoked' : isUninstalled ? 'Uninstalled' : 'Paired'}
                                 </span>
+                                {(isRevoked || isUninstalled) && (
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                                    ✓ Data Preserved
+                                  </span>
+                                )}
                               </div>
                               <p className="mt-1 text-xs text-slate-500">
                                 Child: {childName} • Platform: {device.platform} • Paired: {pairedDate} • Last seen: {lastSeen}

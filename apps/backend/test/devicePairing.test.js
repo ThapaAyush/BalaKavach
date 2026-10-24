@@ -254,6 +254,30 @@ describe('authenticated child-device pairing', { concurrency: false }, () => {
     assert.equal(Object.hasOwn(device, 'deviceCredential'), false);
   });
 
+  it('records device uninstallation without deleting device records or historical data', async () => {
+    const child = (await createChild('Uninstallable device')).body.data.child;
+    const pairingCode = (await issueCode(child.id).expect(201)).body.data.pairingCode;
+    const redeemed = await redeem(pairingCode.code, { name: 'Child Chromebook' }).expect(201);
+    const deviceId = redeemed.body.data.device.id;
+
+    // Device uninstalled ping / GET request
+    const uninstallRes = await request(context.app)
+      .get(`/api/v1/devices/${deviceId}/uninstalled`)
+      .set('Accept', 'application/json')
+      .expect(200);
+
+    assert.equal(uninstallRes.body.ok, true);
+    assert.equal(uninstallRes.body.data.device.pairingStatus, 'uninstalled');
+    assert.ok(uninstallRes.body.data.device.uninstalledAt);
+
+    // Parent lists devices: device is still preserved with uninstalled status!
+    const listed = await authenticated('get', '/api/v1/devices').expect(200);
+    const found = listed.body.data.devices.find((d) => d.id === deviceId);
+    assert.ok(found, 'Device must not be removed on uninstallation');
+    assert.equal(found.pairingStatus, 'uninstalled');
+    assert.ok(found.uninstalledAt);
+  });
+
   it('rejects missing Origin, untrusted Origin, invalid input, and client ownership claims', async () => {
     const child = (await createChild('Origin child')).body.data.child;
     await issueCode(child.id, TOKEN_PARENT_ONE, null).expect(403);

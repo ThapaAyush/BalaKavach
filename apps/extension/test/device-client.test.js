@@ -612,3 +612,77 @@ test('acknowledgePolicy sends version and updates session acknowledgedPolicyVers
   const stored = storage.store[DEVICE_SESSION_STORAGE_KEY];
   assert.equal(stored.acknowledgedPolicyVersion, 4);
 });
+
+test('sendWebHistory sends Bearer authorization header and uploads visits payload', async () => {
+  const rawCredential = 'secret-device-credential-sample-token-43chr';
+  const initialSession = {
+    deviceId: 'dev-123',
+    deviceCredential: rawCredential,
+    pairingStatus: 'paired',
+  };
+  const storage = createMockStorage({
+    [DEVICE_SESSION_STORAGE_KEY]: initialSession,
+  });
+
+  const mock = mockFetch(async () => {
+    return jsonResponse(200, {
+      ok: true,
+      data: { ingestedCount: 2 },
+    });
+  });
+
+  const client = createDeviceClient({ storage, fetch: mock.fn });
+  const sampleVisits = [
+    { url: 'https://en.wikipedia.org/wiki/Science', title: 'Science - Wikipedia', domain: 'en.wikipedia.org', visitedAt: '2026-10-24T12:00:00.000Z', visitCount: 3, isBlocked: false },
+    { url: 'https://khanacademy.org/math', title: 'Math | Khan Academy', domain: 'khanacademy.org', visitedAt: '2026-10-24T12:05:00.000Z', visitCount: 1, isBlocked: false },
+  ];
+
+  const result = await client.sendWebHistory(sampleVisits);
+
+  assert.equal(mock.calls.length, 1);
+  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/web-history');
+  assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
+  const sent = JSON.parse(mock.calls[0].options.body);
+  assert.deepEqual(sent.visits, sampleVisits);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'ok');
+  assert.equal(result.ingestedCount, 2);
+});
+
+test('sendWebHistory returns noop for empty visits list', async () => {
+  const client = createDeviceClient({ storage: createMockStorage() });
+  const result = await client.sendWebHistory([]);
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'noop');
+  assert.equal(result.ingestedCount, 0);
+});
+
+test('sendWebHistory handles 401 neutrally as invalid_session', async () => {
+  const rawCredential = 'revoked-device-credential-43chars-long-base64';
+  const initialSession = {
+    deviceId: 'dev-123',
+    deviceCredential: rawCredential,
+    pairingStatus: 'paired',
+  };
+  const storage = createMockStorage({
+    [DEVICE_SESSION_STORAGE_KEY]: initialSession,
+  });
+
+  const mock = mockFetch(async () => {
+    return jsonResponse(401, {
+      ok: false,
+      error: { message: 'Invalid or revoked device credential.' },
+    });
+  });
+
+  const client = createDeviceClient({ storage, fetch: mock.fn });
+  const result = await client.sendWebHistory([
+    { url: 'https://example.com', title: 'Example', visitedAt: '2026-10-24T12:00:00.000Z' },
+  ]);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'invalid_session');
+  assert.equal(storage.store[DEVICE_SESSION_STORAGE_KEY].pairingStatus, 'invalid_session');
+});
+

@@ -6,7 +6,7 @@ test('declares only the permissions required for local rules and storage', async
   const manifestUrl = new URL('../manifest.json', import.meta.url);
   const manifest = JSON.parse(await readFile(manifestUrl, 'utf8'));
   assert.equal(manifest.manifest_version, 3);
-  assert.deepEqual(manifest.permissions, ['alarms', 'declarativeNetRequest', 'storage']);
+  assert.deepEqual(manifest.permissions, ['alarms', 'declarativeNetRequest', 'history', 'storage', 'tabs']);
   assert.deepEqual(manifest.host_permissions, [
     'http://localhost:5000/*',
     'http://127.0.0.1:5000/*',

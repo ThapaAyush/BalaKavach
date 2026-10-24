@@ -120,7 +120,7 @@ export const mongoDevicePairingRepository = Object.freeze({
 
   listDevices(familyId) {
     return runDatabaseOperation(() => DeviceRegistration.find({ familyId })
-      .select('_id childProfileId name platform pairedAt lastSeenAt revokedAt acknowledgedPolicyVersion lastPolicyAckAt lastScreenTimeReportAt')
+      .select('_id childProfileId name platform pairedAt lastSeenAt revokedAt uninstalledAt acknowledgedPolicyVersion lastPolicyAckAt lastScreenTimeReportAt')
       .sort({ pairedAt: -1, _id: 1 })
       .lean()
       .exec());
@@ -134,6 +134,20 @@ export const mongoDevicePairingRepository = Object.freeze({
         revokedAt: null,
       }, { $set: { revokedAt } }).exec();
       return result.matchedCount === 1;
+    });
+  },
+
+  recordDeviceUninstall({ deviceId, uninstalledAt }) {
+    return runDatabaseOperation(async () => {
+      const result = await DeviceRegistration.findOneAndUpdate(
+        { _id: deviceId },
+        { $set: { uninstalledAt } },
+        {
+          new: true,
+          select: '_id childProfileId name platform pairedAt lastSeenAt revokedAt uninstalledAt acknowledgedPolicyVersion lastPolicyAckAt lastScreenTimeReportAt',
+        },
+      ).lean().exec();
+      return result;
     });
   },
 

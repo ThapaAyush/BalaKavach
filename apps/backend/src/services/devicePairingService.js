@@ -20,16 +20,26 @@ function idString(value) {
 }
 
 function publicDevice(device) {
+  const isRevoked = Boolean(device.revokedAt);
+  const isUninstalled = Boolean(device.uninstalledAt);
+  let pairingStatus = 'paired';
+  if (isRevoked) {
+    pairingStatus = 'revoked';
+  } else if (isUninstalled) {
+    pairingStatus = 'uninstalled';
+  }
+
   return {
     id: idString(device),
     childProfileId: device.childProfileId?.toString(),
     name: device.name,
     platform: device.platform,
-    pairingStatus: device.revokedAt ? 'revoked' : 'paired',
+    pairingStatus,
     pairedAt: device.pairedAt,
     lastSeenAt: device.lastSeenAt ?? null,
     enforcementStatus: 'not_implemented',
     revokedAt: device.revokedAt ?? null,
+    uninstalledAt: device.uninstalledAt ?? null,
     acknowledgedPolicyVersion: device.acknowledgedPolicyVersion ?? 0,
     lastPolicyAckAt: device.lastPolicyAckAt ?? null,
     lastScreenTimeReportAt: device.lastScreenTimeReportAt ?? null,
@@ -166,6 +176,19 @@ export function createDevicePairingService({
         throw deviceAuthenticationError();
       }
       return publicDevice(device);
+    },
+
+    async recordDeviceUninstall(deviceId) {
+      repository.assertAvailable?.();
+      const uninstalledAt = now();
+      const updated = await repository.recordDeviceUninstall?.({
+        deviceId,
+        uninstalledAt,
+      });
+      if (!updated) {
+        throw deviceNotFoundError();
+      }
+      return publicDevice(updated);
     },
   });
 }

@@ -1,13 +1,15 @@
 {
   "manifest_version": 3,
   "name": "BalaKavach Browser Companion",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Parent-managed website filtering companion for BalaKavach.",
   "minimum_chrome_version": "101",
   "permissions": [
     "alarms",
     "declarativeNetRequest",
-    "storage"
+    "history",
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "http://localhost:5000/*",
