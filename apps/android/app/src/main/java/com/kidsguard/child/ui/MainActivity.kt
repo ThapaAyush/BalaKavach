@@ -1145,9 +1145,10 @@ class MainActivity : AppCompatActivity() {
                 binding.btnFilterAppOpens.background = null
                 binding.btnFilterAppOpens.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
 
-                binding.textAppUsageTitle.text = "App Usage"
-                binding.textAppUsageSubtitle.text = ""
-                binding.textAppUsageCountBadge.text = "${runApps.size} apps"
+                binding.textAppUsageTitle.text = getString(R.string.top_apps_title)
+                binding.textAppUsageSubtitle.text = getString(R.string.top_apps_subtitle)
+                binding.textAppUsageSubtitle.visibility = View.VISIBLE
+                binding.textAppUsageCountBadge.text = "${runApps.size} apps run"
                 binding.textAppUsageCountBadge.setTextColor(ContextCompat.getColor(this, R.color.accent_dark))
                 binding.textAppUsageCountBadge.visibility = View.VISIBLE
                 binding.textScreenTimeActiveApps.text = "${runApps.size} apps today"
@@ -1188,9 +1189,10 @@ class MainActivity : AppCompatActivity() {
                 binding.btnFilterAppOpens.background = ContextCompat.getDrawable(this, R.drawable.bg_tab_active_pill)
                 binding.btnFilterAppOpens.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
 
-                binding.textAppUsageTitle.text = "App Opens"
-                binding.textAppUsageSubtitle.text = ""
-                binding.textAppUsageCountBadge.text = "${openedApps.size} apps"
+                binding.textAppUsageTitle.text = "App Opens Breakdown"
+                binding.textAppUsageSubtitle.text = "Showing total open count for each application"
+                binding.textAppUsageSubtitle.visibility = View.VISIBLE
+                binding.textAppUsageCountBadge.text = "${openedApps.size} apps opened"
                 binding.textAppUsageCountBadge.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
                 binding.textAppUsageCountBadge.visibility = View.VISIBLE
                 binding.textScreenTimeActiveApps.text = "${openedApps.size} apps today"

@@ -144,7 +144,8 @@
     <string name="badge_blocked">BLOCKED</string>
     <string name="blocked_app_detected_warning">⚠️ %1$s is restricted</string>
 
-    <string name="top_apps_title">App Usage</string>
+    <string name="top_apps_title">Application Usage &amp; Screen Time Breakdown</string>
+    <string name="top_apps_subtitle">Showing foreground duration for each active application</string>
     <string name="no_apps_recorded">No app activity today.</string>
     <string name="apps_unavailable_no_perm">Usage Access required.</string>
 
