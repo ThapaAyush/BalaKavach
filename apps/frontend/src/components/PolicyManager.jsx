@@ -772,47 +772,31 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
               </div>
             </div>
 
-            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-              <span className="text-[11px] font-semibold text-slate-500">Quick Adult Presets:</span>
+            <div className="pt-2">
+              <div className="flex items-center justify-between flex-wrap gap-1.5 mb-2">
+                <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="text-rose-600">🔒</span>
+                  <span>Permanently Blocked 18+ Adult Networks (Included by Default):</span>
+                </span>
+                <span className="text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                  Always Active • No manual selection required
+                </span>
+              </div>
               <div className="flex flex-wrap gap-1.5">
-                {TOP_ADULT_PRESETS.map((preset) => {
-                  const isBlocked = blockedDomains.some((d) => d.toLowerCase() === preset.domain.toLowerCase());
-                  return (
-                    <button
-                      key={preset.domain}
-                      type="button"
-                      onClick={() => {
-                        if (isBlocked) {
-                          handleRemoveDomain(preset.domain);
-                        } else {
-                          setBlockedDomains([...blockedDomains, preset.domain]);
-                        }
-                      }}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold transition cursor-pointer ${
-                        isBlocked
-                          ? 'bg-rose-100 border border-rose-300 text-rose-800'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>{preset.name}</span>
-                      <span className="text-[9px] opacity-75">{isBlocked ? '✓ Blocked' : '+ Add'}</span>
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const toAdd = TOP_ADULT_PRESETS
-                      .map((p) => p.domain.toLowerCase())
-                      .filter((d) => !blockedDomains.includes(d));
-                    if (toAdd.length > 0) {
-                      setBlockedDomains([...blockedDomains, ...toAdd]);
-                    }
-                  }}
-                  className="rounded-lg bg-rose-600 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-rose-500 shadow-2xs transition cursor-pointer"
-                >
-                  + Add All 18+ Presets
-                </button>
+                {TOP_ADULT_PRESETS.map((preset) => (
+                  <span
+                    key={preset.domain}
+                    className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200/90 px-2.5 py-1 text-[11px] font-semibold text-rose-900 shadow-2xs select-none"
+                  >
+                    <span>{preset.icon || '🔞'}</span>
+                    <span>{preset.name}</span>
+                    <span className="text-[9.5px] font-bold text-rose-600 bg-rose-100/80 rounded px-1 py-0.5 ml-0.5">Blocked</span>
+                  </span>
+                ))}
+                <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 select-none">
+                  <span>🛡️</span>
+                  <span>+ 50 More Adult Domains</span>
+                </span>
               </div>
             </div>
           </div>

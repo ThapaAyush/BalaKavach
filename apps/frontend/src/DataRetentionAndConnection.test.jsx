@@ -219,10 +219,11 @@ describe('Data Retention and Companion App Connection', () => {
     expect(screen.getByText(/Blocks Google, Bing & YouTube adult queries/)).toBeInTheDocument();
     expect(screen.getByText(/50\+ adult domains blocked/)).toBeInTheDocument();
 
-    // Quick adult presets
-    const addAllPresetsBtn = screen.getByRole('button', { name: /\+ Add All 18\+ Presets/ });
-    expect(addAllPresetsBtn).toBeInTheDocument();
-    fireEvent.click(addAllPresetsBtn);
+    // Verifies permanently blocked adult networks (included by default without manual selection)
+    expect(screen.getByText(/Permanently Blocked 18\+ Adult Networks/)).toBeInTheDocument();
+    expect(screen.getByText('Pornhub')).toBeInTheDocument();
+    expect(screen.getByText('XVideos')).toBeInTheDocument();
+    expect(screen.getByText('Chaturbate')).toBeInTheDocument();
 
     // Click Save Rules & Policy button
     const saveBtn = screen.getByRole('button', { name: /Save Rules & Policy/ });
@@ -231,7 +232,7 @@ describe('Data Retention and Companion App Connection', () => {
     expect(await screen.findByText(/Policy saved successfully/)).toBeInTheDocument();
     expect(savedPayload.webRestrictions.blockAdultContent).toBe(true);
     expect(savedPayload.webRestrictions.blockedDomains).toEqual(
-      expect.arrayContaining(['tiktok.com', 'pornhub.com', 'xvideos.com', 'chaturbate.com'])
+      expect.arrayContaining(['tiktok.com'])
     );
   });
 
