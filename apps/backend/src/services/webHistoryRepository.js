@@ -53,17 +53,23 @@ function extractDomain(urlStr) {
 
 function inferCategory(urlStr, domain, isBlocked) {
   if (isBlocked) return 'blocked';
-  const lower = (urlStr || '').toLowerCase();
-  if (domain.includes('google.') || domain.includes('bing.') || domain.includes('duckduckgo.') || domain.includes('yahoo.')) {
+  const d = (domain || '').toLowerCase();
+  if (d.includes('github.') || d.includes('gitlab.') || d.includes('vercel.') || d.includes('mongodb.') || d.includes('stackoverflow.') || d.includes('aws.') || d.includes('azure.')) {
+    return 'tech';
+  }
+  if (d.includes('docs.google.') || d.includes('sheets.google.') || d.includes('mail.google.') || d.includes('translate.google.') || d.includes('razorpay.') || d.includes('slack.') || d.includes('notion.')) {
+    return 'productivity';
+  }
+  if (d.includes('google.') || d.includes('bing.') || d.includes('duckduckgo.') || d.includes('yahoo.')) {
     return 'search';
   }
-  if (domain.includes('wikipedia.') || domain.includes('khanacademy.') || domain.includes('nationalgeographic.') || domain.includes('edu')) {
+  if (d.includes('wikipedia.') || d.includes('khanacademy.') || d.includes('nationalgeographic.') || d.includes('edu') || d.includes('leetcode.') || d.includes('geeksforgeeks.') || d.includes('coursera.') || d.includes('superset')) {
     return 'education';
   }
-  if (domain.includes('youtube.') || domain.includes('netflix.') || domain.includes('twitch.')) {
+  if (d.includes('youtube.') || d.includes('netflix.') || d.includes('twitch.') || d.includes('spotify.')) {
     return 'video';
   }
-  if (domain.includes('discord.') || domain.includes('instagram.') || domain.includes('reddit.') || domain.includes('tiktok.')) {
+  if (d.includes('discord.') || d.includes('instagram.') || d.includes('reddit.') || d.includes('tiktok.') || d.includes('facebook.') || d.includes('twitter.') || d.includes('x.com')) {
     return 'social';
   }
   return 'general';

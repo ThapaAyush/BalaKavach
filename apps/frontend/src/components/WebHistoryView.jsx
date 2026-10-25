@@ -18,6 +18,47 @@ function formatTimestamp(isoString) {
   }
 }
 
+function formatDateGroupHeader(isoString) {
+  if (!isoString) return 'Recent Activity';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return 'Recent Activity';
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+
+    const formattedDate = new Intl.DateTimeFormat(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(d);
+
+    if (isToday) return `Today — ${formattedDate}`;
+    if (isYesterday) return `Yesterday — ${formattedDate}`;
+    return formattedDate;
+  } catch {
+    return 'Recent Activity';
+  }
+}
+
+function formatVisitTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d);
+  } catch {
+    return '';
+  }
+}
+
 function getCategoryMeta(category, isBlocked) {
   if (isBlocked) {
     return {
@@ -32,6 +73,19 @@ function getCategoryMeta(category, isBlocked) {
         label: 'Education',
         icon: '📚',
         badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      };
+    case 'tech':
+    case 'coding':
+      return {
+        label: 'Tech & Dev',
+        icon: '💻',
+        badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200/80',
+      };
+    case 'productivity':
+      return {
+        label: 'Productivity',
+        icon: '💼',
+        badgeClass: 'bg-blue-50 text-blue-700 border-blue-200/80',
       };
     case 'video':
       return {
@@ -74,6 +128,7 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'safe' | 'blocked'
   const [selectedDomain, setSelectedDomain] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const childId = child?.id || child?._id;
 
@@ -137,6 +192,29 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
     );
   }, [devicesData, childId]);
 
+  // Category statistics breakdown (Data-Wise Analysis)
+  const categoryStats = useMemo(() => {
+    const visits = historyData.visits || [];
+    if (!visits.length) return [];
+    const counts = {};
+    for (const v of visits) {
+      const cat = v.isBlocked ? 'blocked' : (v.category || 'general');
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+    const total = visits.length;
+    return Object.entries(counts).map(([cat, count]) => {
+      const meta = getCategoryMeta(cat, cat === 'blocked');
+      return {
+        category: cat,
+        label: meta.label,
+        icon: meta.icon,
+        count,
+        percent: Math.round((count / total) * 100),
+        badgeClass: meta.badgeClass,
+      };
+    }).sort((a, b) => b.count - a.count);
+  }, [historyData.visits]);
+
   // Filtered visits
   const displayVisits = useMemo(() => {
     let items = historyData.visits || [];
@@ -145,8 +223,51 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
     } else if (statusFilter === 'blocked') {
       items = items.filter((item) => item.isBlocked);
     }
+    if (selectedCategory !== 'all') {
+      items = items.filter((item) => {
+        if (selectedCategory === 'blocked') return item.isBlocked;
+        return (item.category || 'general') === selectedCategory;
+      });
+    }
     return items;
-  }, [historyData.visits, statusFilter]);
+  }, [historyData.visits, statusFilter, selectedCategory]);
+
+  // Group visits date-wise (like Chrome History)
+  const dateWiseGroups = useMemo(() => {
+    const groups = new Map();
+    for (const item of displayVisits) {
+      let dateKey = 'Other';
+      if (item.visitedAt) {
+        try {
+          const d = new Date(item.visitedAt);
+          if (!isNaN(d.getTime())) {
+            dateKey = d.toISOString().slice(0, 10);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!groups.has(dateKey)) {
+        groups.set(dateKey, []);
+      }
+      groups.get(dateKey).push(item);
+    }
+
+    return Array.from(groups.entries()).map(([dateKey, items]) => {
+      const categoryCounts = {};
+      for (const it of items) {
+        const cat = it.isBlocked ? 'blocked' : (it.category || 'general');
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+      }
+      return {
+        dateKey,
+        header: formatDateGroupHeader(items[0]?.visitedAt),
+        items,
+        totalVisits: items.length,
+        categoryCounts,
+      };
+    });
+  }, [displayVisits]);
 
   if (!child) {
     return (
@@ -273,6 +394,86 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
           <p className="mt-1 text-[11px] text-slate-400">DNR local engine blocking</p>
         </div>
       </div>
+
+      {/* Category Breakdown (Data-Wise Analysis) */}
+      {categoryStats.length > 0 && (
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <span>📊</span>
+                <span>Browsing Categories Breakdown (Data-Wise)</span>
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Distribution of child web activity categorized automatically by content type
+              </p>
+            </div>
+            {selectedCategory !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('all')}
+                className="text-xs font-semibold text-sky-600 hover:text-sky-800 self-start sm:self-auto"
+              >
+                Clear category filter (Show all)
+              </button>
+            )}
+          </div>
+
+          {/* Category Metric Pills / Filter Buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('all')}
+              className={`rounded-xl p-2.5 text-left border transition ${
+                selectedCategory === 'all'
+                  ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-500/20 shadow-xs'
+                  : 'border-slate-200/80 bg-slate-50/50 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-base">🌐</span>
+                <span className="rounded-full bg-slate-200/80 px-1.5 py-0.2 text-[10px] font-bold text-slate-700">
+                  {historyData.visits?.length || 0}
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-900 mt-1.5">All Categories</p>
+              <p className="text-[10px] text-slate-500 font-medium">100% of activity</p>
+            </button>
+
+            {categoryStats.map((stat) => (
+              <button
+                key={stat.category}
+                type="button"
+                onClick={() => setSelectedCategory(selectedCategory === stat.category ? 'all' : stat.category)}
+                className={`rounded-xl p-2.5 text-left border transition ${
+                  selectedCategory === stat.category
+                    ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-500/20 shadow-xs'
+                    : 'border-slate-200/80 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-base">{stat.icon}</span>
+                  <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] font-bold text-slate-700">
+                    {stat.count}
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-900 mt-1.5 truncate" title={stat.label}>
+                  {stat.label}
+                </p>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-sky-500"
+                      style={{ width: `${stat.percent}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-semibold">{stat.percent}%</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top Domains Pill Bar */}
       {summaryData?.topDomains && summaryData.topDomains.length > 0 && (
@@ -416,12 +617,17 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
         </div>
       )}
 
-      {/* Visits List / Timeline */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
-            Browsing History Stream
-          </h4>
+      {/* Visits List Grouped Date-Wise (like Chrome History) */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
+              Browsing History Stream
+            </h4>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 border border-slate-200">
+              Date-Wise Timeline
+            </span>
+          </div>
           <span className="text-xs font-semibold text-slate-500">
             Showing {displayVisits.length} of {historyData.totalCount} recorded visits
           </span>
@@ -437,8 +643,8 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
             <div className="text-3xl">🧭</div>
             <p className="text-sm font-bold text-slate-700">No browsing visits found</p>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              {searchQuery || selectedDomain !== 'all' || dateFilter || statusFilter !== 'all'
-                ? 'Try adjusting your search query, filters, or selected date to view more browsing history.'
+              {searchQuery || selectedDomain !== 'all' || dateFilter || statusFilter !== 'all' || selectedCategory !== 'all'
+                ? 'Try adjusting your search query, filters, category, or selected date to view more browsing history.'
                 : 'Connect the BalaKavach Chrome Companion extension on your child\'s device. Browsing visits will automatically appear here in real-time.'}
             </p>
             {onNavigateToRules && (
@@ -452,83 +658,122 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
             )}
           </div>
         ) : (
-          <ul className="divide-y divide-slate-100" aria-label="Web history items">
-            {displayVisits.map((item) => {
-              const meta = getCategoryMeta(item.category, item.isBlocked);
-              return (
-                <li
-                  key={item.id || `${item.url}-${item.visitedAt}`}
-                  className="py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 rounded-xl px-2.5 transition"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className={`flex size-9 sm:size-10 items-center justify-center rounded-xl text-base shrink-0 border ${meta.badgeClass}`}
-                      title={meta.label}
-                    >
-                      {meta.icon}
-                    </div>
+          <div className="space-y-6" aria-label="Web history items">
+            {dateWiseGroups.map((group) => (
+              <div key={group.dateKey} className="space-y-2">
+                {/* Date Group Header */}
+                <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50/95 backdrop-blur-xs px-3.5 py-2.5 border border-slate-200/90 text-xs shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-600 text-sm">📅</span>
+                    <span className="font-extrabold text-slate-800 text-xs sm:text-sm">{group.header}</span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold text-slate-700 border border-slate-200 shadow-2xs">
+                      {group.totalVisits} {group.totalVisits === 1 ? 'visit' : 'visits'}
+                    </span>
+                  </div>
 
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-md" title={item.title}>
-                          {item.title || item.domain || 'Web Page'}
-                        </span>
-
-                        {item.isBlocked ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-rose-100 border border-rose-300 px-1.5 py-0.5 text-[10px] font-extrabold text-rose-800">
-                            <span>🛡️</span>
-                            <span>Blocked by BalaKavach</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                            <span>🟢</span>
-                            <span>Safe</span>
-                          </span>
-                        )}
-
-                        {item.visitCount > 1 && (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.2 text-[10px] font-semibold text-slate-600">
-                            {item.visitCount} visits
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-sky-600 hover:text-sky-800 hover:underline truncate max-w-sm sm:max-w-md"
-                          title={item.url}
+                  {/* Date Category Breakdown Tags */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {Object.entries(group.categoryCounts).map(([cat, count]) => {
+                      const meta = getCategoryMeta(cat, cat === 'blocked');
+                      return (
+                        <span
+                          key={cat}
+                          className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold border ${meta.badgeClass}`}
                         >
-                          {item.url}
-                        </a>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                        <span>Domain: <strong>{item.domain}</strong></span>
-                        {item.deviceName && (
-                          <>
-                            <span>•</span>
-                            <span>Device: {item.deviceName}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                          <span>{meta.icon}</span>
+                          <span>{meta.label}: {count}</span>
+                        </span>
+                      );
+                    })}
                   </div>
+                </div>
 
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0 text-right">
-                    <span className="text-xs font-semibold text-slate-700">
-                      {formatTimestamp(item.visitedAt)}
-                    </span>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">
-                      {meta.label}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                {/* Items for this date */}
+                <ul className="divide-y divide-slate-100 bg-white rounded-xl">
+                  {group.items.map((item) => {
+                    const meta = getCategoryMeta(item.category, item.isBlocked);
+                    return (
+                      <li
+                        key={item.id || `${item.url}-${item.visitedAt}`}
+                        className="py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 rounded-xl px-2.5 transition"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div
+                            className={`flex size-9 sm:size-10 items-center justify-center rounded-xl text-base shrink-0 border ${meta.badgeClass}`}
+                            title={meta.label}
+                          >
+                            {meta.icon}
+                          </div>
+
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-md" title={item.title}>
+                                {item.title || item.domain || 'Web Page'}
+                              </span>
+
+                              {item.isBlocked ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-rose-100 border border-rose-300 px-1.5 py-0.5 text-[10px] font-extrabold text-rose-800">
+                                  <span>🛡️</span>
+                                  <span>Blocked by BalaKavach</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  <span>🟢</span>
+                                  <span>Safe</span>
+                                </span>
+                              )}
+
+                              <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold border ${meta.badgeClass}`}>
+                                <span>{meta.icon}</span>
+                                <span>{meta.label}</span>
+                              </span>
+
+                              {item.visitCount > 1 && (
+                                <span className="rounded-full bg-slate-100 px-2 py-0.2 text-[10px] font-semibold text-slate-600">
+                                  {item.visitCount} visits
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-sky-600 hover:text-sky-800 hover:underline truncate max-w-sm sm:max-w-md"
+                                title={item.url}
+                              >
+                                {item.url}
+                              </a>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                              <span>Domain: <strong>{item.domain}</strong></span>
+                              {item.deviceName && (
+                                <>
+                                  <span>•</span>
+                                  <span>Device: {item.deviceName}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0 text-right">
+                          <span className="text-xs font-extrabold text-slate-800">
+                            {formatVisitTime(item.visitedAt) || formatTimestamp(item.visitedAt)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
+                            {formatTimestamp(item.visitedAt)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
