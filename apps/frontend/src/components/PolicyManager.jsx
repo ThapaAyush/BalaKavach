@@ -67,29 +67,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
     { name: 'Twitch', domain: 'twitch.tv', icon: '🟣' },
   ];
 
-  const QUIET_START_PRESETS = [
-    { label: '8:00 PM', time24: '20:00' },
-    { label: '8:30 PM', time24: '20:30' },
-    { label: '9:00 PM', time24: '21:00' },
-    { label: '9:30 PM', time24: '21:30' },
-    { label: '10:00 PM', time24: '22:00' },
-    { label: '10:30 PM', time24: '22:30' },
-  ];
-
-  const QUIET_END_PRESETS = [
-    { label: '6:00 AM', time24: '06:00' },
-    { label: '6:30 AM', time24: '06:30' },
-    { label: '7:00 AM', time24: '07:00' },
-    { label: '7:30 AM', time24: '07:30' },
-    { label: '8:00 AM', time24: '08:00' },
-    { label: '8:30 AM', time24: '08:30' },
-  ];
-
-  const POPULAR_SCHEDULES = [
-    { label: '😴 School Night (9:00 PM – 7:00 AM)', start: '21:00', end: '07:00' },
-    { label: '🛌 Early Sleep (8:30 PM – 6:30 AM)', start: '20:30', end: '06:30' },
-    { label: '📚 Study / Older Kid (10:00 PM – 7:30 AM)', start: '22:00', end: '07:30' },
-  ];
 
   const KNOWN_APP_PACKAGES = {
     youtube: 'com.google.android.youtube',
@@ -556,36 +533,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
           {quietHoursEnabled && (
             <div className="mt-4 space-y-4 border-t border-amber-100 pt-4">
-              {/* 1-Tap Bedtime Schedules */}
-              <div className="rounded-xl bg-amber-50/70 border border-amber-200/80 p-3">
-                <span className="block text-xs font-bold text-amber-900 mb-2">
-                  ⚡ 1-Tap Bedtime Schedules:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {POPULAR_SCHEDULES.map((sched) => {
-                    const isSelected = quietHoursStart === sched.start && quietHoursEnd === sched.end;
-                    return (
-                      <button
-                        key={sched.label}
-                        type="button"
-                        onClick={() => {
-                          setQuietHoursStart(sched.start);
-                          setQuietHoursEnd(sched.end);
-                        }}
-                        className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-                          isSelected
-                            ? 'bg-amber-500 text-white shadow-xs'
-                            : 'border border-amber-200 bg-white text-amber-950 hover:bg-amber-100/70'
-                        }`}
-                      >
-                        {sched.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Starts At & Ends At Time Pickers (Easy Dropdowns, AM/PM, & Quick Presets) */}
+              {/* Starts At & Ends At Time Pickers (Direct Hour, Minute, & AM/PM) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <TimePickerField
                   id="quietStart"
@@ -593,7 +541,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                   icon="🌙"
                   value={quietHoursStart}
                   onChange={setQuietHoursStart}
-                  presets={QUIET_START_PRESETS}
                 />
                 <TimePickerField
                   id="quietEnd"
@@ -601,7 +548,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                   icon="☀️"
                   value={quietHoursEnd}
                   onChange={setQuietHoursEnd}
-                  presets={QUIET_END_PRESETS}
                 />
               </div>
 
