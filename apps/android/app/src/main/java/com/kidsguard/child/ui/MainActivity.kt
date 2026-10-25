@@ -591,6 +591,11 @@ class MainActivity : AppCompatActivity() {
                 isManual = true
             )
         }
+
+        binding.cardOfflineAlert.setOnClickListener {
+            Toast.makeText(this, "Reconnecting to BalaKavach server...", Toast.LENGTH_SHORT).show()
+            viewModel.autoSync(uploadScreenTime = true)
+        }
     }
 
     private fun openUsageSettings() {
