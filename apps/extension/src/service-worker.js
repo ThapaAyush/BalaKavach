@@ -92,7 +92,17 @@ export async function syncWebHistory({
   }
 
   const defaultStartTime = Date.now() - (lookbackDays * 24 * 60 * 60 * 1000);
-  const startTime = lastSyncTime > 0 ? Math.max(lastSyncTime - 120_000, defaultStartTime) : defaultStartTime;
+  let startTime = defaultStartTime;
+  if (status.pairedAt) {
+    const pairedAtMs = new Date(status.pairedAt).getTime();
+    if (!isNaN(pairedAtMs) && pairedAtMs > 0) {
+      startTime = lastSyncTime > 0 ? Math.max(lastSyncTime - 120_000, pairedAtMs) : pairedAtMs;
+    } else {
+      startTime = lastSyncTime > 0 ? Math.max(lastSyncTime - 120_000, defaultStartTime) : defaultStartTime;
+    }
+  } else {
+    startTime = lastSyncTime > 0 ? Math.max(lastSyncTime - 120_000, defaultStartTime) : defaultStartTime;
+  }
 
   let rawItems = [];
   try {
@@ -193,7 +203,7 @@ export async function syncWebHistory({
     }
   }
 
-  if (totalIngested > 0 || visits.length === 0) {
+  if (!lastError || totalIngested > 0 || visits.length === 0) {
     if (storage?.set) {
       try {
         await storage.set({
@@ -584,13 +594,24 @@ export function createServiceWorker({
 
       case 'sendHeartbeat': {
         try {
-          const result = await executeHeartbeat({ deviceClient: client, ruleManager: manager, tabs });
+          const result = await executeHeartbeat({ deviceClient: client, ruleManager: manager, tabs, history, storage });
           return result;
         } catch (error) {
           return {
             ok: false,
             error: error?.message || 'Failed to send heartbeat.',
           };
+        }
+      }
+
+      case 'reloadExtension': {
+        try {
+          if (typeof chrome !== 'undefined' && chrome.runtime?.reload) {
+            chrome.runtime.reload();
+          }
+          return { ok: true };
+        } catch (error) {
+          return { ok: false, error: error?.message || 'Failed to reload extension.' };
         }
       }
 

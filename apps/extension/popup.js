@@ -323,7 +323,7 @@ export function createPopupController({
     }
 
     try {
-      const response = await send({ action: 'syncWebHistory', lookbackDays: 7, maxResults: 500 });
+      const response = await send({ action: 'syncWebHistory', lookbackDays: 7, maxResults: 1000 });
       if (response?.ok) {
         const count = response.ingestedCount ?? 0;
         const msg = count > 0
