@@ -67,6 +67,7 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
   const [summaryData, setSummaryData] = useState(null);
   const [devicesData, setDevicesData] = useState([]);
   const [error, setError] = useState(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   // Filters
   const [dateFilter, setDateFilter] = useState('');
@@ -74,8 +75,10 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'safe' | 'blocked'
   const [selectedDomain, setSelectedDomain] = useState('all');
 
+  const childId = child?.id || child?._id;
+
   const loadHistory = useCallback(async (isSilent = false) => {
-    if (!child?.id) return;
+    if (!childId) return;
     if (!isSilent) setRefreshing(true);
     try {
       const queryParams = new URLSearchParams();
@@ -85,14 +88,21 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
       queryParams.set('limit', '100');
 
       const [historyRes, summaryRes, devicesRes] = await Promise.all([
-        apiGet(`/children/${child.id}/web-history?${queryParams.toString()}`),
-        apiGet(`/children/${child.id}/web-history/summary${dateFilter ? `?date=${dateFilter}` : ''}`),
+        apiGet(`/children/${childId}/web-history?${queryParams.toString()}`),
+        apiGet(`/children/${childId}/web-history/summary${dateFilter ? `?date=${dateFilter}` : ''}`),
         apiGet('/devices').catch(() => ({ devices: [] })),
       ]);
 
-      setHistoryData(historyRes || { visits: [], totalCount: 0 });
-      setSummaryData(summaryRes || null);
-      setDevicesData(devicesRes?.devices || (Array.isArray(devicesRes) ? devicesRes : []));
+      if (historyRes) {
+        setHistoryData(historyRes);
+      }
+      if (summaryRes) {
+        setSummaryData(summaryRes);
+      }
+      if (devicesRes) {
+        setDevicesData(devicesRes?.devices || (Array.isArray(devicesRes) ? devicesRes : []));
+      }
+      setLastSyncedAt(new Date());
       setError(null);
     } catch (err) {
       if (!isSilent) {
@@ -104,21 +114,28 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
         setRefreshing(false);
       }
     }
-  }, [child?.id, dateFilter, selectedDomain, searchQuery]);
+  }, [childId, dateFilter, selectedDomain, searchQuery]);
 
   useEffect(() => {
     setLoading(true);
     loadHistory(false);
+
+    // Continuous auto-sync: stream incoming Chrome browsing visits every 4 seconds in the background
+    const interval = setInterval(() => {
+      loadHistory(true);
+    }, 4000);
+
+    return () => clearInterval(interval);
   }, [loadHistory]);
 
   // Identify connected Chrome extension
   const chromeDevice = useMemo(() => {
     if (!Array.isArray(devicesData)) return null;
     return devicesData.find((d) =>
-      (d.childProfileId === child?.id || d.childId === child?.id) &&
+      (d.childProfileId === childId || d.childId === childId) &&
       (d.platform === 'linux' || d.platform === 'windows' || d.platform === 'macos' || d.name?.toLowerCase().includes('chrome'))
     );
-  }, [devicesData, child?.id]);
+  }, [devicesData, childId]);
 
   // Filtered visits
   const displayVisits = useMemo(() => {
@@ -197,8 +214,14 @@ export default function WebHistoryView({ child, onNavigateToRules }) {
               </span>
             )}
           </div>
-          <div className="text-[11px] text-indigo-700 font-medium">
-            Spontaneous auto-sync active on extension connect
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/90 border border-emerald-300 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 shadow-2xs">
+              <span className="size-2 rounded-full bg-emerald-500 animate-ping" />
+              Live Stream Active
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+              Incoming Chrome visits stream automatically
+            </span>
           </div>
         </div>
       </div>

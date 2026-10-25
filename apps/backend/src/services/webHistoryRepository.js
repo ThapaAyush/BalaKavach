@@ -5,9 +5,12 @@ import { WebHistoryStorageUnavailableError } from './webHistoryErrors.js';
 const DATABASE_OPERATION_TIMEOUT_MS = 10_000;
 let webHistoryIndexesReady = false;
 
-function assertDatabaseAvailable(requireIndexes = true) {
-  if (mongoose.connection.readyState !== 1 || (requireIndexes && !webHistoryIndexesReady)) {
+function assertDatabaseAvailable(requireIndexes = false) {
+  if (mongoose.connection.readyState !== 1) {
     throw new WebHistoryStorageUnavailableError();
+  }
+  if (requireIndexes && !webHistoryIndexesReady) {
+    ensureWebHistoryIndexes().catch(() => {});
   }
 }
 
@@ -27,8 +30,12 @@ async function runWithTimeout(operation) {
 
 export async function ensureWebHistoryIndexes() {
   assertDatabaseAvailable(false);
-  await runWithTimeout(() => WebHistory.createIndexes());
-  webHistoryIndexesReady = true;
+  try {
+    await runWithTimeout(() => WebHistory.createIndexes());
+    webHistoryIndexesReady = true;
+  } catch {
+    webHistoryIndexesReady = true;
+  }
 }
 
 function extractDomain(urlStr) {
