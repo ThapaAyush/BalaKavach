@@ -267,9 +267,18 @@ async function main() {
     process.exit(0);
   });
 
+  let lastKeepalivePing = 0;
+
   while (isRunning) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     try {
+      // Keep Render cloud backend awake (pings every 5 minutes)
+      const nowMs = Date.now();
+      if (nowMs - lastKeepalivePing > 5 * 60 * 1000) {
+        lastKeepalivePing = nowMs;
+        fetch('https://balakavach-be.onrender.com/api/v1/health').catch(() => {});
+      }
+
       // Look back 60 seconds from current highest timestamp to catch any delayed flush from Chrome
       const syncResult = await syncAllProfiles(db, child, device, lastSyncedTimestamps, pairedAtUnix);
       if (syncResult.totalIngested > 0) {

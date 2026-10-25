@@ -594,7 +594,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.cardOfflineAlert.setOnClickListener {
             Toast.makeText(this, "Reconnecting to BalaKavach server...", Toast.LENGTH_SHORT).show()
-            viewModel.autoSync(uploadScreenTime = true)
+            viewModel.syncNow()
+        }
+        binding.btnReconnectOffline.setOnClickListener {
+            Toast.makeText(this, "Reconnecting to BalaKavach server...", Toast.LENGTH_SHORT).show()
+            viewModel.syncNow()
         }
     }
 
@@ -656,6 +660,9 @@ class MainActivity : AppCompatActivity() {
 
                 // Continuous automatic synchronization while activity is in foreground
                 launch {
+                    if (viewModel.deviceSession.value.isPaired) {
+                        viewModel.autoSync()
+                    }
                     while (isActive) {
                         delay(AUTO_SYNC_INTERVAL_MS)
                         if (viewModel.deviceSession.value.isPaired) {
