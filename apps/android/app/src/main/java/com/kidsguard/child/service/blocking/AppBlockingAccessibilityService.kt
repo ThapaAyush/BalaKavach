@@ -247,7 +247,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         monitorJob?.cancel()
         monitorJob = serviceScope.launch {
             while (isActive) {
-                delay(2000L) // Periodic check every 2 seconds
+                delay(1000L) // Periodic check every 1 second for exact reverse timer tick
                 try {
                     val now = System.currentTimeMillis()
                     if (now - lastBackgroundPolicySyncMs >= 15_000L) {
@@ -297,7 +297,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         // Accumulate active foreground duration for currently running app
         if (lastForegroundTimestamp > 0L) {
             val elapsedSec = ((now - lastForegroundTimestamp) / 1000L).coerceAtLeast(0L)
-            if (elapsedSec >= 2L && !AppBlockingRuleEngine.isExempt(pkg)) {
+            if (elapsedSec >= 1L && !AppBlockingRuleEngine.isExempt(pkg)) {
                 ScreenTimeLimitManager.addLiveForegroundSeconds(this, elapsedSec, now)
                 lastForegroundTimestamp = now
             }

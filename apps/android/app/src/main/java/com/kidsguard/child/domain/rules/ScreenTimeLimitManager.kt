@@ -101,6 +101,29 @@ object ScreenTimeLimitManager {
      * Calculates used minutes for today counted towards the parent-configured daily screen-time limit.
      * Uses OS-measured screen time from midnight combined with live foreground seconds tracking.
      */
+    fun computeEffectiveUsedSeconds(
+        context: Context,
+        usage: ScreenTimeReportRequest?,
+        nowMs: Long = System.currentTimeMillis()
+    ): Long {
+        val totalMeasuredSec = usage?.totalScreenTimeSeconds ?: 0L
+        val liveSeconds = getLiveForegroundSeconds(context, nowMs)
+        return maxOf(totalMeasuredSec, liveSeconds)
+    }
+
+    fun computeRemainingSeconds(
+        context: Context,
+        policy: DevicePolicyResponse?,
+        usage: ScreenTimeReportRequest?,
+        nowMs: Long = System.currentTimeMillis()
+    ): Long {
+        val dailyLimitMin = policy?.dailyLimitMinutes ?: return -1L
+        if (dailyLimitMin <= 0) return -1L
+        val effectiveUsedSeconds = computeEffectiveUsedSeconds(context, usage, nowMs)
+        val budgetSeconds = dailyLimitMin * 60L
+        return maxOf(0L, budgetSeconds - effectiveUsedSeconds)
+    }
+
     fun computeUsedMinutesForLimit(
         context: Context,
         policy: DevicePolicyResponse?,
@@ -111,9 +134,7 @@ object ScreenTimeLimitManager {
         if (dailyLimitMin == null || dailyLimitMin <= 0) {
             return 0
         }
-        val totalMeasuredSec = usage?.totalScreenTimeSeconds ?: 0L
-        val liveSeconds = getLiveForegroundSeconds(context, nowMs)
-        val effectiveUsedSeconds = maxOf(totalMeasuredSec, liveSeconds)
+        val effectiveUsedSeconds = computeEffectiveUsedSeconds(context, usage, nowMs)
         return (effectiveUsedSeconds / 60).toInt()
     }
 
@@ -125,13 +146,15 @@ object ScreenTimeLimitManager {
         usedMinutes: Int,
         extensionUntilMs: Long,
         isLockedToday: Boolean,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        remainingSeconds: Long = -1L
     ): ScreenTimeEvaluationResult {
         if (isLockedToday) {
             return ScreenTimeEvaluationResult(
                 isTimeOver = true,
                 isLocked = true,
                 isExtensionActive = false,
+                remainingSeconds = 0L,
                 usedMinutes = usedMinutes,
                 reason = "Device locked for today by user."
             )
@@ -142,17 +165,25 @@ object ScreenTimeLimitManager {
                 isTimeOver = false,
                 isLocked = false,
                 isExtensionActive = false,
+                remainingSeconds = -1L,
                 usedMinutes = usedMinutes,
                 reason = "No daily limit configured."
             )
         }
 
+        val isExpired = if (remainingSeconds >= 0L) {
+            remainingSeconds <= 0L
+        } else {
+            usedMinutes >= dailyLimitMinutes
+        }
+
         // If usage has not reached the budget yet
-        if (usedMinutes < dailyLimitMinutes) {
+        if (!isExpired) {
             return ScreenTimeEvaluationResult(
                 isTimeOver = false,
                 isLocked = false,
                 isExtensionActive = false,
+                remainingSeconds = remainingSeconds,
                 usedMinutes = usedMinutes,
                 reason = "Usage ($usedMinutes m) is within daily budget ($dailyLimitMinutes m)."
             )
@@ -167,6 +198,7 @@ object ScreenTimeLimitManager {
                 isLocked = false,
                 isExtensionActive = true,
                 extensionRemainingSeconds = remainingSec,
+                remainingSeconds = remainingSec,
                 usedMinutes = usedMinutes,
                 reason = "Temporary extension active ($remainingSec seconds remaining)."
             )
@@ -177,6 +209,7 @@ object ScreenTimeLimitManager {
             isTimeOver = true,
             isLocked = false,
             isExtensionActive = false,
+            remainingSeconds = 0L,
             usedMinutes = usedMinutes,
             reason = "Daily limit reached ($usedMinutes m >= $dailyLimitMinutes m) with no active extension."
         )
@@ -222,14 +255,22 @@ object ScreenTimeLimitManager {
             0L
         }
 
-        val effectiveUsedMinutes = computeUsedMinutesForLimit(context, policy, usage, nowMs)
+        val effectiveUsedSeconds = computeEffectiveUsedSeconds(context, usage, nowMs)
+        val effectiveUsedMinutes = (effectiveUsedSeconds / 60).toInt()
+        val dailyLimitMin = policy?.dailyLimitMinutes
+        val remSec = if (dailyLimitMin != null && dailyLimitMin > 0) {
+            maxOf(0L, (dailyLimitMin * 60L) - effectiveUsedSeconds)
+        } else {
+            -1L
+        }
 
         return evaluateScreenTimeState(
-            dailyLimitMinutes = policy?.dailyLimitMinutes,
+            dailyLimitMinutes = dailyLimitMin,
             usedMinutes = effectiveUsedMinutes,
             extensionUntilMs = extensionUntilMs,
             isLockedToday = isLocked,
-            nowMs = nowMs
+            nowMs = nowMs,
+            remainingSeconds = remSec
         )
     }
 
@@ -544,6 +585,7 @@ data class ScreenTimeEvaluationResult(
     val isLocked: Boolean,
     val isExtensionActive: Boolean,
     val extensionRemainingSeconds: Long = 0L,
+    val remainingSeconds: Long = -1L,
     val reason: String = "",
     val usedMinutes: Int = 0
 )

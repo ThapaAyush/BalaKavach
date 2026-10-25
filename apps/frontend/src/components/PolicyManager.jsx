@@ -412,8 +412,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
             <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">
               {todayScreenTimeMinutes > 0 ? 'Quick Presets (Add time from now)' : 'Quick Budget Presets'}
             </span>
-            <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-5 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
               {[
+                { label: todayScreenTimeMinutes > 0 ? '+2m' : '2m', mins: 2 },
+                { label: todayScreenTimeMinutes > 0 ? '+5m' : '5m', mins: 5 },
                 { label: todayScreenTimeMinutes > 0 ? '+15m' : '15m', mins: 15 },
                 { label: todayScreenTimeMinutes > 0 ? '+30m' : '30m', mins: 30 },
                 { label: todayScreenTimeMinutes > 0 ? '+1h' : '1h', mins: 60 },
@@ -430,7 +432,7 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     key={preset.label}
                     type="button"
                     onClick={() => setDailyLimitMinutes(targetValue)}
-                    className={`rounded-lg px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-center transition ${
+                    className={`rounded-lg px-2 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-center transition ${
                       isSelected
                         ? 'bg-sky-600 text-white shadow-xs'
                         : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
@@ -449,10 +451,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
               type="number"
               min="1"
               max="1440"
-              placeholder="Total daily minutes (e.g. 120)"
+              placeholder={todayScreenTimeMinutes > 0 ? "Total minutes (e.g. 282 for 2m from now)" : "Total daily minutes (e.g. 120)"}
               value={dailyLimitMinutes}
               onChange={(e) => setDailyLimitMinutes(e.target.value)}
-              className="w-full sm:w-56 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
+              className="w-full sm:w-64 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
             />
             {dailyLimitMinutes && (
               <span className="text-xs font-semibold text-slate-600">
@@ -471,10 +473,10 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                   if (limitVal > todayScreenTimeMinutes) {
                     const remainingMins = limitVal - todayScreenTimeMinutes;
                     return (
-                      <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-200/90 px-3 py-1.5 rounded-lg font-medium">
-                        <span>✅</span>
+                      <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-200/90 px-3 py-2 rounded-lg font-medium">
+                        <span>⏳</span>
                         <span>
-                          <strong>{remainingMins} minutes remaining from now</strong> (Locks at {limitVal}m total: {todayScreenTimeMinutes}m used today + {remainingMins}m more).
+                          <strong>Active Timer: {remainingMins} minutes remaining from now</strong>. Child app will show live reverse countdown and close all apps at 00:00 (Locks at {limitVal}m total: {todayScreenTimeMinutes}m used today + {remainingMins}m).
                         </span>
                       </div>
                     );
@@ -491,17 +493,17 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                     return (
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-rose-800 bg-rose-50 border border-rose-200/90 px-3 py-2 rounded-lg font-medium">
                         <div className="flex items-center gap-1.5">
-                          <span>⚠️</span>
+                          <span>⏱️</span>
                           <span>
-                            Child already used {todayScreenTimeMinutes}m today. Setting {limitVal}m locks device immediately.
+                            Child already used {todayScreenTimeMinutes}m today. Set as <strong>{limitVal}m timer from now</strong>?
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => setDailyLimitMinutes(String(todayScreenTimeMinutes + limitVal))}
-                          className="self-start sm:self-auto shrink-0 bg-white border border-rose-300 text-rose-700 hover:bg-rose-100/50 px-2.5 py-1 rounded-md text-[11px] font-bold transition shadow-2xs"
+                          className="self-start sm:self-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition shadow-2xs cursor-pointer"
                         >
-                          Add {limitVal}m to today's screen time ({todayScreenTimeMinutes + limitVal}m total)
+                          ▶ Set {limitVal}m Timer ({todayScreenTimeMinutes + limitVal}m total)
                         </button>
                       </div>
                     );

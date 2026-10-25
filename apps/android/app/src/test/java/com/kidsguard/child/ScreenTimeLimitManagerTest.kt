@@ -314,4 +314,49 @@ class ScreenTimeLimitManagerTest {
         assertTrue(eval.isTimeOver)
         assertEquals(75, eval.usedMinutes)
     }
+
+    @Test
+    fun computeRemainingSeconds_calculatesExactCountdown_andReachesZero() {
+        val mockContext = org.mockito.Mockito.mock(android.content.Context::class.java)
+        val mockPrefs = org.mockito.Mockito.mock(android.content.SharedPreferences::class.java)
+        org.mockito.Mockito.`when`(mockContext.getSharedPreferences(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt())).thenReturn(mockPrefs)
+        org.mockito.Mockito.`when`(mockPrefs.getString(org.mockito.Mockito.anyString(), org.mockito.Mockito.nullable(String::class.java))).thenReturn(null)
+        org.mockito.Mockito.`when`(mockPrefs.getLong(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyLong())).thenReturn(0L)
+
+        // 2-minute timer limit
+        val policy2Min = com.kidsguard.child.data.model.DevicePolicyResponse.defaultPolicy().copy(
+            dailyLimitMinutes = 2
+        )
+
+        // 50 seconds used -> 70 seconds remaining
+        val usage50s = com.kidsguard.child.data.model.ScreenTimeReportRequest(
+            date = "2026-10-25",
+            totalScreenTimeSeconds = 50L,
+            reportingPeriod = com.kidsguard.child.data.model.ReportingPeriodDto(
+                start = "2026-10-25T00:00:00.000Z",
+                end = "2026-10-25T10:00:00.000Z"
+            ),
+            permissionGranted = true,
+            deviceUnlockCount = 1,
+            appUsage = emptyList()
+        )
+        val remaining70s = ScreenTimeLimitManager.computeRemainingSeconds(mockContext, policy2Min, usage50s)
+        assertEquals(70L, remaining70s)
+
+        // 120 seconds used (time reached 00:00)
+        val usage120s = usage50s.copy(totalScreenTimeSeconds = 120L)
+        val remaining0s = ScreenTimeLimitManager.computeRemainingSeconds(mockContext, policy2Min, usage120s)
+        assertEquals(0L, remaining0s)
+
+        // Evaluate at 0 remaining seconds
+        val evalExpired = ScreenTimeLimitManager.evaluateScreenTimeState(
+            dailyLimitMinutes = 2,
+            usedMinutes = 2,
+            extensionUntilMs = 0L,
+            isLockedToday = false,
+            remainingSeconds = remaining0s
+        )
+        assertTrue(evalExpired.isTimeOver)
+        assertEquals(0L, evalExpired.remainingSeconds)
+    }
 }

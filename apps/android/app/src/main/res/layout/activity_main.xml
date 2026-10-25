@@ -486,6 +486,49 @@
                             android:max="100"
                             android:progress="100"
                             android:progressTint="@color/status_yellow" />
+
+                        <!-- Live Reverse Countdown in Device Alert Banner -->
+                        <LinearLayout
+                            android:id="@+id/layoutAlertReverseTimer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_timer_card"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/textAlertReverseHeader"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="⏳ LIVE REVERSE COUNTDOWN"
+                                android:textColor="@color/accent_dark"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/textAlertReverseCountdown"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:fontFamily="monospace"
+                                android:text="00:00"
+                                android:textColor="@color/accent"
+                                android:textSize="28sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/textAlertReverseHint"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Apps will close automatically when timer reaches 00:00"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="11sp" />
+                        </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -1563,6 +1606,49 @@
                             android:max="100"
                             android:progress="0"
                             android:progressTint="@color/accent" />
+
+                        <!-- Live Reverse Countdown Timer Display -->
+                        <LinearLayout
+                            android:id="@+id/layoutReverseTimer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/bg_timer_card"
+                            android:paddingHorizontal="14dp"
+                            android:paddingVertical="10dp"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/textReverseTimerHeader"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="⏳ LIVE REVERSE COUNTDOWN"
+                                android:textColor="@color/accent_dark"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/textReverseCountdown"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="00:00"
+                                android:textColor="@color/accent"
+                                android:textSize="34sp"
+                                android:textStyle="bold"
+                                android:fontFamily="monospace" />
+
+                            <TextView
+                                android:id="@+id/textReverseTimerHint"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Apps will close automatically when timer reaches 00:00"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="11sp" />
+                        </LinearLayout>
 
                         <View
                             android:layout_width="match_parent"

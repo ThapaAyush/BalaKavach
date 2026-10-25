@@ -124,6 +124,8 @@ class MainActivity : AppCompatActivity() {
         updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
         // Update daily limit alert banner
         updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
+        // Update live reverse countdown timer
+        updateReverseTimerUi()
         // Check for application updates from backend (non-intrusive)
         viewModel.checkForAppUpdate(
             currentVersionCode = com.kidsguard.child.BuildConfig.VERSION_CODE,
@@ -145,18 +147,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var lastScreenTimeUploadTimeMs = 0L
+    private var lastFullUsageRefreshMs = 0L
+    private var hasMovedToHomeScreenOnZero = false
 
     private fun startLiveRealTimeTicker() {
         liveTickerJob?.cancel()
         liveTickerJob = lifecycleScope.launch {
             while (isActive) {
-                delay(3000L)
-                viewModel.refreshUsageData()
+                delay(1000L) // 1-second real-time tick for live reverse countdown
+                val now = System.currentTimeMillis()
+                if (now - lastFullUsageRefreshMs >= 4000L) {
+                    lastFullUsageRefreshMs = now
+                    viewModel.refreshUsageData()
+                }
+                updateReverseTimerUi()
                 updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
                 updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
 
                 // Periodically upload updated screen-time telemetry while app is active in foreground
-                val now = System.currentTimeMillis()
                 if (now - lastScreenTimeUploadTimeMs >= 45000L && viewModel.deviceSession.value.isPaired) {
                     lastScreenTimeUploadTimeMs = now
                     viewModel.autoSync(uploadScreenTime = true)
@@ -756,6 +764,7 @@ class MainActivity : AppCompatActivity() {
                             lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
                         )
                         updateDailyLimitAlertUi(viewModel.cachedPolicy.value, usage)
+                        updateReverseTimerUi()
                     }
                 }
 
@@ -769,6 +778,7 @@ class MainActivity : AppCompatActivity() {
                         updateQuietHoursAlertUi(policy)
                         updateAppRestrictionsAlertUi(policy)
                         updateDailyLimitAlertUi(policy, viewModel.todayUsage.value)
+                        updateReverseTimerUi()
                     }
                 }
 
@@ -1608,6 +1618,86 @@ class MainActivity : AppCompatActivity() {
                 formattedUsed
             )
             binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.accent)
+        }
+    }
+
+    private fun updateReverseTimerUi() {
+        val policy = viewModel.cachedPolicy.value
+        val usage = viewModel.todayUsage.value
+        val dailyLimitMin = policy?.dailyLimitMinutes
+
+        if (dailyLimitMin == null || dailyLimitMin <= 0) {
+            binding.layoutReverseTimer.visibility = View.GONE
+            binding.layoutAlertReverseTimer.visibility = View.GONE
+            hasMovedToHomeScreenOnZero = false
+            return
+        }
+
+        val eval = ScreenTimeLimitManager.checkScreenTime(this, policy, usage)
+        val remainingSec = eval.remainingSeconds
+        val isLocked = ScreenTimeLimitManager.isLockedForToday(this)
+
+        binding.layoutReverseTimer.visibility = View.VISIBLE
+        binding.layoutAlertReverseTimer.visibility = View.VISIBLE
+
+        if (isLocked || eval.isTimeOver || remainingSec <= 0L) {
+            val zeroDisplay = "00:00"
+            binding.textReverseCountdown.text = zeroDisplay
+            binding.textReverseCountdown.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+            binding.textReverseTimerHeader.text = "⏱️ TIMER REACHED 00:00"
+            binding.textReverseTimerHint.text = "Time is up! All apps are closed."
+
+            binding.textAlertReverseCountdown.text = zeroDisplay
+            binding.textAlertReverseCountdown.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+            binding.textAlertReverseHeader.text = "⏱️ TIMER REACHED 00:00"
+            binding.textAlertReverseHint.text = "Time is up! All apps are closed."
+
+            if (!hasMovedToHomeScreenOnZero) {
+                hasMovedToHomeScreenOnZero = true
+                try {
+                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    startActivity(homeIntent)
+                } catch (_: Exception) {
+                }
+            }
+        } else {
+            hasMovedToHomeScreenOnZero = false
+            val hours = remainingSec / 3600
+            val minutes = (remainingSec % 3600) / 60
+            val seconds = remainingSec % 60
+
+            val timeDisplay = if (hours > 0) {
+                String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+            } else {
+                String.format(Locale.US, "%02d:%02d", minutes, seconds)
+            }
+
+            binding.textReverseCountdown.text = timeDisplay
+            binding.textAlertReverseCountdown.text = timeDisplay
+
+            val timerColor = when {
+                remainingSec <= 60L -> ContextCompat.getColor(this, R.color.status_red)
+                remainingSec <= 300L -> ContextCompat.getColor(this, R.color.status_yellow)
+                else -> ContextCompat.getColor(this, R.color.accent)
+            }
+
+            binding.textReverseCountdown.setTextColor(timerColor)
+            binding.textAlertReverseCountdown.setTextColor(timerColor)
+
+            val headerText = if (eval.isExtensionActive) {
+                "⏳ EXTENSION REVERSE COUNTDOWN"
+            } else {
+                "⏳ LIVE REVERSE COUNTDOWN"
+            }
+            binding.textReverseTimerHeader.text = headerText
+            binding.textAlertReverseHeader.text = headerText
+
+            val hint = "Apps will close automatically when timer reaches 00:00"
+            binding.textReverseTimerHint.text = hint
+            binding.textAlertReverseHint.text = hint
         }
     }
 
