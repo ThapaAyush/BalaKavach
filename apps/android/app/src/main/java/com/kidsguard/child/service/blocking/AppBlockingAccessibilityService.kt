@@ -107,26 +107,22 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val isQuietHours = ScreenTimeLimitManager.isQuietHoursActive(policy)
         if (isQuietHours) {
             performGlobalAction(GLOBAL_ACTION_HOME)
-            if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 1500L) {
+            if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 2500L) {
                 lastBlockedPackage = packageName
                 lastBlockedTimestamp = now
 
-                val friendlyName = resolveAppLabel(packageName)
                 val windowStr = ScreenTimeLimitManager.formatQuietHoursWindow(
                     policy?.quietHoursStart,
                     policy?.quietHoursEnd
                 )
 
-                val blockIntent = Intent(this, AppBlockedActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra(AppBlockedActivity.EXTRA_PACKAGE_NAME, packageName)
-                    putExtra(AppBlockedActivity.EXTRA_APP_NAME, friendlyName)
-                    putExtra(AppBlockedActivity.EXTRA_BLOCK_TYPE, AppBlockedActivity.BLOCK_TYPE_QUIET_HOURS)
-                    putExtra(AppBlockedActivity.EXTRA_TIME_WINDOW, windowStr)
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        applicationContext,
+                        "Bedtime / Quiet Hours active ($windowStr). Apps are closed.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                startActivity(blockIntent)
             }
             return
         }
@@ -251,10 +247,10 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         monitorJob?.cancel()
         monitorJob = serviceScope.launch {
             while (isActive) {
-                delay(3000L) // Periodic check every 3 seconds
+                delay(2000L) // Periodic check every 2 seconds
                 try {
                     val now = System.currentTimeMillis()
-                    if (now - lastBackgroundPolicySyncMs >= 45_000L) {
+                    if (now - lastBackgroundPolicySyncMs >= 15_000L) {
                         lastBackgroundPolicySyncMs = now
                         syncPolicyInBackground()
                     }
@@ -314,22 +310,18 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val isQuietHours = ScreenTimeLimitManager.isQuietHoursActive(policy)
         if (isQuietHours) {
             performGlobalAction(GLOBAL_ACTION_HOME)
-            if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 3500L)) {
-                val friendlyName = resolveAppLabel(pkg)
+            if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 4000L)) {
                 val windowStr = ScreenTimeLimitManager.formatQuietHoursWindow(
                     policy?.quietHoursStart,
                     policy?.quietHoursEnd
                 )
-                val blockIntent = Intent(this, AppBlockedActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra(AppBlockedActivity.EXTRA_PACKAGE_NAME, pkg)
-                    putExtra(AppBlockedActivity.EXTRA_APP_NAME, friendlyName)
-                    putExtra(AppBlockedActivity.EXTRA_BLOCK_TYPE, AppBlockedActivity.BLOCK_TYPE_QUIET_HOURS)
-                    putExtra(AppBlockedActivity.EXTRA_TIME_WINDOW, windowStr)
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        applicationContext,
+                        "Bedtime / Quiet Hours active ($windowStr). Apps are closed.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                startActivity(blockIntent)
             }
             return
         }
