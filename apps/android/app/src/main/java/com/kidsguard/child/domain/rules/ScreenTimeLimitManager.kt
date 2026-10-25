@@ -98,7 +98,8 @@ object ScreenTimeLimitManager {
     }
 
     /**
-     * Calculates used minutes counted strictly from the recent restricted time.
+     * Calculates used minutes for today counted towards the parent-configured daily screen-time limit.
+     * Uses OS-measured screen time from midnight combined with live foreground seconds tracking.
      */
     fun computeUsedMinutesForLimit(
         context: Context,
@@ -111,10 +112,8 @@ object ScreenTimeLimitManager {
             return 0
         }
         val totalMeasuredSec = usage?.totalScreenTimeSeconds ?: 0L
-        val baseline = getOrCreateLimitBaselineSeconds(context, policy, totalMeasuredSec, nowMs)
-        val measuredSinceRestriction = (totalMeasuredSec - baseline).coerceAtLeast(0L)
         val liveSeconds = getLiveForegroundSeconds(context, nowMs)
-        val effectiveUsedSeconds = maxOf(measuredSinceRestriction, liveSeconds)
+        val effectiveUsedSeconds = maxOf(totalMeasuredSec, liveSeconds)
         return (effectiveUsedSeconds / 60).toInt()
     }
 
@@ -491,27 +490,41 @@ object ScreenTimeLimitManager {
     }
 
     fun parseHourMinute(timeStr: String): Pair<Int, Int>? {
-        val parts = timeStr.trim().split(":")
-        if (parts.size != 2) return null
-        val h = parts[0].toIntOrNull() ?: return null
-        val m = parts[1].toIntOrNull() ?: return null
+        val trimmed = timeStr.trim()
+        if (trimmed.isEmpty()) return null
+
+        val isPM = trimmed.endsWith("PM", ignoreCase = true)
+        val isAM = trimmed.endsWith("AM", ignoreCase = true)
+        val cleanTime = trimmed
+            .replace("(?i)AM|PM".toRegex(), "")
+            .trim()
+
+        val parts = cleanTime.split(":")
+        if (parts.size < 2) return null
+        var h = parts[0].trim().toIntOrNull() ?: return null
+        val m = parts[1].trim().toIntOrNull() ?: return null
+
+        if (isPM && h in 1..11) {
+            h += 12
+        } else if (isAM && h == 12) {
+            h = 0
+        }
+
         if (h !in 0..23 || m !in 0..59) return null
         return Pair(h, m)
     }
 
-    fun formatTime12Hour(time24: String?): String {
-        if (time24.isNullOrBlank()) return "—"
-        val parts = time24.trim().split(":")
-        if (parts.size != 2) return time24
-        val h = parts[0].toIntOrNull() ?: return time24
-        val m = parts[1].toIntOrNull() ?: return time24
+    fun formatTime12Hour(timeStr: String?): String {
+        if (timeStr.isNullOrBlank()) return "—"
+        val parsed = parseHourMinute(timeStr) ?: return timeStr
+        val (h, m) = parsed
         val period = if (h < 12) "AM" else "PM"
         val displayH = when {
             h == 0 -> 12
             h > 12 -> h - 12
             else -> h
         }
-        return String.format(Locale.US, "%02d:%02d %s", displayH, m, period)
+        return String.format(Locale.US, "%d:%02d %s", displayH, m, period)
     }
 
     fun formatQuietHoursWindow(start: String?, end: String?): String {

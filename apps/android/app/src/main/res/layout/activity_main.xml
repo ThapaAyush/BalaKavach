@@ -66,7 +66,7 @@
         android:layout_height="44dp"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
+        android:layout_marginBottom="8dp"
         android:background="@drawable/bg_tab_container"
         app:tabIndicator="@drawable/bg_tab_indicator"
         app:tabIndicatorColor="@color/accent"
@@ -78,8 +78,103 @@
         app:tabGravity="fill"
         app:tabRippleColor="@android:color/transparent" />
 
+    <!-- Hand Gesture Swipe Guidance Card with Live Animated Hand -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardHandGestureGuide"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/surface_variant"
+        app:strokeColor="@color/border"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="7dp">
+
+            <!-- Animated Hand Icon Container with Motion Trail -->
+            <FrameLayout
+                android:id="@+id/containerAnimatedHand"
+                android:layout_width="44dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp">
+
+                <TextView
+                    android:id="@+id/textLeftArrowHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start|center_vertical"
+                    android:text="⟵"
+                    android:textColor="@color/accent"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/imageAnimatedHand"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_hand_swipe"
+                    android:contentDescription="Swipe gesture guide"
+                    app:tint="@color/accent" />
+
+                <TextView
+                    android:id="@+id/textRightArrowHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|center_vertical"
+                    android:text="⟶"
+                    android:textColor="@color/accent"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/textHandGuideTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Swipe left or right to switch tabs"
+                    android:textColor="@color/text_primary"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textHandGuideHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:text="● Connection  ⟶  Swipe left for Screen Time"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnDismissHandGuide"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:contentDescription="Dismiss swipe hint"
+                app:tint="@color/text_tertiary" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <!-- Main Scrollable Body -->
     <ScrollView
+        android:id="@+id/mainScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -285,11 +380,10 @@
                             android:id="@+id/textParentNotice"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:lineSpacingExtra="3dp"
+                            android:layout_marginTop="8dp"
                             android:text="@string/parent_notice_paired"
                             android:textColor="@color/text_secondary"
-                            android:textSize="13sp" />
+                            android:textSize="12sp" />
 
                         <!-- Quick Badges Row -->
                         <LinearLayout
@@ -492,6 +586,98 @@
                             android:layout_marginTop="4dp"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Strict 18+ Adult Content Protection Shield (Always Active When Connected) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardAdultProtectionShield"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:visibility="gone"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="1dp"
+                    app:cardBackgroundColor="@color/surface"
+                    app:strokeColor="@color/status_green_light"
+                    app:strokeWidth="1.5dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="8dp"
+                                android:text="🔞"
+                                android:textSize="18sp" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/adult_protection_shield_title"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/badgeAdultProtection"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_badge_pill_success"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="3dp"
+                                android:text="@string/adult_protection_active_badge"
+                                android:textColor="@color/status_green_dark"
+                                android:textSize="10.5sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/textAdultProtectionDesc"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/adult_protection_connected_desc"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12.5sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_stat_chip"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="7dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🛡️"
+                                android:textSize="13sp"
+                                android:layout_marginEnd="6dp" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Active on Mobile Chrome • 50+ adult domains &amp; safe search"
+                                android:textColor="@color/status_green_dark"
+                                android:textSize="11.5sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -731,7 +917,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@color/text_primary"
-                            android:textSize="14sp"
+                            android:textSize="15sp"
                             android:textStyle="bold" />
 
                         <!-- Device Identifier -->
@@ -739,61 +925,50 @@
                             android:id="@+id/textDeviceId"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="3dp"
                             android:textColor="@color/text_secondary"
-                            android:textSize="12.5sp" />
+                            android:textSize="12sp" />
 
-                        <!-- Platform -->
+                        <!-- Platform (hidden to reduce clutter) -->
                         <TextView
                             android:id="@+id/textPlatformDisplay"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="@string/platform_label"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12.5sp" />
+                            android:visibility="gone" />
 
                         <!-- Paired At -->
                         <TextView
                             android:id="@+id/textPairedAt"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="3dp"
                             android:textColor="@color/text_secondary"
-                            android:textSize="12.5sp" />
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="12dp"
-                            android:layout_marginBottom="12dp"
-                            android:background="@color/border" />
+                            android:textSize="12sp" />
 
                         <!-- Communication & Policy Sync Timestamps -->
                         <TextView
                             android:id="@+id/textLastCommunication"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12.5sp" />
+                            android:visibility="gone" />
 
                         <TextView
                             android:id="@+id/textLastPolicySync"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="3dp"
                             android:textColor="@color/text_secondary"
-                            android:textSize="12.5sp" />
+                            android:textSize="12sp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSyncDevice"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
+                            android:layout_height="42dp"
                             android:layout_marginTop="10dp"
-                            android:text="Sync with Dashboard Now"
+                            android:text="Sync Now"
                             android:textColor="@color/accent"
-                            android:textSize="13sp"
+                            android:textSize="12.5sp"
                             app:cornerRadius="10dp"
                             app:icon="@android:drawable/ic_popup_sync"
                             app:iconTint="@color/accent"
@@ -910,7 +1085,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="TOTAL SCREEN TIME"
+                                android:text="SCREEN TIME"
                                 android:textColor="@color/accent_dark"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
@@ -922,7 +1097,7 @@
                                 android:background="@drawable/bg_badge_pill_success"
                                 android:paddingHorizontal="8dp"
                                 android:paddingVertical="2dp"
-                                android:text="✓ Active: Timing"
+                                android:text="Timing"
                                 android:textColor="@color/status_green_dark"
                                 android:textSize="10.5sp"
                                 android:textStyle="bold" />
@@ -946,7 +1121,7 @@
                             android:layout_marginTop="2dp"
                             android:textColor="@color/text_secondary"
                             android:textSize="12.5sp"
-                            android:text="0 active apps run today" />
+                            android:text="0 apps today" />
 
                         <!-- Real-time Current Device Time (Live on Screen) -->
                         <LinearLayout
@@ -968,8 +1143,8 @@
                                 android:id="@+id/clockRealTime"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:format12Hour="'Real Time: 'h:mm a"
-                                android:format24Hour="'Real Time: 'HH:mm"
+                                android:format12Hour="h:mm a"
+                                android:format24Hour="HH:mm"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
@@ -998,7 +1173,7 @@
                                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                                 android:layout_width="wrap_content"
                                 android:layout_height="38dp"
-                                android:text="Sync with Dashboard"
+                                android:text="Sync"
                                 android:textColor="@color/accent"
                                 android:textSize="12sp"
                                 app:cornerRadius="10dp"
@@ -1111,10 +1286,7 @@
                                 android:id="@+id/textBadgeMobilePickups"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
-                                android:text="Phone active today"
-                                android:textColor="@color/text_tertiary"
-                                android:textSize="10.5sp" />
+                                android:visibility="gone" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
@@ -1170,17 +1342,14 @@
                                     android:layout_marginStart="4dp"
                                     android:textColor="@color/text_secondary"
                                     android:textSize="11sp"
-                                    android:text="app opens" />
+                                    android:text="opens" />
                             </LinearLayout>
 
                             <TextView
                                 android:id="@+id/textBadgeAppLaunches"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
-                                android:text="App switch count"
-                                android:textColor="@color/text_tertiary"
-                                android:textSize="10.5sp" />
+                                android:visibility="gone" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
@@ -1265,6 +1434,7 @@
                             android:layout_marginBottom="14dp"
                             android:background="@color/border" />
 
+                        <!-- Quiet Hours / Bedtime Section -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -1293,12 +1463,258 @@
                         </LinearLayout>
 
                         <TextView
+                            android:id="@+id/textQuietHoursSubtitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/quiet_hours_subtitle"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11.5sp" />
+
+                        <!-- Active Now Warning Banner when in Quiet Hours -->
+                        <LinearLayout
+                            android:id="@+id/layoutQuietHoursActiveNowBanner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_time_input_box"
+                            android:backgroundTint="@color/status_purple_light"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="6dp"
+                            android:gravity="center_vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/textQuietHoursActiveNowMsg"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/quiet_hours_banner_active_now"
+                                android:textColor="@color/status_purple"
+                                android:textSize="11.5sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <!-- Quiet Hours Detailed Schedule Container -->
+                        <LinearLayout
+                            android:id="@+id/containerQuietHoursDetails"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="10dp">
+
+                            <!-- Starts At & Ends At Cards -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <!-- Starts At -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="6dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/quiet_hours_starts_at"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="11sp"
+                                        android:textStyle="bold" />
+
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:background="@drawable/bg_time_input_box"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal"
+                                        android:paddingHorizontal="10dp"
+                                        android:paddingVertical="8dp">
+
+                                        <TextView
+                                            android:id="@+id/textQuietHoursStartTime"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:text="09:00 PM"
+                                            android:textColor="@color/text_primary"
+                                            android:textSize="13sp"
+                                            android:textStyle="bold" />
+
+                                        <ImageView
+                                            android:layout_width="15dp"
+                                            android:layout_height="15dp"
+                                            android:src="@drawable/ic_clock"
+                                            app:tint="@color/text_secondary" />
+                                    </LinearLayout>
+                                </LinearLayout>
+
+                                <!-- Ends At -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="6dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/quiet_hours_ends_at"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="11sp"
+                                        android:textStyle="bold" />
+
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:background="@drawable/bg_time_input_box"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal"
+                                        android:paddingHorizontal="10dp"
+                                        android:paddingVertical="8dp">
+
+                                        <TextView
+                                            android:id="@+id/textQuietHoursEndTime"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:text="07:00 AM"
+                                            android:textColor="@color/text_primary"
+                                            android:textSize="13sp"
+                                            android:textStyle="bold" />
+
+                                        <ImageView
+                                            android:layout_width="15dp"
+                                            android:layout_height="15dp"
+                                            android:src="@drawable/ic_clock"
+                                            app:tint="@color/text_secondary" />
+                                    </LinearLayout>
+                                </LinearLayout>
+                            </LinearLayout>
+
+                            <!-- Active Days Row -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="@string/quiet_hours_active_days"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/chipDayMon"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="3dp"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Mon"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/chipDayTue"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="3dp"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Tue"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/chipDayWed"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="3dp"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Wed"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/chipDayThu"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="3dp"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Thu"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/chipDayFri"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="3dp"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Fri"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/chipDaySat"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginEnd="3dp"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Sat"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/chipDaySun"
+                                    android:layout_width="0dp"
+                                    android:layout_height="28dp"
+                                    android:layout_weight="1"
+                                    android:background="@drawable/bg_day_pill_active"
+                                    android:gravity="center"
+                                    android:text="Sun"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                        <!-- Fallback / compatibility views -->
+                        <TextView
                             android:id="@+id/textQuietHoursSchedule"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:textColor="@color/text_secondary"
-                            android:textSize="13sp" />
+                            android:textSize="13sp"
+                            android:visibility="gone" />
 
                         <TextView
                             android:id="@+id/textQuietHoursDays"
@@ -1313,11 +1729,7 @@
                             android:id="@+id/textParentLimitNote"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="@string/read_only_policy_note"
-                            android:textColor="@color/text_tertiary"
-                            android:textSize="11.5sp"
-                            android:textStyle="italic" />
+                            android:visibility="gone" />
 
                         <!-- Hidden compatibility view -->
                         <TextView
@@ -1406,10 +1818,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="@string/app_restrictions_note"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="13sp" />
+                            android:visibility="gone" />
 
                         <Button
                             android:id="@+id/btnEnableAppBlocking"
@@ -1487,10 +1896,7 @@
                                     android:id="@+id/textAppUsageSubtitle"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="Foreground time spent on each app"
-                                    android:textColor="@color/text_secondary"
-                                    android:textSize="12sp" />
+                                    android:visibility="gone" />
                             </LinearLayout>
 
                             <TextView
@@ -1603,11 +2009,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:layout_marginBottom="14dp"
-                            android:text="@string/developer_notice"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="13sp" />
+                            android:visibility="gone" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/layoutApiUrl"
@@ -1660,8 +2062,8 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
-                                android:text="Cloud (Render)"
-                                android:textSize="11sp"
+                                android:text="Cloud"
+                                android:textSize="11.5sp"
                                 app:cornerRadius="8dp"
                                 android:textColor="@color/accent" />
 
@@ -1672,8 +2074,8 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginStart="4dp"
-                                android:text="Emulator (10.0.2.2)"
-                                android:textSize="11sp"
+                                android:text="Emulator"
+                                android:textSize="11.5sp"
                                 app:cornerRadius="8dp"
                                 android:textColor="@color/text_secondary" />
                         </LinearLayout>
@@ -1735,7 +2137,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="App Version &amp; Updates"
+                            android:text="Version &amp; Updates"
                             android:textColor="@color/text_primary"
                             android:textSize="15sp"
                             android:textStyle="bold" />
@@ -1765,7 +2167,7 @@
                             android:layout_height="wrap_content"
                             android:minHeight="48dp"
                             android:layout_marginTop="10dp"
-                            android:text="Check for Updates"
+                            android:text="Check Updates"
                             android:textSize="12sp"
                             app:cornerRadius="10dp"
                             android:textColor="@color/accent" />

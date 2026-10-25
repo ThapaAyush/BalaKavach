@@ -1,12 +1,19 @@
 package com.kidsguard.child.ui
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
+import android.view.GestureDetector
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -37,6 +44,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.abs
 
 /**
  * Main activity for KidsGuard Child application.
@@ -48,6 +56,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var liveTickerJob: Job? = null
     private var activeMetric: String = "screenTime" // "screenTime" | "appOpens"
+
+    // Hand Animation & Horizontal Swipe Gesture support
+    private var handAnimator: ObjectAnimator? = null
+    private lateinit var gestureDetector: GestureDetector
+    private var swipeStartX = 0f
+    private var swipeStartY = 0f
+    private var isHorizontalSwipeTracking = false
+    private var currentSectionPosition = 0
+    private var lastSwipeSwitchTimeMs = 0L
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
@@ -71,10 +88,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.clockRealTime.format12Hour = "'Real Time: 'h:mm a"
-        binding.clockRealTime.format24Hour = "'Real Time: 'HH:mm"
+        binding.clockRealTime.format12Hour = "h:mm a"
+        binding.clockRealTime.format24Hour = "HH:mm"
 
         setupTabs()
+        setupHandGestureGuide()
+        setupSwipeGestures()
         setupClickListeners()
         observeViewModel()
     }
@@ -101,12 +120,16 @@ class MainActivity : AppCompatActivity() {
         )
         // Start live ticker to update real-time screen stats while active on screen
         startLiveRealTimeTicker()
+        // Start continuous hand swipe animation guide
+        startHandSwipeAnimation()
     }
 
     override fun onPause() {
         super.onPause()
         liveTickerJob?.cancel()
         liveTickerJob = null
+        handAnimator?.cancel()
+        handAnimator = null
     }
 
     private var lastScreenTimeUploadTimeMs = 0L
@@ -144,11 +167,15 @@ class MainActivity : AppCompatActivity() {
 
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> showSection(binding.sectionDevice)
-                    1 -> showSection(binding.sectionScreenTime)
-                    2 -> if (isDebuggable) showSection(binding.sectionSettings)
+                val newPos = tab?.position ?: 0
+                val animateFromRight = if (newPos != currentSectionPosition) newPos > currentSectionPosition else null
+                when (newPos) {
+                    0 -> showSection(binding.sectionDevice, animateFromRight)
+                    1 -> showSection(binding.sectionScreenTime, animateFromRight)
+                    2 -> if (isDebuggable) showSection(binding.sectionSettings, animateFromRight)
                 }
+                currentSectionPosition = newPos
+                updateHandGuideText(newPos)
             }
 
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
@@ -156,7 +183,206 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun showSection(targetSection: View) {
+    private fun setupHandGestureGuide() {
+        updateHandGuideText(binding.tabLayout.selectedTabPosition)
+        startHandSwipeAnimation()
+
+        // Tapping the card cycles to next tab
+        binding.cardHandGestureGuide.setOnClickListener {
+            switchTabBySwipe(forward = true)
+        }
+
+        // Dismiss button smoothly hides the guide
+        binding.btnDismissHandGuide.setOnClickListener {
+            binding.cardHandGestureGuide.animate()
+                .alpha(0f)
+                .translationY(-dp(10).toFloat())
+                .setDuration(180L)
+                .withEndAction {
+                    binding.cardHandGestureGuide.visibility = View.GONE
+                }
+                .start()
+        }
+    }
+
+    private fun startHandSwipeAnimation() {
+        val handView = binding.imageAnimatedHand ?: return
+        handAnimator?.cancel()
+
+        val distance = dp(14).toFloat()
+        handAnimator = ObjectAnimator.ofFloat(handView, View.TRANSLATION_X, -distance, distance).apply {
+            duration = 1000L
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { animator ->
+                val currentVal = animator.animatedValue as Float
+                val fraction = animator.animatedFraction
+                handView.rotation = (fraction * 16f) - 8f
+
+                if (currentVal < 0) {
+                    binding.textLeftArrowHint.alpha = 0.35f + (abs(currentVal) / distance) * 0.65f
+                    binding.textRightArrowHint.alpha = 0.25f
+                } else {
+                    binding.textRightArrowHint.alpha = 0.35f + (currentVal / distance) * 0.65f
+                    binding.textLeftArrowHint.alpha = 0.25f
+                }
+            }
+            start()
+        }
+    }
+
+    private fun updateHandGuideText(position: Int) {
+        val tabCount = binding.tabLayout.tabCount
+        when (position) {
+            0 -> {
+                binding.textHandGuideTitle.text = "Swipe ⟵ for Screen Time"
+                binding.textHandGuideHint.text = "● Connection  ⟶  Screen Time"
+            }
+            1 -> {
+                if (tabCount > 2) {
+                    binding.textHandGuideTitle.text = "Swipe ⟵ for Settings, ⟶ for Connection"
+                    binding.textHandGuideHint.text = "⟵ Connection  •  Screen Time ●  •  Settings ⟶"
+                } else {
+                    binding.textHandGuideTitle.text = "Swipe ⟶ for Connection"
+                    binding.textHandGuideHint.text = "⟵ Connection  •  Screen Time ●"
+                }
+            }
+            2 -> {
+                binding.textHandGuideTitle.text = "Swipe ⟶ for Screen Time"
+                binding.textHandGuideHint.text = "Screen Time  ⟵  Settings ●"
+            }
+            else -> {
+                binding.textHandGuideTitle.text = "Swipe to switch tabs"
+                binding.textHandGuideHint.text = "Connection • Screen Time • Settings"
+            }
+        }
+    }
+
+    private fun setupSwipeGestures() {
+        val swipeThreshold = dp(45)
+        val velocityThreshold = dp(90)
+
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null) return false
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+                if (abs(diffX) > abs(diffY) * 1.2f &&
+                    abs(diffX) > swipeThreshold &&
+                    abs(velocityX) > velocityThreshold
+                ) {
+                    if (diffX < 0) {
+                        switchTabBySwipe(forward = true)
+                        return true
+                    } else if (diffX > 0) {
+                        switchTabBySwipe(forward = false)
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+    }
+
+    private fun switchTabBySwipe(forward: Boolean) {
+        val now = System.currentTimeMillis()
+        if (now - lastSwipeSwitchTimeMs < 280L) return
+        lastSwipeSwitchTimeMs = now
+
+        val current = binding.tabLayout.selectedTabPosition
+        val total = binding.tabLayout.tabCount
+        if (total <= 1) return
+
+        val target = if (forward) {
+            if (current < total - 1) current + 1 else null
+        } else {
+            if (current > 0) current - 1 else null
+        }
+
+        if (target != null) {
+            try {
+                binding.root.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            } catch (_: Throwable) {
+                // Ignore if haptics unavailable
+            }
+            binding.tabLayout.getTabAt(target)?.select()
+        } else {
+            // Edge rubber-band visual feedback when attempting to swipe past boundaries
+            val activeSection = when (current) {
+                0 -> binding.sectionDevice
+                1 -> binding.sectionScreenTime
+                else -> binding.sectionSettings
+            }
+            val bounceDistance = if (forward) -dp(24).toFloat() else dp(24).toFloat()
+            activeSection.animate()
+                .translationX(bounceDistance)
+                .setDuration(90L)
+                .withEndAction {
+                    activeSection.animate().translationX(0f).setDuration(120L).start()
+                }
+                .start()
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (::gestureDetector.isInitialized) {
+            gestureDetector.onTouchEvent(ev)
+        }
+
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                swipeStartX = ev.rawX
+                swipeStartY = ev.rawY
+                isHorizontalSwipeTracking = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = ev.rawX - swipeStartX
+                val dy = ev.rawY - swipeStartY
+                if (!isHorizontalSwipeTracking &&
+                    abs(dx) > dp(26) &&
+                    abs(dx) > abs(dy) * 1.4f
+                ) {
+                    isHorizontalSwipeTracking = true
+                    // Cancel vertical scroll in children while swiping horizontally
+                    val cancelEvent = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
+                    super.dispatchTouchEvent(cancelEvent)
+                    cancelEvent.recycle()
+                    return true
+                }
+                if (isHorizontalSwipeTracking) {
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (isHorizontalSwipeTracking) {
+                    val dx = ev.rawX - swipeStartX
+                    if (abs(dx) > dp(45)) {
+                        if (dx < 0) {
+                            switchTabBySwipe(forward = true)
+                        } else {
+                            switchTabBySwipe(forward = false)
+                        }
+                    }
+                    isHorizontalSwipeTracking = false
+                    return true
+                }
+                isHorizontalSwipeTracking = false
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                isHorizontalSwipeTracking = false
+            }
+        }
+
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun showSection(targetSection: View, animateFromRight: Boolean? = null) {
         binding.sectionDevice.visibility = View.GONE
         binding.sectionScreenTime.visibility = View.GONE
         binding.sectionSettings.visibility = View.GONE
@@ -167,6 +393,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         targetSection.visibility = View.VISIBLE
+        binding.mainScrollView.smoothScrollTo(0, 0)
+
+        if (animateFromRight != null) {
+            val startX = if (animateFromRight) dp(60).toFloat() else -dp(60).toFloat()
+            targetSection.translationX = startX
+            targetSection.alpha = 0.35f
+            targetSection.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(200L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        } else {
+            targetSection.translationX = 0f
+            targetSection.alpha = 1f
+        }
     }
 
     private fun setupClickListeners() {
@@ -298,7 +540,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Current version display in Settings
-        binding.textCurrentVersion.text = "Current Version: v${com.kidsguard.child.BuildConfig.VERSION_NAME} (Build ${com.kidsguard.child.BuildConfig.VERSION_CODE})"
+        binding.textCurrentVersion.text = "Version: v${com.kidsguard.child.BuildConfig.VERSION_NAME}"
 
         // App Update Banner Buttons
         binding.btnDismissUpdate.setOnClickListener {
@@ -429,10 +671,10 @@ class MainActivity : AppCompatActivity() {
                         binding.btnSyncDevice.isEnabled = !loading
                         if (loading) {
                             binding.btnSyncScreenTime.text = "Syncing…"
-                            binding.btnSyncDevice.text = "Syncing with Dashboard…"
+                            binding.btnSyncDevice.text = "Syncing…"
                         } else {
-                            binding.btnSyncScreenTime.text = "Sync with Dashboard"
-                            binding.btnSyncDevice.text = "Sync with Dashboard Now"
+                            binding.btnSyncScreenTime.text = "Sync"
+                            binding.btnSyncDevice.text = "Sync Now"
                         }
                     }
                 }
@@ -441,16 +683,21 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     viewModel.syncMessage.collect { message ->
                         if (!message.isNullOrBlank()) {
-                            binding.textSyncMessage.text = message
+                            val cleanMsg = when {
+                                message.contains("Too many heartbeat requests", ignoreCase = true) -> "Please wait a moment"
+                                message.startsWith("Synced with Dashboard") -> "Synced"
+                                else -> message
+                            }
+                            binding.textSyncMessage.text = cleanMsg
                             binding.textSyncMessage.visibility = View.VISIBLE
-                            binding.textScreenTimeSyncStatus.text = message
+                            binding.textScreenTimeSyncStatus.text = cleanMsg
                             binding.textScreenTimeSyncStatus.visibility = View.VISIBLE
-                            val isSuccess = message.startsWith("Synced with Dashboard")
+                            val isSuccess = message.startsWith("Synced with Dashboard") || cleanMsg == "Synced"
                             val colorRes = if (isSuccess) R.color.status_green else R.color.status_red
                             binding.textSyncMessage.setTextColor(ContextCompat.getColor(this@MainActivity, colorRes))
                             binding.textScreenTimeSyncStatus.setTextColor(ContextCompat.getColor(this@MainActivity, colorRes))
                             if (isSuccess) {
-                                Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MainActivity, cleanMsg, Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             binding.textSyncMessage.visibility = View.GONE
@@ -553,7 +800,7 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     viewModel.updateCheckLoading.collect { loading ->
                         binding.btnCheckForUpdates.isEnabled = !loading
-                        binding.btnCheckForUpdates.text = if (loading) "Checking..." else "Check for Updates"
+                        binding.btnCheckForUpdates.text = if (loading) "Checking…" else "Check Updates"
                     }
                 }
 
@@ -580,6 +827,7 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.GONE
                 binding.cardOfflineAlert.visibility = View.GONE
                 binding.cardNeedsAttentionAlert.visibility = View.GONE
+                binding.cardAdultProtectionShield.visibility = View.GONE
                 binding.textParentNotice.text = getString(R.string.parent_notice_unpaired)
                 binding.textStatusBadge.text = getString(R.string.status_unpaired)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_gray))
@@ -593,6 +841,7 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.VISIBLE
                 binding.cardOfflineAlert.visibility = View.GONE
                 binding.cardNeedsAttentionAlert.visibility = View.GONE
+                binding.cardAdultProtectionShield.visibility = View.VISIBLE
                 binding.textParentNotice.text = getString(R.string.parent_notice_paired)
                 binding.textStatusBadge.text = getString(R.string.status_paired)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_green))
@@ -602,6 +851,7 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.VISIBLE
                 binding.cardOfflineAlert.visibility = View.VISIBLE
                 binding.cardNeedsAttentionAlert.visibility = View.GONE
+                binding.cardAdultProtectionShield.visibility = View.VISIBLE
                 binding.textParentNotice.text = getString(R.string.parent_notice_paired)
                 binding.textStatusBadge.text = getString(R.string.status_offline)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
@@ -611,6 +861,7 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.VISIBLE
                 binding.cardOfflineAlert.visibility = View.GONE
                 binding.cardNeedsAttentionAlert.visibility = View.VISIBLE
+                binding.cardAdultProtectionShield.visibility = View.VISIBLE
                 binding.textParentNotice.text = getString(R.string.parent_notice_unpaired)
                 binding.textStatusBadge.text = getString(R.string.status_needs_attention)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_red))
@@ -633,7 +884,7 @@ class MainActivity : AppCompatActivity() {
         val formattedSync = formatIsoTimestamp(session.lastPolicySyncAt, getString(R.string.not_synced_yet))
         binding.textLastPolicySync.text = "${getString(R.string.last_policy_sync_label)} $formattedSync"
 
-        binding.textPolicyVersionDisplay.text = "${getString(R.string.policy_version_label)} v${session.acknowledgedPolicyVersion}"
+        binding.textPolicyVersionDisplay.text = "Policy v${session.acknowledgedPolicyVersion}"
     }
 
     private fun updatePermissionUi(hasPermission: Boolean) {
@@ -664,8 +915,8 @@ class MainActivity : AppCompatActivity() {
 
             binding.textDeviceOpens.text = "0"
             binding.textTotalAppLaunches.text = "0"
-            binding.textBadgeMobilePickups.text = "Access required"
-            binding.textBadgeAppLaunches.text = "Access required"
+            binding.textBadgeMobilePickups.visibility = View.GONE
+            binding.textBadgeAppLaunches.visibility = View.GONE
 
             binding.dotLiveIndicator.visibility = View.GONE
             binding.textLiveStatus.visibility = View.GONE
@@ -700,9 +951,9 @@ class MainActivity : AppCompatActivity() {
             val deviceOpens = usage.deviceUnlockCount
             val totalAppOpens = usage.appUsage.sumOf { it.openCount }
             binding.textDeviceOpens.text = "$deviceOpens"
-            binding.textDeviceOpensUnit.text = if (deviceOpens == 1) "time opened" else "times opened"
+            binding.textDeviceOpensUnit.text = if (deviceOpens == 1) "unlock" else "unlocks"
             binding.textTotalAppLaunches.text = "$totalAppOpens"
-            binding.textTotalAppLaunchesUnit.text = if (totalAppOpens == 1) "app open" else "app opens"
+            binding.textTotalAppLaunchesUnit.text = if (totalAppOpens == 1) "open" else "opens"
 
             binding.dotLiveIndicator.visibility = View.VISIBLE
             binding.textLiveStatus.visibility = View.VISIBLE
@@ -742,7 +993,7 @@ class MainActivity : AppCompatActivity() {
                 val overMinutes = usedMinutes - dailyLimitMin
                 binding.textDailyLimitBadge.text = getString(R.string.daily_limit_reached_badge)
                 binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+                binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
 
                 if (overMinutes > 0) {
                     binding.textDailyLimitRemaining.text = getString(
@@ -760,7 +1011,7 @@ class MainActivity : AppCompatActivity() {
                 val remainingMinutes = dailyLimitMin - usedMinutes
                 binding.textDailyLimitBadge.text = getString(R.string.daily_limit_near_badge)
                 binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_yellow)
+                binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
 
                 binding.textDailyLimitRemaining.text = getString(
                     R.string.daily_limit_remaining_format,
@@ -774,7 +1025,7 @@ class MainActivity : AppCompatActivity() {
                 val remainingMinutes = dailyLimitMin - usedMinutes
                 binding.textDailyLimitBadge.text = getString(R.string.daily_limit_badge_on_track)
                 binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.status_green)
+                binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_green)
 
                 binding.textDailyLimitRemaining.text = getString(
                     R.string.daily_limit_remaining_format,
@@ -790,7 +1041,7 @@ class MainActivity : AppCompatActivity() {
             binding.textDailyLimitBadge.visibility = View.VISIBLE
             binding.textDailyLimitBadge.text = getString(R.string.daily_limit_badge_no_limit)
             binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-            binding.textDailyLimitBadge.background = ContextCompat.getDrawable(this, R.color.border)
+            binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.border)
             binding.textDailyLimitRemaining.visibility = View.GONE
             binding.progressDailyLimit.visibility = View.GONE
         }
@@ -801,28 +1052,45 @@ class MainActivity : AppCompatActivity() {
             val formattedDays = formatActiveDays(policy.quietHoursDays)
 
             binding.textQuietHoursDays.text = formattedDays
-            binding.textQuietHoursDays.visibility = View.VISIBLE
+            binding.textQuietHoursSchedule.text = if (isQuietActive) "Active Now: $formattedRange" else "Scheduled: $formattedRange"
+
+            binding.containerQuietHoursDetails.visibility = View.VISIBLE
+            binding.textQuietHoursStartTime.text = formatTime12Hour(policy.quietHoursStart)
+            binding.textQuietHoursEndTime.text = formatTime12Hour(policy.quietHoursEnd)
+
+            val activeDaysSet = policy.quietHoursDays.map { it.lowercase() }.toSet()
+            updateDayChip(binding.chipDayMon, activeDaysSet.contains("monday"))
+            updateDayChip(binding.chipDayTue, activeDaysSet.contains("tuesday"))
+            updateDayChip(binding.chipDayWed, activeDaysSet.contains("wednesday"))
+            updateDayChip(binding.chipDayThu, activeDaysSet.contains("thursday"))
+            updateDayChip(binding.chipDayFri, activeDaysSet.contains("friday"))
+            updateDayChip(binding.chipDaySat, activeDaysSet.contains("saturday"))
+            updateDayChip(binding.chipDaySun, activeDaysSet.contains("sunday"))
 
             if (isQuietActive) {
                 binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_in_effect_badge)
                 binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textQuietHoursBadge.background = ContextCompat.getDrawable(this, R.color.status_purple)
+                binding.textQuietHoursBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_purple)
                 binding.textQuietHoursBadge.visibility = View.VISIBLE
 
-                binding.textQuietHoursSchedule.text = "Active Now: $formattedRange"
-                binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
+                binding.layoutQuietHoursActiveNowBanner.visibility = View.VISIBLE
             } else {
                 binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_scheduled_badge)
-                binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
-                binding.textQuietHoursBadge.background = ContextCompat.getDrawable(this, R.color.status_purple_light)
+                binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textQuietHoursBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
                 binding.textQuietHoursBadge.visibility = View.VISIBLE
 
-                binding.textQuietHoursSchedule.text = "Scheduled: $formattedRange"
-                binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                binding.layoutQuietHoursActiveNowBanner.visibility = View.GONE
             }
         } else {
-            binding.textQuietHoursBadge.visibility = View.GONE
-            binding.textQuietHoursDays.visibility = View.GONE
+            binding.containerQuietHoursDetails.visibility = View.GONE
+            binding.layoutQuietHoursActiveNowBanner.visibility = View.GONE
+
+            binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_disabled_badge)
+            binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+            binding.textQuietHoursBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.border)
+            binding.textQuietHoursBadge.visibility = View.VISIBLE
+
             binding.textQuietHoursSchedule.text = getString(R.string.quiet_hours_disabled)
             binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }
@@ -861,27 +1129,27 @@ class MainActivity : AppCompatActivity() {
                 binding.cardMetricAppLaunches.strokeColor = ContextCompat.getColor(this, R.color.border)
                 binding.cardMetricAppLaunches.strokeWidth = dp(1)
 
-                binding.textBadgeScreenTime.text = "✓ Active: Timing"
+                binding.textBadgeScreenTime.text = "Timing"
                 binding.textBadgeScreenTime.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill_success)
                 binding.textBadgeScreenTime.setTextColor(ContextCompat.getColor(this, R.color.status_green_dark))
-                binding.textBadgeMobilePickups.text = "Tap for Opens →"
-                binding.textBadgeAppLaunches.text = "Tap for Opens →"
+                binding.textBadgeMobilePickups.visibility = View.GONE
+                binding.textBadgeAppLaunches.visibility = View.GONE
 
                 binding.btnFilterTiming.background = ContextCompat.getDrawable(this, R.drawable.bg_tab_active_pill)
                 binding.btnFilterTiming.setTextColor(ContextCompat.getColor(this, R.color.accent_dark))
                 binding.btnFilterAppOpens.background = null
                 binding.btnFilterAppOpens.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
 
-                binding.textAppUsageTitle.text = "Application Usage & Screen Time Breakdown"
-                binding.textAppUsageSubtitle.text = "Showing foreground duration for each active application"
-                binding.textAppUsageCountBadge.text = "${runApps.size} apps run"
+                binding.textAppUsageTitle.text = "App Usage"
+                binding.textAppUsageSubtitle.text = ""
+                binding.textAppUsageCountBadge.text = "${runApps.size} apps"
                 binding.textAppUsageCountBadge.setTextColor(ContextCompat.getColor(this, R.color.accent_dark))
                 binding.textAppUsageCountBadge.visibility = View.VISIBLE
-                binding.textScreenTimeActiveApps.text = "${runApps.size} active apps run today"
+                binding.textScreenTimeActiveApps.text = "${runApps.size} apps today"
 
                 val displayList = runApps.take(30)
                 if (displayList.isEmpty()) {
-                    binding.textEmptyApps.text = "No applications recorded active screen time or running usage today."
+                    binding.textEmptyApps.text = "No app activity today."
                     binding.textEmptyApps.visibility = View.VISIBLE
                 } else {
                     binding.textEmptyApps.visibility = View.GONE
@@ -904,27 +1172,27 @@ class MainActivity : AppCompatActivity() {
                 binding.cardMetricAppLaunches.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
                 binding.cardMetricAppLaunches.strokeWidth = dp(2)
 
-                binding.textBadgeScreenTime.text = "Tap for Timing →"
+                binding.textBadgeScreenTime.text = "Timing →"
                 binding.textBadgeScreenTime.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill)
                 binding.textBadgeScreenTime.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-                binding.textBadgeMobilePickups.text = "✓ Active: Opens"
-                binding.textBadgeAppLaunches.text = "✓ Active: Opens"
+                binding.textBadgeMobilePickups.visibility = View.GONE
+                binding.textBadgeAppLaunches.visibility = View.GONE
 
                 binding.btnFilterTiming.background = null
                 binding.btnFilterTiming.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
                 binding.btnFilterAppOpens.background = ContextCompat.getDrawable(this, R.drawable.bg_tab_active_pill)
                 binding.btnFilterAppOpens.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
 
-                binding.textAppUsageTitle.text = "Application Launch Frequency & Open Counts"
-                binding.textAppUsageSubtitle.text = "Showing only application open frequency today"
-                binding.textAppUsageCountBadge.text = "${openedApps.size} apps opened"
+                binding.textAppUsageTitle.text = "App Opens"
+                binding.textAppUsageSubtitle.text = ""
+                binding.textAppUsageCountBadge.text = "${openedApps.size} apps"
                 binding.textAppUsageCountBadge.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
                 binding.textAppUsageCountBadge.visibility = View.VISIBLE
-                binding.textScreenTimeActiveApps.text = "${openedApps.size} apps opened today"
+                binding.textScreenTimeActiveApps.text = "${openedApps.size} apps today"
 
                 val displayList = openedApps.take(30)
                 if (displayList.isEmpty()) {
-                    binding.textEmptyApps.text = "No application launches or open events recorded today."
+                    binding.textEmptyApps.text = "No app launches today."
                     binding.textEmptyApps.visibility = View.VISIBLE
                 } else {
                     binding.textEmptyApps.visibility = View.GONE
@@ -996,8 +1264,7 @@ class MainActivity : AppCompatActivity() {
             percent = if (totalAppOpens > 0) {
                 Math.round((opens.toDouble() / totalAppOpens) * 100).toInt()
             } else 0
-            val openText = if (opens == 1) "1 time opened" else "$opens times opened"
-            tagView.text = "📱 $openText ($percent%)"
+            tagView.text = "$opens opens"
             tagView.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.status_purple))
         } else {
             val durationSec = app.durationSeconds
@@ -1009,9 +1276,9 @@ class MainActivity : AppCompatActivity() {
             val durationStr = when {
                 hours > 0 -> "${hours}h ${minutes}m"
                 minutes > 0 -> "${minutes}m"
-                else -> "< 1 min"
+                else -> "< 1m"
             }
-            tagView.text = "⏱️ $durationStr ($percent%)"
+            tagView.text = durationStr
             tagView.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_dark))
         }
         headerRow.addView(tagView)
@@ -1185,11 +1452,22 @@ class MainActivity : AppCompatActivity() {
         val isCurrentlyActive = isQuietHoursCurrentlyActive(policy)
         if (isCurrentlyActive && policy != null) {
             binding.cardQuietHoursActiveAlert.visibility = View.VISIBLE
+            binding.cardQuietHoursActiveAlert.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
             val formattedTime = "${formatTime12Hour(policy.quietHoursStart)} – ${formatTime12Hour(policy.quietHoursEnd)}"
             val activeDays = formatActiveDays(policy.quietHoursDays)
             binding.textQuietHoursActiveTime.text = "$formattedTime • $activeDays"
         } else {
             binding.cardQuietHoursActiveAlert.visibility = View.GONE
+        }
+    }
+
+    private fun updateDayChip(chip: TextView, isActive: Boolean) {
+        if (isActive) {
+            chip.setBackgroundResource(R.drawable.bg_day_pill_active)
+            chip.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        } else {
+            chip.setBackgroundResource(R.drawable.bg_day_pill_inactive)
+            chip.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }
     }
 
@@ -1221,7 +1499,8 @@ class MainActivity : AppCompatActivity() {
             binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
 
             binding.textDailyLimitAlertBadge.text = "LOCKED TODAY"
-            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+            binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
 
             binding.textDailyLimitAlertBody.text = getString(R.string.time_over_locked_body)
             binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
@@ -1238,10 +1517,12 @@ class MainActivity : AppCompatActivity() {
 
             if (isExtActive) {
                 binding.textDailyLimitAlertBadge.text = "+5M EXTENSION ACTIVE"
-                binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_yellow)
+                binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
             } else {
                 binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_reached_badge)
-                binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_red)
+                binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+                binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
             }
 
             binding.textDailyLimitAlertBody.text = getString(
@@ -1259,7 +1540,8 @@ class MainActivity : AppCompatActivity() {
             binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
 
             binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_near_badge)
-            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.status_yellow)
+            binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
 
             binding.textDailyLimitAlertBody.text = getString(
                 R.string.daily_limit_near_body,
@@ -1277,7 +1559,8 @@ class MainActivity : AppCompatActivity() {
             binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
 
             binding.textDailyLimitAlertBadge.text = "${formatMinutesHuman(remainingMin)} left"
-            binding.textDailyLimitAlertBadge.background = ContextCompat.getDrawable(this, R.color.accent)
+            binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.accent)
 
             binding.textDailyLimitAlertBody.text = getString(
                 R.string.daily_limit_active_body,
@@ -1318,12 +1601,7 @@ class MainActivity : AppCompatActivity() {
         const val AUTO_SYNC_INTERVAL_MS = 3000L
 
         fun parseHourMinute(timeStr: String): Pair<Int, Int>? {
-            val parts = timeStr.trim().split(":")
-            if (parts.size != 2) return null
-            val h = parts[0].toIntOrNull() ?: return null
-            val m = parts[1].toIntOrNull() ?: return null
-            if (h !in 0..23 || m !in 0..59) return null
-            return Pair(h, m)
+            return ScreenTimeLimitManager.parseHourMinute(timeStr)
         }
 
         fun isQuietHoursCurrentlyActive(
@@ -1334,18 +1612,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun formatTime12Hour(time24: String?): String {
-            if (time24.isNullOrBlank()) return "—"
-            val parts = time24.trim().split(":")
-            if (parts.size != 2) return time24
-            val h = parts[0].toIntOrNull() ?: return time24
-            val m = parts[1].toIntOrNull() ?: return time24
-            val amPm = if (h >= 12) "PM" else "AM"
-            val h12 = when {
-                h == 0 -> 12
-                h > 12 -> h - 12
-                else -> h
-            }
-            return String.format(Locale.getDefault(), "%d:%02d %s", h12, m, amPm)
+            return ScreenTimeLimitManager.formatTime12Hour(time24)
         }
 
         fun formatActiveDays(days: List<String>): String {

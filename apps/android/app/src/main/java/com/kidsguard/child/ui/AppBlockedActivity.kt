@@ -17,6 +17,7 @@ class AppBlockedActivity : AppCompatActivity() {
 
         const val BLOCK_TYPE_APP_RESTRICTION = "app_restriction"
         const val BLOCK_TYPE_QUIET_HOURS = "quiet_hours"
+        const val BLOCK_TYPE_ADULT_CONTENT = "adult_content"
     }
 
     private lateinit var binding: ActivityAppBlockedBinding
@@ -30,22 +31,32 @@ class AppBlockedActivity : AppCompatActivity() {
         val appName = intent.getStringExtra(EXTRA_APP_NAME)?.takeIf { it.isNotBlank() } ?: "This application"
         val timeWindow = intent.getStringExtra(EXTRA_TIME_WINDOW)?.takeIf { it.isNotBlank() }
 
-        if (blockType == BLOCK_TYPE_QUIET_HOURS) {
-            binding.textBlockedTitle.text = getString(R.string.quiet_hours_active_title)
-            binding.textBlockedTitle.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
-            binding.textBlockedSubtitle.text = getString(R.string.quiet_hours_blocked_subtitle, appName)
-            if (timeWindow != null) {
-                binding.textBlockedBody.text = getString(R.string.quiet_hours_blocked_body_with_window, timeWindow)
-            } else {
-                binding.textBlockedBody.text = getString(R.string.quiet_hours_active_body)
+        when (blockType) {
+            BLOCK_TYPE_QUIET_HOURS -> {
+                binding.textBlockedTitle.text = getString(R.string.quiet_hours_active_title)
+                binding.textBlockedTitle.setTextColor(ContextCompat.getColor(this, R.color.status_purple))
+                binding.textBlockedSubtitle.text = getString(R.string.quiet_hours_blocked_subtitle, appName)
+                if (timeWindow != null) {
+                    binding.textBlockedBody.text = getString(R.string.quiet_hours_blocked_body_with_window, timeWindow)
+                } else {
+                    binding.textBlockedBody.text = getString(R.string.quiet_hours_active_body)
+                }
+                binding.btnReturnHome.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_purple)
             }
-            binding.btnReturnHome.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_purple)
-        } else {
-            binding.textBlockedTitle.text = getString(R.string.app_blocked_title)
-            binding.textBlockedTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
-            binding.textBlockedSubtitle.text = getString(R.string.app_blocked_subtitle, appName)
-            binding.textBlockedBody.text = getString(R.string.app_blocked_body)
-            binding.btnReturnHome.backgroundTintList = ContextCompat.getColorStateList(this, R.color.primary)
+            BLOCK_TYPE_ADULT_CONTENT -> {
+                binding.textBlockedTitle.text = getString(R.string.adult_blocked_title)
+                binding.textBlockedTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+                binding.textBlockedSubtitle.text = getString(R.string.adult_blocked_subtitle)
+                binding.textBlockedBody.text = getString(R.string.adult_blocked_body)
+                binding.btnReturnHome.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
+            }
+            else -> {
+                binding.textBlockedTitle.text = getString(R.string.app_blocked_title)
+                binding.textBlockedTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
+                binding.textBlockedSubtitle.text = getString(R.string.app_blocked_subtitle, appName)
+                binding.textBlockedBody.text = getString(R.string.app_blocked_body)
+                binding.btnReturnHome.backgroundTintList = ContextCompat.getColorStateList(this, R.color.primary)
+            }
         }
 
         binding.btnReturnHome.setOnClickListener {

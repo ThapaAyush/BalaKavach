@@ -205,6 +205,34 @@ class ScreenTimeLimitManagerTest {
     }
 
     @Test
+    fun isQuietHoursActive_handles12HourAmPmFormatFromParentDashboard() {
+        val policy = com.kidsguard.child.data.model.DevicePolicyResponse.defaultPolicy().copy(
+            quietHoursEnabled = true,
+            quietHoursStart = "09:00 PM",
+            quietHoursEnd = "07:00 AM",
+            quietHoursDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+        )
+
+        val calLateNight = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 22)
+            set(java.util.Calendar.MINUTE, 30)
+        }
+        assertTrue(ScreenTimeLimitManager.isQuietHoursActive(policy, calLateNight))
+
+        val calMorning = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 6)
+            set(java.util.Calendar.MINUTE, 0)
+        }
+        assertTrue(ScreenTimeLimitManager.isQuietHoursActive(policy, calMorning))
+
+        val calAfternoon = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 14)
+            set(java.util.Calendar.MINUTE, 0)
+        }
+        assertFalse(ScreenTimeLimitManager.isQuietHoursActive(policy, calAfternoon))
+    }
+
+    @Test
     fun getOrCreateLimitBaselineSeconds_latchesCurrentUsageAsBaselineForNewLimit() {
         val mockContext = org.mockito.Mockito.mock(android.content.Context::class.java)
         val mockPrefs = org.mockito.Mockito.mock(android.content.SharedPreferences::class.java)
@@ -229,5 +257,61 @@ class ScreenTimeLimitManagerTest {
         // 3660s (1h 1m) already used earlier today before parent set 1m limit
         val baseline = ScreenTimeLimitManager.getOrCreateLimitBaselineSeconds(mockContext, policy, 3660L)
         assertEquals(3660L, baseline)
+    }
+
+    @Test
+    fun computeUsedMinutesForLimit_returnsZero_whenNoDailyLimitConfigured() {
+        val mockContext = org.mockito.Mockito.mock(android.content.Context::class.java)
+        val policyNoLimit = com.kidsguard.child.data.model.DevicePolicyResponse.defaultPolicy().copy(
+            dailyLimitMinutes = null
+        )
+        val usage = com.kidsguard.child.data.model.ScreenTimeReportRequest(
+            date = "2026-10-25",
+            totalScreenTimeSeconds = 5400L, // 90 min
+            reportingPeriod = com.kidsguard.child.data.model.ReportingPeriodDto(
+                start = "2026-10-25T00:00:00.000Z",
+                end = "2026-10-25T10:00:00.000Z"
+            ),
+            permissionGranted = true,
+            deviceUnlockCount = 5,
+            appUsage = emptyList()
+        )
+        val usedMin = ScreenTimeLimitManager.computeUsedMinutesForLimit(mockContext, policyNoLimit, usage)
+        assertEquals(0, usedMin)
+    }
+
+    @Test
+    fun computeUsedMinutesForLimit_computesTodayTotalUsageCorrectly() {
+        val mockContext = org.mockito.Mockito.mock(android.content.Context::class.java)
+        val mockPrefs = org.mockito.Mockito.mock(android.content.SharedPreferences::class.java)
+        org.mockito.Mockito.`when`(mockContext.getSharedPreferences(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyInt())).thenReturn(mockPrefs)
+        org.mockito.Mockito.`when`(mockPrefs.getString(org.mockito.Mockito.anyString(), org.mockito.Mockito.nullable(String::class.java))).thenReturn(null)
+        org.mockito.Mockito.`when`(mockPrefs.getLong(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyLong())).thenReturn(0L)
+
+        val policy = com.kidsguard.child.data.model.DevicePolicyResponse.defaultPolicy().copy(
+            dailyLimitMinutes = 60
+        )
+        val usage = com.kidsguard.child.data.model.ScreenTimeReportRequest(
+            date = "2026-10-25",
+            totalScreenTimeSeconds = 4500L, // 75 min
+            reportingPeriod = com.kidsguard.child.data.model.ReportingPeriodDto(
+                start = "2026-10-25T00:00:00.000Z",
+                end = "2026-10-25T10:00:00.000Z"
+            ),
+            permissionGranted = true,
+            deviceUnlockCount = 10,
+            appUsage = emptyList()
+        )
+        val usedMin = ScreenTimeLimitManager.computeUsedMinutesForLimit(mockContext, policy, usage)
+        assertEquals(75, usedMin)
+
+        val eval = ScreenTimeLimitManager.evaluateScreenTimeState(
+            dailyLimitMinutes = policy.dailyLimitMinutes,
+            usedMinutes = usedMin,
+            extensionUntilMs = 0L,
+            isLockedToday = false
+        )
+        assertTrue(eval.isTimeOver)
+        assertEquals(75, eval.usedMinutes)
     }
 }

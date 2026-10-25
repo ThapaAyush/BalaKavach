@@ -514,7 +514,15 @@ export function createServiceWorker({
           });
 
           // SPONTANEOUS 18+ CONTENT REMOVAL:
-          // Immediately purge all open Chrome tabs matching adult/18+ content the exact second extension connects!
+          // Automatically enable adult protection shield upon connection and purge all open Chrome tabs matching adult/18+ content!
+          if (manager && typeof manager.saveAdultProtectionEnabled === 'function') {
+            try {
+              await manager.saveAdultProtectionEnabled(true);
+            } catch {
+              // Ignore in mock test environments
+            }
+          }
+
           let purgedInfo = { purgedCount: 0, removedTabIds: [] };
           if (tabs) {
             try {

@@ -5,8 +5,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import com.kidsguard.child.KidsGuardApp
 import com.kidsguard.child.data.local.FilePolicyStorage
+import com.kidsguard.child.data.model.DeviceSession
+import com.kidsguard.child.domain.rules.AdultContentDetector
 import com.kidsguard.child.domain.rules.AppBlockingRuleEngine
 import com.kidsguard.child.domain.rules.ScreenTimeLimitManager
 import com.kidsguard.child.ui.AppBlockedActivity
@@ -36,6 +39,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
     private var lastForegroundTimestamp: Long = 0L
     private var lastBlockedPackage: String? = null
     private var lastBlockedTimestamp: Long = 0L
+    private var lastBackgroundPolicySyncMs: Long = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -43,15 +47,26 @@ class AppBlockingAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (event == null) return
+        val eventType = event.eventType
+        if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+        ) {
             return
         }
 
         val packageName = event.packageName?.toString() ?: return
         val now = System.currentTimeMillis()
 
+        // Content change events are only inspected for active mobile browser URL/search changes to minimize CPU overhead
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            !AdultContentDetector.isBrowserPackage(packageName)
+        ) {
+            return
+        }
+
         // Track foreground transitions to maintain live usage seconds and open counts
-        if (packageName != currentForegroundPackage) {
+        if (packageName != currentForegroundPackage && eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             if (currentForegroundPackage != null && lastForegroundTimestamp > 0L) {
                 val elapsedSec = ((now - lastForegroundTimestamp) / 1000L).coerceAtLeast(0L)
                 if (elapsedSec > 0 && !AppBlockingRuleEngine.isExempt(currentForegroundPackage!!)) {
@@ -77,12 +92,11 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val policy = (applicationContext as? KidsGuardApp)?.localPolicyStorage?.getCachedPolicy()
             ?: FilePolicyStorage(applicationContext).getCachedPolicy()
 
-        // Launcher (home screen) and emergency dialer remain accessible so phone is not bricked
-        val isLauncher = AppBlockingRuleEngine.isExempt(packageName) &&
-            (packageName.contains("launcher") || packageName.contains("home") || packageName == "android")
+        // Launcher (home screen), emergency dialer, and system exempt packages remain accessible so phone is not bricked
+        val isExempt = AppBlockingRuleEngine.isExempt(packageName)
         val isDialer = packageName.contains("dialer") || packageName.contains("phone")
 
-        if (isLauncher || isDialer) {
+        if (isExempt || isDialer) {
             return
         }
 
@@ -163,7 +177,74 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                 putExtra(AppBlockedActivity.EXTRA_BLOCK_TYPE, AppBlockedActivity.BLOCK_TYPE_APP_RESTRICTION)
             }
             startActivity(blockIntent)
+            return
         }
+
+        // 5. Mobile Chrome / Web Browser Strict 18+ Adult & Website Protection
+        if (AdultContentDetector.isBrowserPackage(packageName)) {
+            val root = rootInActiveWindow
+            val detectedText = extractBrowserUrlOrSearch(root, packageName)
+            val blockedDomains = policy?.blockedDomains ?: emptyList()
+
+            if (AdultContentDetector.isAdultContent(detectedText, blockedDomains)) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 1500L) {
+                    lastBlockedPackage = packageName
+                    lastBlockedTimestamp = now
+
+                    val friendlyName = resolveAppLabel(packageName)
+                    val blockIntent = Intent(this, AppBlockedActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        putExtra(AppBlockedActivity.EXTRA_PACKAGE_NAME, packageName)
+                        putExtra(AppBlockedActivity.EXTRA_APP_NAME, friendlyName)
+                        putExtra(AppBlockedActivity.EXTRA_BLOCK_TYPE, AppBlockedActivity.BLOCK_TYPE_ADULT_CONTENT)
+                    }
+                    startActivity(blockIntent)
+                }
+            }
+        }
+    }
+
+    private fun extractBrowserUrlOrSearch(root: AccessibilityNodeInfo?, packageName: String): String? {
+        if (root == null) return null
+
+        val knownIds = listOf(
+            "$packageName:id/url_bar",
+            "$packageName:id/search_box_text",
+            "$packageName:id/location_bar_edit_text",
+            "$packageName:id/mozac_browser_toolbar_url_view"
+        )
+        for (id in knownIds) {
+            try {
+                val nodes = root.findAccessibilityNodeInfosByViewId(id)
+                if (!nodes.isNullOrEmpty()) {
+                    val text = nodes[0].text?.toString()
+                    if (!text.isNullOrBlank()) return text
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        return findFirstUrlNodeText(root, 0)
+    }
+
+    private fun findFirstUrlNodeText(node: AccessibilityNodeInfo?, depth: Int): String? {
+        if (node == null || depth > 8) return null
+        try {
+            val text = node.text?.toString()
+            if (!text.isNullOrBlank() && (node.isEditable || node.className?.toString()?.contains("EditText") == true)) {
+                return text
+            }
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i)
+                val found = findFirstUrlNodeText(child, depth + 1)
+                if (found != null) return found
+            }
+        } catch (_: Exception) {
+        }
+        return null
     }
 
     private fun startPeriodicScreenTimeMonitor() {
@@ -172,9 +253,31 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             while (isActive) {
                 delay(3000L) // Periodic check every 3 seconds
                 try {
+                    val now = System.currentTimeMillis()
+                    if (now - lastBackgroundPolicySyncMs >= 20_000L) {
+                        lastBackgroundPolicySyncMs = now
+                        syncPolicyInBackground()
+                    }
                     checkAndEnforceScreenTimeLimit()
                 } catch (_: Exception) {
                     // Safe guard against loop termination
+                }
+            }
+        }
+    }
+
+    private fun syncPolicyInBackground() {
+        val app = applicationContext as? KidsGuardApp ?: return
+        val deviceRepo = app.deviceRepository
+        val policyRepo = app.policyRepository
+        val usageReader = app.usageStatsReader
+        val session = deviceRepo.deviceSession.value
+        if (session.isPaired && session.pairingStatus != DeviceSession.STATUS_INVALID_SESSION) {
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    deviceRepo.syncAll(policyRepo, usageReader)
+                } catch (_: Exception) {
+                    // Gracefully ignore network/offline issues
                 }
             }
         }
@@ -184,12 +287,13 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         val pkg = currentForegroundPackage ?: return
 
-        // If currently in our own companion app, home launcher, or dialer, do not interrupt
+        // If currently in our own companion app, home launcher, dialer, or exempt package, do not interrupt
         if (pkg == applicationContext.packageName ||
             pkg.contains("kidsguard") ||
             pkg.contains("launcher") ||
             pkg.contains("home") ||
-            pkg.contains("dialer")
+            pkg.contains("dialer") ||
+            AppBlockingRuleEngine.isExempt(pkg)
         ) {
             return
         }

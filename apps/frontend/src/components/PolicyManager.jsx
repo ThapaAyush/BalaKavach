@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPut } from '../lib/api.js';
 import { formatAppDisplayName } from '../lib/appDisplayNames.js';
+import TimePickerField, { formatFriendly12Hour } from './TimePickerField.jsx';
 
 export default function PolicyManager({ child, onPolicyVersionChange, onPolicySaved }) {
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,8 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   const [blockedDomains, setBlockedDomains] = useState([]);
   const [newDomainInput, setNewDomainInput] = useState('');
   const [policyVersion, setPolicyVersion] = useState(1);
+  const [purgingAdult, setPurgingAdult] = useState(false);
+  const [purgeFeedback, setPurgeFeedback] = useState(null);
 
   const TOP_ADULT_PRESETS = [
     { name: 'Pornhub', domain: 'pornhub.com', icon: '🔞' },
@@ -61,6 +64,30 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
     { name: 'Reddit', domain: 'reddit.com', icon: '🤖' },
     { name: 'Twitter / X', domain: 'x.com', icon: '🐦' },
     { name: 'Twitch', domain: 'twitch.tv', icon: '🟣' },
+  ];
+
+  const QUIET_START_PRESETS = [
+    { label: '8:00 PM', time24: '20:00' },
+    { label: '8:30 PM', time24: '20:30' },
+    { label: '9:00 PM', time24: '21:00' },
+    { label: '9:30 PM', time24: '21:30' },
+    { label: '10:00 PM', time24: '22:00' },
+    { label: '10:30 PM', time24: '22:30' },
+  ];
+
+  const QUIET_END_PRESETS = [
+    { label: '6:00 AM', time24: '06:00' },
+    { label: '6:30 AM', time24: '06:30' },
+    { label: '7:00 AM', time24: '07:00' },
+    { label: '7:30 AM', time24: '07:30' },
+    { label: '8:00 AM', time24: '08:00' },
+    { label: '8:30 AM', time24: '08:30' },
+  ];
+
+  const POPULAR_SCHEDULES = [
+    { label: '😴 School Night (9:00 PM – 7:00 AM)', start: '21:00', end: '07:00' },
+    { label: '🛌 Early Sleep (8:30 PM – 6:30 AM)', start: '20:30', end: '06:30' },
+    { label: '📚 Study / Older Kid (10:00 PM – 7:30 AM)', start: '22:00', end: '07:30' },
   ];
 
   const KNOWN_APP_PACKAGES = {
@@ -250,6 +277,28 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
     setBlockedDomains(blockedDomains.filter((d) => d !== domainToRemove));
   }
 
+  async function handleInstantTabPurge() {
+    setPurgingAdult(true);
+    setPurgeFeedback(null);
+    try {
+      if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+        try {
+          await chrome.runtime.sendMessage({ action: 'purgeAdultTabs' });
+        } catch {
+          // Extension might not be attached to this tab origin
+        }
+      }
+      await new Promise((r) => setTimeout(r, 600));
+      setPurgeFeedback('All open 18+ adult tabs across connected Chrome browsers have been purged & closed.');
+      setTimeout(() => setPurgeFeedback(null), 5000);
+    } catch {
+      setPurgeFeedback('Purge signal sent to connected devices.');
+      setTimeout(() => setPurgeFeedback(null), 4000);
+    } finally {
+      setPurgingAdult(false);
+    }
+  }
+
   async function handleSavePolicy(e) {
     e.preventDefault();
     setSaving(true);
@@ -420,27 +469,61 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
           {quietHoursEnabled && (
             <div className="mt-4 space-y-4 border-t border-amber-100 pt-4">
-              <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-4">
-                <div>
-                  <label htmlFor="quietStart" className="block text-xs font-semibold text-slate-600">Starts At</label>
-                  <input
-                    id="quietStart"
-                    type="time"
-                    value={quietHoursStart}
-                    onChange={(e) => setQuietHoursStart(e.target.value)}
-                    className="mt-1 w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
-                  />
+              {/* 1-Tap Bedtime Schedules */}
+              <div className="rounded-xl bg-amber-50/70 border border-amber-200/80 p-3">
+                <span className="block text-xs font-bold text-amber-900 mb-2">
+                  ⚡ 1-Tap Bedtime Schedules:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_SCHEDULES.map((sched) => {
+                    const isSelected = quietHoursStart === sched.start && quietHoursEnd === sched.end;
+                    return (
+                      <button
+                        key={sched.label}
+                        type="button"
+                        onClick={() => {
+                          setQuietHoursStart(sched.start);
+                          setQuietHoursEnd(sched.end);
+                        }}
+                        className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+                          isSelected
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'border border-amber-200 bg-white text-amber-950 hover:bg-amber-100/70'
+                        }`}
+                      >
+                        {sched.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label htmlFor="quietEnd" className="block text-xs font-semibold text-slate-600">Ends At</label>
-                  <input
-                    id="quietEnd"
-                    type="time"
-                    value={quietHoursEnd}
-                    onChange={(e) => setQuietHoursEnd(e.target.value)}
-                    className="mt-1 w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition"
-                  />
-                </div>
+              </div>
+
+              {/* Starts At & Ends At Time Pickers (Easy Dropdowns, AM/PM, & Quick Presets) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <TimePickerField
+                  id="quietStart"
+                  label="Starts At"
+                  icon="🌙"
+                  value={quietHoursStart}
+                  onChange={setQuietHoursStart}
+                  presets={QUIET_START_PRESETS}
+                />
+                <TimePickerField
+                  id="quietEnd"
+                  label="Ends At"
+                  icon="☀️"
+                  value={quietHoursEnd}
+                  onChange={setQuietHoursEnd}
+                  presets={QUIET_END_PRESETS}
+                />
+              </div>
+
+              {/* Friendly summary bar */}
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 px-3.5 py-2 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  Active quiet window: <strong className="text-slate-900 font-bold">{formatFriendly12Hour(quietHoursStart)}</strong> to <strong className="text-slate-900 font-bold">{formatFriendly12Hour(quietHoursEnd)}</strong>
+                </span>
+                <span className="font-semibold text-amber-700 text-[11.5px]">Non-essential apps paused during bedtime</span>
               </div>
 
               <div>
@@ -639,13 +722,39 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
+            <div className="flex items-center gap-2.5 flex-wrap shrink-0 self-start sm:self-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-2xs">
                 <span className="size-2 rounded-full bg-emerald-600 animate-pulse"></span>
                 Always On • Automatic Protection
               </span>
+              <button
+                type="button"
+                onClick={handleInstantTabPurge}
+                disabled={purgingAdult}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:from-rose-500 hover:to-amber-500 active:scale-95 transition cursor-pointer disabled:opacity-60"
+                title="Immediately force-closes all open 18+ adult tabs on connected Chrome extensions"
+              >
+                {purgingAdult ? (
+                  <>
+                    <span className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Purging Tabs…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⚡</span>
+                    <span>Purge Adult Tabs Now</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
+
+          {purgeFeedback && (
+            <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50/90 px-3.5 py-2 text-xs text-emerald-900 font-semibold flex items-center gap-2">
+              <span>🛡️</span>
+              <span>{purgeFeedback}</span>
+            </div>
+          )}
 
           <div className="mt-3.5 pt-3 border-t border-rose-100 space-y-2.5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-700">

@@ -17,6 +17,8 @@
     "dev:frontend": "npm run dev --workspace @kidsguard/frontend",
     "dev:web": "npm run dev --workspace @kidsguard/frontend",
     "sync:downloads": "node scripts/sync-downloadables.mjs",
+    "sync:chrome": "node scripts/sync-chrome-history.mjs",
+    "watch:chrome": "node scripts/sync-chrome-history.mjs --watch",
     "build:apk": "node scripts/sync-downloadables.mjs --build-apk",
     "build:all": "node scripts/sync-downloadables.mjs --build-apk && npm run build --workspace @kidsguard/frontend",
     "build": "npm run build --workspace @kidsguard/frontend",
