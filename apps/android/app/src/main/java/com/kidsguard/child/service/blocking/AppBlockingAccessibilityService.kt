@@ -4,8 +4,11 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import com.kidsguard.child.KidsGuardApp
 import com.kidsguard.child.data.local.FilePolicyStorage
 import com.kidsguard.child.data.model.DeviceSession
@@ -136,19 +139,16 @@ class AppBlockingAccessibilityService : AccessibilityService() {
 
         if (isLocked || screenTimeState.isTimeOver) {
             performGlobalAction(GLOBAL_ACTION_HOME)
-            if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 1500L) {
+            if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 2500L) {
                 lastBlockedPackage = packageName
                 lastBlockedTimestamp = now
-
-                val overIntent = Intent(this, ScreenTimeOverActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra(ScreenTimeOverActivity.EXTRA_BUDGET_MINUTES, policy?.dailyLimitMinutes ?: 0)
-                    putExtra(ScreenTimeOverActivity.EXTRA_USED_MINUTES, screenTimeState.usedMinutes.coerceAtLeast(policy?.dailyLimitMinutes ?: 0))
-                    putExtra(ScreenTimeOverActivity.EXTRA_IS_LOCKED_MODE, isLocked)
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        applicationContext,
+                        "Daily screen-time limit reached. Device is locked for today.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                startActivity(overIntent)
             }
             return
         }
@@ -339,17 +339,19 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val screenTimeState = ScreenTimeLimitManager.checkScreenTime(this, policy, usage, now)
 
         if (isLocked || screenTimeState.isTimeOver) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
-            if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 3500L)) {
-                val overIntent = Intent(this, ScreenTimeOverActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra(ScreenTimeOverActivity.EXTRA_BUDGET_MINUTES, policy?.dailyLimitMinutes ?: 0)
-                    putExtra(ScreenTimeOverActivity.EXTRA_USED_MINUTES, screenTimeState.usedMinutes.coerceAtLeast(policy?.dailyLimitMinutes ?: 0))
-                    putExtra(ScreenTimeOverActivity.EXTRA_IS_LOCKED_MODE, isLocked)
+            val fgPkg = currentForegroundPackage
+            val isExemptPkg = fgPkg != null && (AppBlockingRuleEngine.isExempt(fgPkg) || fgPkg.contains("dialer") || fgPkg.contains("phone"))
+            if (!isExemptPkg) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 4000L)) {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(
+                            applicationContext,
+                            "Daily screen-time limit reached. Device is locked for today.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
-                startActivity(overIntent)
             }
         }
     }
