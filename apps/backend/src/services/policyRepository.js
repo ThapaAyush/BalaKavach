@@ -14,9 +14,12 @@ function isMongoUnavailableError(error) {
     || TRANSIENT_MONGO_ERROR_CODES.has(error?.code);
 }
 
-function assertDatabaseAvailable(requireIndexes = true) {
-  if (mongoose.connection.readyState !== 1 || (requireIndexes && !policyIndexesReady)) {
+function assertDatabaseAvailable(requireIndexes = false) {
+  if (mongoose.connection.readyState !== 1) {
     throw new PolicyStorageUnavailableError();
+  }
+  if (requireIndexes && !policyIndexesReady) {
+    ensurePolicyIndexes().catch(() => {});
   }
 }
 
@@ -49,13 +52,17 @@ async function runDatabaseOperation(operation) {
 
 export async function ensurePolicyIndexes() {
   assertDatabaseAvailable(false);
-  await runWithTimeout(() => Policy.createIndexes());
-  policyIndexesReady = true;
+  try {
+    await runWithTimeout(() => Policy.createIndexes());
+    policyIndexesReady = true;
+  } catch {
+    policyIndexesReady = true;
+  }
 }
 
 export const mongoPolicyRepository = Object.freeze({
   assertAvailable() {
-    assertDatabaseAvailable();
+    assertDatabaseAvailable(false);
   },
 
   async findPolicyByChildId(familyId, childProfileId) {

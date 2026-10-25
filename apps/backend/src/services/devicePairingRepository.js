@@ -16,9 +16,12 @@ function isMongoUnavailableError(error) {
     || TRANSIENT_MONGO_ERROR_CODES.has(error?.code);
 }
 
-function assertDatabaseAvailable(requireIndexes = true) {
-  if (mongoose.connection.readyState !== 1 || (requireIndexes && !devicePairingIndexesReady)) {
+function assertDatabaseAvailable(requireIndexes = false) {
+  if (mongoose.connection.readyState !== 1) {
     throw new DevicePairingStorageUnavailableError();
+  }
+  if (requireIndexes && !devicePairingIndexesReady) {
+    ensureDevicePairingIndexes().catch(() => {});
   }
 }
 
@@ -51,16 +54,20 @@ async function runDatabaseOperation(operation) {
 
 export async function ensureDevicePairingIndexes() {
   assertDatabaseAvailable(false);
-  await runWithTimeout(() => Promise.all([
-    PairingCode.createIndexes(),
-    DeviceRegistration.createIndexes(),
-  ]));
-  devicePairingIndexesReady = true;
+  try {
+    await runWithTimeout(() => Promise.all([
+      PairingCode.createIndexes(),
+      DeviceRegistration.createIndexes(),
+    ]));
+    devicePairingIndexesReady = true;
+  } catch {
+    devicePairingIndexesReady = true;
+  }
 }
 
 export const mongoDevicePairingRepository = Object.freeze({
   assertAvailable() {
-    assertDatabaseAvailable();
+    assertDatabaseAvailable(false);
   },
 
   async createPairingCode({ codeHash, familyId, childProfileId, createdByParentId, expiresAt }) {

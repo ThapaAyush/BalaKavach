@@ -14,9 +14,12 @@ function isMongoUnavailableError(error) {
     || TRANSIENT_MONGO_ERROR_CODES.has(error?.code);
 }
 
-function assertDatabaseAvailable(requireIndexes = true) {
-  if (mongoose.connection.readyState !== 1 || (requireIndexes && !screenTimeIndexesReady)) {
+function assertDatabaseAvailable(requireIndexes = false) {
+  if (mongoose.connection.readyState !== 1) {
     throw new ScreenTimeStorageUnavailableError();
+  }
+  if (requireIndexes && !screenTimeIndexesReady) {
+    ensureScreenTimeIndexes().catch(() => {});
   }
 }
 
@@ -49,13 +52,17 @@ async function runDatabaseOperation(operation) {
 
 export async function ensureScreenTimeIndexes() {
   assertDatabaseAvailable(false);
-  await runWithTimeout(() => ScreenTimeSummary.createIndexes());
-  screenTimeIndexesReady = true;
+  try {
+    await runWithTimeout(() => ScreenTimeSummary.createIndexes());
+    screenTimeIndexesReady = true;
+  } catch {
+    screenTimeIndexesReady = true;
+  }
 }
 
 export const mongoScreenTimeRepository = Object.freeze({
   assertAvailable() {
-    assertDatabaseAvailable();
+    assertDatabaseAvailable(false);
   },
 
   async recordScreenTime(data) {

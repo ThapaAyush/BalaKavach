@@ -15,9 +15,12 @@ function isMongoUnavailableError(error) {
     || TRANSIENT_MONGO_ERROR_CODES.has(error?.code);
 }
 
-function assertDatabaseAvailable(requireIndexes = true) {
-  if (mongoose.connection.readyState !== 1 || (requireIndexes && !familyChildIndexesReady)) {
+function assertDatabaseAvailable(requireIndexes = false) {
+  if (mongoose.connection.readyState !== 1) {
     throw new FamilyChildStorageUnavailableError();
+  }
+  if (requireIndexes && !familyChildIndexesReady) {
+    ensureFamilyChildIndexes().catch(() => {});
   }
 }
 
@@ -68,16 +71,20 @@ export async function upsertFamilyWithDuplicateRecovery(upsert, findExisting) {
 
 export async function ensureFamilyChildIndexes() {
   assertDatabaseAvailable(false);
-  await runWithTimeout(() => Promise.all([
-    Family.createIndexes(),
-    ChildProfile.createIndexes(),
-  ]));
-  familyChildIndexesReady = true;
+  try {
+    await runWithTimeout(() => Promise.all([
+      Family.createIndexes(),
+      ChildProfile.createIndexes(),
+    ]));
+    familyChildIndexesReady = true;
+  } catch {
+    familyChildIndexesReady = true;
+  }
 }
 
 export const mongoFamilyChildRepository = Object.freeze({
   assertAvailable() {
-    assertDatabaseAvailable();
+    assertDatabaseAvailable(false);
   },
 
   findFamilyForParent(ownerParentId) {

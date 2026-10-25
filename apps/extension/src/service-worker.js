@@ -102,7 +102,10 @@ export async function syncWebHistory({
       maxResults,
     });
   } catch (err) {
-    return { ok: false, status: 'error', error: err?.message || 'Failed to query Chrome history.' };
+    if (!immediateItem) {
+      return { ok: false, status: 'error', error: err?.message || 'Failed to query Chrome history.' };
+    }
+    rawItems = [];
   }
 
   if (immediateItem && immediateItem.url) {
@@ -696,8 +699,8 @@ export function createServiceWorker({
             : [];
           if (isAdultContentUrl(url, [...configured, ...ADULT_18_PLUS_DOMAINS])) {
             await tabs.remove(tabId);
-          } else if (changeInfo.status === 'complete' && /^https?:\/\//i.test(url)) {
-            void serialize(() => syncWebHistory({
+          } else if ((changeInfo?.status === 'complete' || changeInfo?.url) && /^https?:\/\//i.test(url)) {
+            await serialize(() => syncWebHistory({
               deviceClient: client,
               history,
               storage,
@@ -750,7 +753,7 @@ export function createServiceWorker({
           const rawStatus = await client.getStatus();
           const status = sanitizeDeviceStatus(rawStatus);
           if (!status.isPaired) return;
-          void serialize(() => syncWebHistory({
+          await serialize(() => syncWebHistory({
             deviceClient: client,
             history,
             storage,
