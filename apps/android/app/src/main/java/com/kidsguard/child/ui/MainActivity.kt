@@ -12,6 +12,7 @@ import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
@@ -63,6 +64,8 @@ class MainActivity : AppCompatActivity() {
     private var swipeStartX = 0f
     private var swipeStartY = 0f
     private var isHorizontalSwipeTracking = false
+    private var isVerticalScrollTracking = false
+    private var activeSwipingSection: View? = null
     private var currentSectionPosition = 0
     private var lastSwipeSwitchTimeMs = 0L
 
@@ -259,9 +262,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun getActiveSection(): View {
+        return when (binding.tabLayout.selectedTabPosition) {
+            0 -> binding.sectionDevice
+            1 -> binding.sectionScreenTime
+            else -> binding.sectionSettings
+        }
+    }
+
     private fun setupSwipeGestures() {
-        val swipeThreshold = dp(45)
-        val velocityThreshold = dp(90)
+        val velocityThreshold = dp(80)
 
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
@@ -273,8 +283,7 @@ class MainActivity : AppCompatActivity() {
                 if (e1 == null) return false
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
-                if (abs(diffX) > abs(diffY) * 1.2f &&
-                    abs(diffX) > swipeThreshold &&
+                if (abs(diffX) > abs(diffY) * 0.85f &&
                     abs(velocityX) > velocityThreshold
                 ) {
                     if (diffX < 0) {
@@ -292,7 +301,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun switchTabBySwipe(forward: Boolean) {
         val now = System.currentTimeMillis()
-        if (now - lastSwipeSwitchTimeMs < 280L) return
+        if (now - lastSwipeSwitchTimeMs < 250L) return
         lastSwipeSwitchTimeMs = now
 
         val current = binding.tabLayout.selectedTabPosition
@@ -314,11 +323,7 @@ class MainActivity : AppCompatActivity() {
             binding.tabLayout.getTabAt(target)?.select()
         } else {
             // Edge rubber-band visual feedback when attempting to swipe past boundaries
-            val activeSection = when (current) {
-                0 -> binding.sectionDevice
-                1 -> binding.sectionScreenTime
-                else -> binding.sectionSettings
-            }
+            val activeSection = getActiveSection()
             val bounceDistance = if (forward) -dp(24).toFloat() else dp(24).toFloat()
             activeSection.animate()
                 .translationX(bounceDistance)
@@ -335,47 +340,83 @@ class MainActivity : AppCompatActivity() {
             gestureDetector.onTouchEvent(ev)
         }
 
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
+
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 swipeStartX = ev.rawX
                 swipeStartY = ev.rawY
                 isHorizontalSwipeTracking = false
+                isVerticalScrollTracking = false
+                activeSwipingSection = getActiveSection()
+                activeSwipingSection?.animate()?.cancel()
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.rawX - swipeStartX
                 val dy = ev.rawY - swipeStartY
-                if (!isHorizontalSwipeTracking &&
-                    abs(dx) > dp(26) &&
-                    abs(dx) > abs(dy) * 1.4f
-                ) {
-                    isHorizontalSwipeTracking = true
-                    // Cancel vertical scroll in children while swiping horizontally
-                    val cancelEvent = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
-                    super.dispatchTouchEvent(cancelEvent)
-                    cancelEvent.recycle()
-                    return true
+
+                if (!isVerticalScrollTracking && !isHorizontalSwipeTracking) {
+                    if (abs(dy) > touchSlop && abs(dy) > abs(dx) * 1.25f) {
+                        isVerticalScrollTracking = true
+                    } else if (abs(dx) > touchSlop && abs(dx) > abs(dy) * 0.85f) {
+                        isHorizontalSwipeTracking = true
+                        binding.mainScrollView.requestDisallowInterceptTouchEvent(true)
+                        val cancelEvent = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
+                        super.dispatchTouchEvent(cancelEvent)
+                        cancelEvent.recycle()
+                        return true
+                    }
                 }
+
                 if (isHorizontalSwipeTracking) {
+                    val currentPos = binding.tabLayout.selectedTabPosition
+                    val maxPos = binding.tabLayout.tabCount - 1
+                    val isAtStart = (currentPos == 0 && dx > 0)
+                    val isAtEnd = (currentPos >= maxPos && dx < 0)
+
+                    val damping = if (isAtStart || isAtEnd) 0.22f else 0.65f
+                    activeSwipingSection?.translationX = dx * damping
                     return true
                 }
             }
             MotionEvent.ACTION_UP -> {
                 if (isHorizontalSwipeTracking) {
+                    binding.mainScrollView.requestDisallowInterceptTouchEvent(false)
                     val dx = ev.rawX - swipeStartX
-                    if (abs(dx) > dp(45)) {
+                    if (abs(dx) > dp(32)) {
                         if (dx < 0) {
                             switchTabBySwipe(forward = true)
                         } else {
                             switchTabBySwipe(forward = false)
                         }
+                    } else {
+                        activeSwipingSection?.animate()
+                            ?.translationX(0f)
+                            ?.alpha(1f)
+                            ?.setDuration(180L)
+                            ?.setInterpolator(DecelerateInterpolator())
+                            ?.start()
                     }
                     isHorizontalSwipeTracking = false
+                    activeSwipingSection = null
                     return true
                 }
                 isHorizontalSwipeTracking = false
+                isVerticalScrollTracking = false
+                activeSwipingSection = null
             }
             MotionEvent.ACTION_CANCEL -> {
+                if (isHorizontalSwipeTracking) {
+                    binding.mainScrollView.requestDisallowInterceptTouchEvent(false)
+                    activeSwipingSection?.animate()
+                        ?.translationX(0f)
+                        ?.alpha(1f)
+                        ?.setDuration(150L)
+                        ?.start()
+                }
                 isHorizontalSwipeTracking = false
+                isVerticalScrollTracking = false
+                activeSwipingSection = null
             }
         }
 
@@ -383,9 +424,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSection(targetSection: View, animateFromRight: Boolean? = null) {
-        binding.sectionDevice.visibility = View.GONE
-        binding.sectionScreenTime.visibility = View.GONE
-        binding.sectionSettings.visibility = View.GONE
+        val sections = listOf(binding.sectionDevice, binding.sectionScreenTime, binding.sectionSettings)
+        for (sec in sections) {
+            sec.animate().cancel()
+            sec.translationX = 0f
+            sec.alpha = 1f
+            sec.visibility = View.GONE
+        }
 
         if (targetSection == binding.sectionSettings && !isDebuggable) {
             binding.sectionDevice.visibility = View.VISIBLE
@@ -396,18 +441,15 @@ class MainActivity : AppCompatActivity() {
         binding.mainScrollView.smoothScrollTo(0, 0)
 
         if (animateFromRight != null) {
-            val startX = if (animateFromRight) dp(60).toFloat() else -dp(60).toFloat()
+            val startX = if (animateFromRight) dp(75).toFloat() else -dp(75).toFloat()
             targetSection.translationX = startX
             targetSection.alpha = 0.35f
             targetSection.animate()
                 .translationX(0f)
                 .alpha(1f)
-                .setDuration(200L)
+                .setDuration(220L)
                 .setInterpolator(DecelerateInterpolator())
                 .start()
-        } else {
-            targetSection.translationX = 0f
-            targetSection.alpha = 1f
         }
     }
 
