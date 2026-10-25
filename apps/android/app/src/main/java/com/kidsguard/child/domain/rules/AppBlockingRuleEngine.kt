@@ -52,7 +52,7 @@ object AppBlockingRuleEngine {
 
     fun isExempt(packageName: String): Boolean {
         val clean = packageName.lowercase().trim()
-        return EXEMPT_PACKAGES.contains(clean) || clean.contains("launcher")
+        return EXEMPT_PACKAGES.contains(clean) || clean.contains("launcher") || clean.contains("home")
     }
 
     /**

@@ -13,6 +13,7 @@ function createMockElement(tagName = 'div', initial = {}) {
     disabled: initial.disabled ?? false,
     className: initial.className ?? '',
     dataset: { ...initial.dataset },
+    style: { ...initial.style },
     focusCalled: false,
     focus() { element.focusCalled = true; },
     setAttribute(k, v) { element[k] = v; },
@@ -72,6 +73,11 @@ function createMockPopupDom() {
     '#device-policy-display': createMockElement('dd', { textContent: 'v0' }),
     '#device-sync-display': createMockElement('dd', { textContent: 'Never' }),
     '#device-sync-mode': createMockElement('dd', { textContent: 'Automatic (live)' }),
+    '#device-history-sync-display': createMockElement('dd', { textContent: 'Live tracking' }),
+    '#paired-actions': createMockElement('div', { hidden: true }),
+    '#sync-history-button': createMockElement('button', { textContent: 'Sync Browsing History' }),
+    '#sync-history-button-text': createMockElement('span', { textContent: 'Sync Browsing History' }),
+    '#history-sync-status': createMockElement('p', { hidden: true }),
     '#sync-button': createMockElement('button', { textContent: 'Sync with parent policy', hidden: true }),
     '#device-error': createMockElement('p', { hidden: true }),
   };
@@ -488,4 +494,25 @@ test('handlePairingSubmit requests host permissions dynamically if not yet grant
   assert.deepEqual(requestCalledWith, { origins: ['https://balakavach-be.onrender.com/*'] });
   assert.equal(chrome.runtime.sentMessages[0].action, 'redeemPairingCode');
 });
+
+test('handleSyncHistory sends syncWebHistory message and updates UI with sync result', async () => {
+  const { document, elements } = createMockPopupDom();
+  const chrome = createMockChrome(async (msg) => {
+    if (msg.action === 'syncWebHistory') {
+      return { ok: true, status: 'ok', ingestedCount: 15, totalAttempted: 15 };
+    }
+    return { ok: false };
+  });
+
+  const controller = createPopupController({ document, chrome });
+  const result = await controller.handleSyncHistory();
+
+  assert.equal(chrome.runtime.sentMessages.length, 1);
+  assert.equal(chrome.runtime.sentMessages[0].action, 'syncWebHistory');
+  assert.equal(result.ingestedCount, 15);
+  assert.match(elements['#history-sync-status'].textContent, /Synced 15 browsing visits to parent/u);
+  assert.equal(elements['#history-sync-status'].hidden, false);
+  assert.match(elements['#device-history-sync-display'].textContent, /15 visits/u);
+});
+
 

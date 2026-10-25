@@ -62,6 +62,13 @@ function inferCategory(urlStr, domain, isBlocked) {
   return 'general';
 }
 
+function toObjectId(id) {
+  if (id && typeof id === 'string' && mongoose.isValidObjectId(id)) {
+    return new mongoose.Types.ObjectId(id);
+  }
+  return id;
+}
+
 export const mongoWebHistoryRepository = Object.freeze({
   assertAvailable() {
     assertDatabaseAvailable();
@@ -73,6 +80,10 @@ export const mongoWebHistoryRepository = Object.freeze({
         return { insertedCount: 0 };
       }
 
+      const targetFamilyId = toObjectId(familyId);
+      const targetChildId = toObjectId(childProfileId);
+      const targetDeviceId = toObjectId(deviceId);
+
       const operations = rawVisits.map((item) => {
         const visitedDate = item.visitedAt instanceof Date ? item.visitedAt : new Date(item.visitedAt);
         const domain = item.domain || extractDomain(item.url);
@@ -83,17 +94,17 @@ export const mongoWebHistoryRepository = Object.freeze({
         return {
           updateOne: {
             filter: {
-              familyId,
-              childProfileId,
+              familyId: targetFamilyId,
+              childProfileId: targetChildId,
               url: item.url,
               visitedAt: visitedDate,
             },
             update: {
               $set: {
-                deviceId,
+                deviceId: targetDeviceId,
                 deviceName: deviceName || 'Chrome Browser',
-                title: item.title || '',
-                domain,
+                title: (item.title || '').slice(0, 500),
+                domain: domain.slice(0, 253),
                 visitCount: item.visitCount || 1,
                 isBlocked: Boolean(item.isBlocked),
                 category,
@@ -113,7 +124,9 @@ export const mongoWebHistoryRepository = Object.freeze({
 
   async findHistoryByChild(familyId, childProfileId, { date, search, domain, limit = 100, page = 1 } = {}) {
     return runWithTimeout(async () => {
-      const filter = { familyId, childProfileId };
+      const targetFamilyId = toObjectId(familyId);
+      const targetChildId = toObjectId(childProfileId);
+      const filter = { familyId: targetFamilyId, childProfileId: targetChildId };
 
       if (date) {
         const start = new Date(`${date}T00:00:00.000Z`);
@@ -168,7 +181,9 @@ export const mongoWebHistoryRepository = Object.freeze({
 
   async getSummary(familyId, childProfileId, { date } = {}) {
     return runWithTimeout(async () => {
-      const filter = { familyId, childProfileId };
+      const targetFamilyId = toObjectId(familyId);
+      const targetChildId = toObjectId(childProfileId);
+      const filter = { familyId: targetFamilyId, childProfileId: targetChildId };
       if (date) {
         const start = new Date(`${date}T00:00:00.000Z`);
         const end = new Date(`${date}T23:59:59.999Z`);

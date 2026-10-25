@@ -6,6 +6,7 @@ import {
 } from './device-client.js';
 import {
   isAdultContentUrl,
+  isQuietHoursActive,
   ADULT_18_PLUS_DOMAINS,
 } from './domain-rules.js';
 
@@ -66,6 +67,7 @@ export async function syncWebHistory({
   ruleManager,
   lookbackDays = 7,
   maxResults = 200,
+  immediateItem = null,
 } = {}) {
   if (!deviceClient || !history?.search) {
     return { ok: false, status: 'unavailable', error: 'History API or device client unavailable.' };
@@ -90,7 +92,7 @@ export async function syncWebHistory({
   }
 
   const defaultStartTime = Date.now() - (lookbackDays * 24 * 60 * 60 * 1000);
-  const startTime = lastSyncTime > 0 ? Math.max(lastSyncTime, defaultStartTime) : defaultStartTime;
+  const startTime = lastSyncTime > 0 ? Math.max(lastSyncTime - 120_000, defaultStartTime) : defaultStartTime;
 
   let rawItems = [];
   try {
@@ -101,6 +103,11 @@ export async function syncWebHistory({
     });
   } catch (err) {
     return { ok: false, status: 'error', error: err?.message || 'Failed to query Chrome history.' };
+  }
+
+  if (immediateItem && immediateItem.url) {
+    if (!Array.isArray(rawItems)) rawItems = [];
+    rawItems.unshift(immediateItem);
   }
 
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
@@ -117,9 +124,11 @@ export async function syncWebHistory({
   }
 
   const visits = [];
+  const seenUrls = new Set();
+
   for (const item of rawItems) {
-    if (!item?.url) continue;
-    if (/^(chrome|chrome-extension|edge|about|devtools|blob|data):/i.test(item.url)) {
+    if (!item?.url || typeof item.url !== 'string') continue;
+    if (!/^https?:\/\//i.test(item.url)) {
       continue;
     }
 
@@ -131,15 +140,24 @@ export async function syncWebHistory({
       continue;
     }
 
+    const visitKey = `${item.url}-${item.lastVisitTime || 0}`;
+    if (seenUrls.has(visitKey)) continue;
+    seenUrls.add(visitKey);
+
     const isBlocked = isAdultContentUrl(item.url, [...configuredDomains, ...ADULT_18_PLUS_DOMAINS]);
-    const visitedAt = item.lastVisitTime
-      ? new Date(item.lastVisitTime).toISOString()
-      : new Date().toISOString();
+    let visitedAt;
+    try {
+      visitedAt = item.lastVisitTime && !isNaN(item.lastVisitTime) && item.lastVisitTime > 0
+        ? new Date(item.lastVisitTime).toISOString()
+        : new Date().toISOString();
+    } catch {
+      visitedAt = new Date().toISOString();
+    }
 
     visits.push({
-      url: item.url,
+      url: item.url.slice(0, 2048),
       title: (item.title || domain || 'Web Page').slice(0, 500),
-      domain,
+      domain: domain.slice(0, 253),
       visitedAt,
       visitCount: Math.max(Number(item.visitCount) || 1, 1),
       isBlocked,
@@ -154,18 +172,39 @@ export async function syncWebHistory({
     return { ok: false, status: 'unsupported', error: 'deviceClient does not support sendWebHistory.' };
   }
 
-  const uploadResult = await deviceClient.sendWebHistory(visits.slice(0, 200));
-  if (uploadResult?.ok) {
+  const BATCH_SIZE = 50;
+  let totalIngested = 0;
+  let lastError = null;
+
+  for (let i = 0; i < visits.length; i += BATCH_SIZE) {
+    const chunk = visits.slice(i, i + BATCH_SIZE);
+    try {
+      const uploadResult = await deviceClient.sendWebHistory(chunk);
+      if (uploadResult?.ok) {
+        totalIngested += (uploadResult.ingestedCount ?? chunk.length);
+      } else {
+        lastError = uploadResult?.error || 'Batch upload failed';
+      }
+    } catch (err) {
+      lastError = err?.message || 'Network error during history sync';
+    }
+  }
+
+  if (totalIngested > 0 || visits.length === 0) {
     if (storage?.set) {
       try {
-        await storage.set({ kidsguard_last_history_sync: Date.now() });
+        await storage.set({
+          kidsguard_last_history_sync: Date.now(),
+          kidsguard_last_history_count: totalIngested,
+        });
       } catch {
         // ignore
       }
     }
+    return { ok: true, status: 'ok', ingestedCount: totalIngested, totalAttempted: visits.length };
   }
 
-  return uploadResult;
+  return { ok: false, status: 'error', error: lastError || 'Web history upload failed.' };
 }
 
 export async function executeHeartbeat(clientOrOptions, maybeRuleManager, maybeTabs, maybeHistory, maybeStorage) {
@@ -243,19 +282,22 @@ export async function executeHeartbeat(clientOrOptions, maybeRuleManager, maybeT
   };
 }
 
-export async function executePolicySync(clientOrOptions, maybeRuleManager, maybeTabs) {
+export async function executePolicySync(clientOrOptions, maybeRuleManager, maybeTabs, maybeStorage) {
   let deviceClient;
   let ruleManager;
   let tabs;
+  let storage;
 
   if (clientOrOptions && typeof clientOrOptions.getStatus === 'function') {
     deviceClient = clientOrOptions;
     ruleManager = maybeRuleManager;
     tabs = maybeTabs;
+    storage = maybeStorage;
   } else if (clientOrOptions && typeof clientOrOptions === 'object') {
     deviceClient = clientOrOptions.deviceClient;
     ruleManager = clientOrOptions.ruleManager;
     tabs = clientOrOptions.tabs ?? maybeTabs;
+    storage = clientOrOptions.storage ?? maybeStorage;
   }
 
   if (!deviceClient || !ruleManager) {
@@ -286,6 +328,13 @@ export async function executePolicySync(clientOrOptions, maybeRuleManager, maybe
     if (tabs && typeof ruleManager.getConfiguredDomains === 'function') {
       const configured = await ruleManager.getConfiguredDomains();
       await purgeAdultTabs(tabs, [...configured, ...ADULT_18_PLUS_DOMAINS]);
+    }
+    if (storage?.set && policyResult.policy?.screenTime?.quietHours) {
+      try {
+        await storage.set({ kidsguard_quiet_hours: policyResult.policy.screenTime.quietHours });
+      } catch {
+        // ignore
+      }
     }
     const versionToAck = policyResult.policyVersion ?? policyResult.policy.version;
     if (versionToAck && typeof deviceClient.acknowledgePolicy === 'function') {
@@ -400,7 +449,17 @@ export function createServiceWorker({
         return await getPopupState();
 
       case 'syncPolicy':
-        return await serialize(() => executePolicySync({ deviceClient: client, ruleManager: manager, tabs }));
+        return await serialize(async () => {
+          const policyRes = await executePolicySync({ deviceClient: client, ruleManager: manager, tabs, storage });
+          if (history) {
+            try {
+              await syncWebHistory({ deviceClient: client, history, storage, ruleManager: manager });
+            } catch {
+              // Ignore background history sync errors
+            }
+          }
+          return policyRes;
+        });
 
       case 'getDeviceStatus':
         try {
@@ -453,7 +512,7 @@ export function createServiceWorker({
           }
 
           // Immediately perform initial policy synchronization upon pairing
-          void serialize(() => executePolicySync({ deviceClient: client, ruleManager: manager, tabs }));
+          void serialize(() => executePolicySync({ deviceClient: client, ruleManager: manager, tabs, storage }));
 
           // Spontaneously harvest and sync Chrome browsing history so parent dashboard sees history upon connection!
           if (history) {
@@ -609,7 +668,7 @@ export function createServiceWorker({
       alarms.onAlarm.addListener((alarm) => handleAlarm(alarm));
     }
 
-    // Monitor tabs in real-time to spontaneously block and close 18+ content
+    // Monitor tabs in real-time to spontaneously block 18+ content and capture browsing visits
     if (tabs?.onUpdated?.addListener) {
       tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         const url = changeInfo?.url || tab?.url;
@@ -618,11 +677,33 @@ export function createServiceWorker({
           const rawStatus = await client.getStatus();
           const status = sanitizeDeviceStatus(rawStatus);
           if (!status.isPaired) return;
+
+          // Check if parent-configured quiet hours are active
+          if (storage?.get) {
+            try {
+              const qhData = await storage.get('kidsguard_quiet_hours');
+              if (qhData?.kidsguard_quiet_hours && isQuietHoursActive(qhData.kidsguard_quiet_hours) && /^https?:\/\//i.test(url)) {
+                await tabs.remove(tabId);
+                return;
+              }
+            } catch {
+              // Ignore
+            }
+          }
+
           const configured = typeof manager.getConfiguredDomains === 'function'
             ? await manager.getConfiguredDomains()
             : [];
           if (isAdultContentUrl(url, [...configured, ...ADULT_18_PLUS_DOMAINS])) {
             await tabs.remove(tabId);
+          } else if (changeInfo.status === 'complete' && /^https?:\/\//i.test(url)) {
+            void serialize(() => syncWebHistory({
+              deviceClient: client,
+              history,
+              storage,
+              ruleManager: manager,
+              immediateItem: { url, title: tab?.title || '', lastVisitTime: Date.now() },
+            }));
           }
         } catch {
           // Tab could already be closing
@@ -637,6 +718,19 @@ export function createServiceWorker({
           const rawStatus = await client.getStatus();
           const status = sanitizeDeviceStatus(rawStatus);
           if (!status.isPaired) return;
+
+          if (storage?.get) {
+            try {
+              const qhData = await storage.get('kidsguard_quiet_hours');
+              if (qhData?.kidsguard_quiet_hours && isQuietHoursActive(qhData.kidsguard_quiet_hours) && /^https?:\/\//i.test(tab.url)) {
+                await tabs.remove(tab.id);
+                return;
+              }
+            } catch {
+              // Ignore
+            }
+          }
+
           const configured = typeof manager.getConfiguredDomains === 'function'
             ? await manager.getConfiguredDomains()
             : [];
@@ -651,23 +745,30 @@ export function createServiceWorker({
 
     // Monitor history in real-time to harvest child browsing visits for the parent dashboard
     if (history?.onVisited?.addListener) {
-      history.onVisited.addListener(async () => {
+      history.onVisited.addListener(async (historyItem) => {
         try {
           const rawStatus = await client.getStatus();
           const status = sanitizeDeviceStatus(rawStatus);
           if (!status.isPaired) return;
-          void serialize(() => syncWebHistory({ deviceClient: client, history, storage, ruleManager: manager }));
+          void serialize(() => syncWebHistory({
+            deviceClient: client,
+            history,
+            storage,
+            ruleManager: manager,
+            immediateItem: historyItem,
+          }));
         } catch {
           // Ignore
         }
       });
     }
 
-    // Always reconcile alarm, rules, and purge any open adult tabs on boot
+    // Always reconcile alarm, rules, purge open adult tabs, and sync web history on boot
     await Promise.allSettled([
       reconcileRules(),
       reconcileAlarm(alarms),
       purgePairedAdultTabs(),
+      syncWebHistory({ deviceClient: client, history, storage, ruleManager: manager }),
     ]);
   }
 
@@ -677,7 +778,7 @@ export function createServiceWorker({
     reconcileRules,
     reconcileAlarm: () => reconcileAlarm(alarms),
     executeHeartbeat: () => executeHeartbeat({ deviceClient: client, ruleManager: manager, tabs, history, storage }),
-    executePolicySync: () => executePolicySync({ deviceClient: client, ruleManager: manager, tabs }),
+    executePolicySync: () => executePolicySync({ deviceClient: client, ruleManager: manager, tabs, storage }),
     syncWebHistory: (opts = {}) => syncWebHistory({ deviceClient: client, history, storage, ruleManager: manager, ...opts }),
     purgeAdultTabs: () => purgeAdultTabs(tabs, ADULT_18_PLUS_DOMAINS),
     init,

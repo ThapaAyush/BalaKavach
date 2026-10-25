@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
@@ -85,7 +88,7 @@ export function createApp({
       res: (res) => ({ statusCode: res.statusCode }),
     },
   }));
-  app.use(express.json({ limit: '32kb' }));
+  app.use(express.json({ limit: '2mb' }));
   app.use('/api/v1', rateLimit({
     windowMs: 60_000,
     limit: 120,
@@ -135,6 +138,21 @@ export function createApp({
     rateLimitConfig: runtimeEnv.rateLimitConfig,
   }));
   app.use('/api/v1/app-update', createAppUpdateRouter({ runtimeEnv }));
+
+  const backendPublicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../public');
+  if (fs.existsSync(backendPublicDir)) {
+    app.use(express.static(backendPublicDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.apk')) {
+          res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+          res.setHeader('Content-Disposition', 'attachment; filename="balakavach-companion.apk"');
+        } else if (filePath.endsWith('.zip')) {
+          res.setHeader('Content-Type', 'application/zip');
+          res.setHeader('Content-Disposition', 'attachment; filename="balakavach-chrome-extension.zip"');
+        }
+      },
+    }));
+  }
   app.get('/', (req, res) => {
     res.status(200).json({
       ok: true,

@@ -146,12 +146,13 @@ export function createAppUpdateRouter({ runtimeEnv = process.env } = {}) {
 
     for (const p of candidateZipPaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/zip');
         return res.download(p, 'balakavach-chrome-extension.zip');
       }
     }
 
     const fallbackUrl = runtimeEnv.CHROME_EXTENSION_EXTERNAL_URL ||
-      'https://raw.githubusercontent.com/ThapaAyush/KidsGuard/main/apps/frontend/public/balakavach-chrome-extension.zip';
+      'https://bala-kavach-fe.vercel.app/balakavach-chrome-extension.zip';
     return res.redirect(302, fallbackUrl);
   }
 
@@ -164,12 +165,13 @@ export function createAppUpdateRouter({ runtimeEnv = process.env } = {}) {
 
     for (const p of candidateApkPaths) {
       if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
         return res.download(p, 'balakavach-companion.apk');
       }
     }
 
     const fallbackUrl = runtimeEnv.ANDROID_APK_EXTERNAL_URL ||
-      'https://raw.githubusercontent.com/ThapaAyush/KidsGuard/main/apps/frontend/public/balakavach-companion.apk';
+      'https://bala-kavach-fe.vercel.app/balakavach-companion.apk';
     return res.redirect(302, fallbackUrl);
   }
 

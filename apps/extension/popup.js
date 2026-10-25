@@ -28,6 +28,11 @@ export function createPopupController({
   const presetCloudBtn = document.querySelector('#preset-cloud-btn');
   const presetLocalBtn = document.querySelector('#preset-local-btn');
   const deviceServerDisplay = document.querySelector('#device-server-display');
+  const deviceHistorySyncDisplay = document.querySelector('#device-history-sync-display');
+  const pairedActions = document.querySelector('#paired-actions');
+  const syncHistoryButton = document.querySelector('#sync-history-button');
+  const syncHistoryButtonText = document.querySelector('#sync-history-button-text');
+  const historySyncStatus = document.querySelector('#history-sync-status');
 
   let pairingBusy = false;
   let syncBusy = false;
@@ -162,6 +167,23 @@ export function createPopupController({
       if (deviceSyncMode) deviceSyncMode.textContent = 'Automatic (live)';
       if (pairingForm) pairingForm.hidden = true;
       if (syncButton) syncButton.hidden = true;
+      if (pairedActions) pairedActions.hidden = false;
+
+      if (deviceHistorySyncDisplay && chrome?.storage?.local?.get) {
+        try {
+          chrome.storage.local.get(['kidsguard_last_history_sync', 'kidsguard_last_history_count'], (res) => {
+            if (res?.kidsguard_last_history_sync) {
+              const timeStr = new Date(res.kidsguard_last_history_sync).toLocaleTimeString();
+              const count = res.kidsguard_last_history_count ?? 0;
+              deviceHistorySyncDisplay.textContent = `${timeStr} (${count} visit${count === 1 ? '' : 's'})`;
+            } else {
+              deviceHistorySyncDisplay.textContent = 'Live tracking';
+            }
+          });
+        } catch {
+          deviceHistorySyncDisplay.textContent = 'Live tracking';
+        }
+      }
     } else if (status === 'invalid_session') {
       if (deviceStatusBadge) {
         deviceStatusBadge.textContent = 'Re-auth required';
@@ -185,6 +207,7 @@ export function createPopupController({
 
       if (pairingForm) pairingForm.hidden = false;
       if (syncButton) syncButton.hidden = true;
+      if (pairedActions) pairedActions.hidden = true;
     } else {
       // Unpaired default
       if (deviceStatusBadge) {
@@ -199,6 +222,7 @@ export function createPopupController({
       if (deviceSyncMode) deviceSyncMode.textContent = 'Inactive (unpaired)';
       if (pairingForm) pairingForm.hidden = false;
       if (syncButton) syncButton.hidden = true;
+      if (pairedActions) pairedActions.hidden = true;
     }
   }
 
@@ -283,6 +307,55 @@ export function createPopupController({
       if (!silent) {
         setSyncBusy(false);
       }
+    }
+  }
+
+  async function handleSyncHistory() {
+    if (syncBusy) return null;
+    syncBusy = true;
+    if (syncHistoryButton) syncHistoryButton.disabled = true;
+    if (syncHistoryButtonText) syncHistoryButtonText.textContent = 'Syncing history…';
+    if (historySyncStatus) {
+      historySyncStatus.hidden = false;
+      historySyncStatus.textContent = 'Reading Chrome browsing history…';
+      historySyncStatus.dataset.kind = 'info';
+      if (historySyncStatus.style) historySyncStatus.style.color = '#0284c7';
+    }
+
+    try {
+      const response = await send({ action: 'syncWebHistory', lookbackDays: 7, maxResults: 500 });
+      if (response?.ok) {
+        const count = response.ingestedCount ?? 0;
+        const msg = count > 0
+          ? `✓ Synced ${count} browsing visit${count === 1 ? '' : 's'} to parent!`
+          : '✓ Browsing history is up to date!';
+        if (historySyncStatus) {
+          historySyncStatus.textContent = msg;
+          historySyncStatus.dataset.kind = 'success';
+          if (historySyncStatus.style) historySyncStatus.style.color = '#047857';
+        }
+        if (deviceHistorySyncDisplay) {
+          deviceHistorySyncDisplay.textContent = `Just now (${count} visit${count === 1 ? '' : 's'})`;
+        }
+      } else {
+        if (historySyncStatus) {
+          historySyncStatus.textContent = response?.error || 'History sync could not complete.';
+          historySyncStatus.dataset.kind = 'error';
+          if (historySyncStatus.style) historySyncStatus.style.color = '#b91c1c';
+        }
+      }
+      return response;
+    } catch (err) {
+      if (historySyncStatus) {
+        historySyncStatus.textContent = err.message || 'Sync failed.';
+        historySyncStatus.dataset.kind = 'error';
+        if (historySyncStatus.style) historySyncStatus.style.color = '#b91c1c';
+      }
+      return null;
+    } finally {
+      syncBusy = false;
+      if (syncHistoryButton) syncHistoryButton.disabled = false;
+      if (syncHistoryButtonText) syncHistoryButtonText.textContent = 'Sync Browsing History';
     }
   }
 
@@ -417,6 +490,12 @@ export function createPopupController({
       });
     }
 
+    if (syncHistoryButton) {
+      syncHistoryButton.addEventListener('click', () => {
+        void handleSyncHistory();
+      });
+    }
+
     // Clean up timer on popup unload
     window?.addEventListener?.('unload', () => {
       stopAutoSync();
@@ -454,6 +533,7 @@ export function createPopupController({
     loadState,
     autoSync,
     handleSync,
+    handleSyncHistory,
     startAutoSync,
     stopAutoSync,
     handlePairingSubmit,

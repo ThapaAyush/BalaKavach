@@ -13,8 +13,30 @@ export default function DownloadsView({ isStandalone = false }) {
         if (!isMounted || !data) return;
         setMeta((prev) => ({
           updatedAt: data.updatedAt || prev.updatedAt,
-          android: data.android ? { ...prev.android, ...data.android } : prev.android,
-          extension: data.extension ? { ...prev.extension, ...data.extension } : prev.extension,
+          android: data.android
+            ? {
+                ...prev.android,
+                ...data.android,
+                downloadUrl:
+                  data.android.directApkUrl ||
+                  (data.android.downloadUrl && !data.android.downloadUrl.startsWith('/api/')
+                    ? data.android.downloadUrl
+                    : prev.android.downloadUrl) ||
+                  '/balakavach-companion.apk',
+              }
+            : prev.android,
+          extension: data.extension
+            ? {
+                ...prev.extension,
+                ...data.extension,
+                downloadUrl:
+                  data.extension.directZipUrl ||
+                  (data.extension.downloadUrl && !data.extension.downloadUrl.startsWith('/api/')
+                    ? data.extension.downloadUrl
+                    : prev.extension.downloadUrl) ||
+                  '/balakavach-chrome-extension.zip',
+              }
+            : prev.extension,
         }));
         setSyncStatus('synced');
       })
@@ -26,6 +48,18 @@ export default function DownloadsView({ isStandalone = false }) {
       isMounted = false;
     };
   }, []);
+
+  const androidDownloadHref =
+    meta.android?.directApkUrl ||
+    (meta.android?.downloadUrl && !meta.android.downloadUrl.startsWith('/api/')
+      ? meta.android.downloadUrl
+      : '/balakavach-companion.apk');
+
+  const extensionDownloadHref =
+    meta.extension?.directZipUrl ||
+    (meta.extension?.downloadUrl && !meta.extension.downloadUrl.startsWith('/api/')
+      ? meta.extension.downloadUrl
+      : '/balakavach-chrome-extension.zip');
   return (
     <div className={`rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-4 sm:p-6 lg:p-8 shadow-md shadow-slate-200/50 flex flex-col justify-between transition ${isStandalone ? 'max-w-4xl mx-auto' : 'w-full'}`}>
       <div>
@@ -84,8 +118,8 @@ export default function DownloadsView({ isStandalone = false }) {
               </div>
             </div>
             <a
-              href={`${meta.android.downloadUrl}?v=${meta.android.versionHash || 'latest'}`}
-              download={meta.android.fileName}
+              href={`${androidDownloadHref}?v=${meta.android.versionHash || 'latest'}`}
+              download={meta.android.fileName || 'balakavach-companion.apk'}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 hover:shadow-md transition active:scale-95 shrink-0 min-h-[40px]"
               id="download-apk-btn"
             >
@@ -130,8 +164,8 @@ export default function DownloadsView({ isStandalone = false }) {
               </div>
             </div>
             <a
-              href={`${meta.extension.downloadUrl}?v=${meta.extension.versionHash || 'latest'}`}
-              download={meta.extension.fileName}
+              href={`${extensionDownloadHref}?v=${meta.extension.versionHash || 'latest'}`}
+              download={meta.extension.fileName || 'balakavach-chrome-extension.zip'}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-sky-600/20 hover:from-sky-500 hover:to-indigo-500 hover:shadow-md transition active:scale-95 shrink-0 min-h-[40px]"
               id="download-extension-btn"
             >

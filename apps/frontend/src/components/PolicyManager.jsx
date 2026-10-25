@@ -351,8 +351,9 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
           {/* Quick-Pick Budget Presets */}
           <div className="mt-3">
             <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">Quick Budget Presets</span>
-            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
               {[
+                { label: '15m', mins: '15' },
                 { label: '30m', mins: '30' },
                 { label: '1h', mins: '60' },
                 { label: '1.5h', mins: '90' },

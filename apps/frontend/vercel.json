@@ -1,0 +1,60 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "source": "/balakavach-companion.apk",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"balakavach-companion.apk\""
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/balakavach-chrome-extension.zip",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/zip"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"balakavach-chrome-extension.zip\""
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/v1/app-update/download",
+      "has": [
+        {
+          "type": "query",
+          "key": "target",
+          "value": "extension"
+        }
+      ],
+      "destination": "/balakavach-chrome-extension.zip"
+    },
+    {
+      "source": "/api/v1/app-update/download",
+      "destination": "/balakavach-companion.apk"
+    },
+    {
+      "source": "/((?!assets/|balakavach-companion\\.apk|balakavach-chrome-extension\\.zip|balakavach_logo\\.png|favicon\\.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

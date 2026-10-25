@@ -306,3 +306,39 @@ export function isKidsGuardRuleId(id, maxDomains = MAX_BLOCKED_DOMAINS) {
     (id >= ADULT_FIRST_RULE_ID && id < ADULT_FIRST_RULE_ID + MAX_ADULT_DOMAINS)
   );
 }
+
+export function isQuietHoursActive(quietHours, now = new Date()) {
+  if (!quietHours || !quietHours.enabled) return false;
+  const { start, end, days } = quietHours;
+  if (!start || !end) return false;
+
+  const startParts = start.trim().split(':').map(Number);
+  const endParts = end.trim().split(':').map(Number);
+  if (startParts.length !== 2 || endParts.length !== 2) return false;
+
+  const [startH, startM] = startParts;
+  const [endH, endM] = endParts;
+  if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[now.getDay()];
+  const activeDays = Array.isArray(days) ? days.map((d) => String(d).toLowerCase()) : [];
+  const isDayActive = activeDays.length === 0 || activeDays.includes(dayName);
+
+  if (startMinutes < endMinutes) {
+    return isDayActive && (currentMinutes >= startMinutes && currentMinutes < endMinutes);
+  } else if (startMinutes > endMinutes) {
+    if (currentMinutes >= startMinutes && isDayActive) return true;
+    if (currentMinutes < endMinutes) {
+      const prevDayIndex = (now.getDay() + 6) % 7;
+      const prevDay = dayNames[prevDayIndex];
+      return activeDays.length === 0 || activeDays.includes(prevDay);
+    }
+    return false;
+  }
+  return isDayActive;
+}

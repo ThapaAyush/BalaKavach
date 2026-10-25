@@ -78,7 +78,8 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             ?: FilePolicyStorage(applicationContext).getCachedPolicy()
 
         // Launcher (home screen) and emergency dialer remain accessible so phone is not bricked
-        val isLauncher = AppBlockingRuleEngine.isExempt(packageName) && packageName.contains("launcher")
+        val isLauncher = AppBlockingRuleEngine.isExempt(packageName) &&
+            (packageName.contains("launcher") || packageName.contains("home") || packageName == "android")
         val isDialer = packageName.contains("dialer") || packageName.contains("phone")
 
         if (isLauncher || isDialer) {
@@ -88,6 +89,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         // 2. Check Quiet Hours / Bedtime Window (Parent configured active time window)
         val isQuietHours = ScreenTimeLimitManager.isQuietHoursActive(policy)
         if (isQuietHours) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
             if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 1500L) {
                 lastBlockedPackage = packageName
                 lastBlockedTimestamp = now
@@ -119,6 +121,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val screenTimeState = ScreenTimeLimitManager.checkScreenTime(this, policy, usage, now)
 
         if (isLocked || screenTimeState.isTimeOver) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
             if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 1500L) {
                 lastBlockedPackage = packageName
                 lastBlockedTimestamp = now
@@ -147,6 +150,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
 
         val blockedApp = AppBlockingRuleEngine.findBlockedApp(packageName, policy)
         if (blockedApp != null) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
             lastBlockedPackage = packageName
             lastBlockedTimestamp = now
 
@@ -184,6 +188,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         if (pkg == applicationContext.packageName ||
             pkg.contains("kidsguard") ||
             pkg.contains("launcher") ||
+            pkg.contains("home") ||
             pkg.contains("dialer")
         ) {
             return
@@ -204,6 +209,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         // Quiet Hours periodic check: if clock enters quiet hours while child is inside an app
         val isQuietHours = ScreenTimeLimitManager.isQuietHoursActive(policy)
         if (isQuietHours) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
             if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 3500L)) {
                 val friendlyName = resolveAppLabel(pkg)
                 val windowStr = ScreenTimeLimitManager.formatQuietHoursWindow(
@@ -229,6 +235,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         val screenTimeState = ScreenTimeLimitManager.checkScreenTime(this, policy, usage, now)
 
         if (isLocked || screenTimeState.isTimeOver) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
             if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 3500L)) {
                 val overIntent = Intent(this, ScreenTimeOverActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
