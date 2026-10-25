@@ -628,8 +628,6 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="monospace"
                                 android:textColor="@color/text_primary"
-                                android:textColorHint="@color/text_tertiary"
-                                android:hint="@string/pairing_code_hint"
                                 android:inputType="textVisiblePassword|textNoSuggestions"
                                 android:maxLines="1" />
                         </com.google.android.material.textfield.TextInputLayout>
@@ -658,8 +656,6 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textColor="@color/text_primary"
-                                android:textColorHint="@color/text_tertiary"
-                                android:hint="@string/device_name_hint"
                                 android:inputType="textCapWords"
                                 android:maxLines="1" />
                         </com.google.android.material.textfield.TextInputLayout>
@@ -1637,8 +1633,6 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="monospace"
                                 android:textColor="@color/text_primary"
-                                android:textColorHint="@color/text_tertiary"
-                                android:hint="@string/api_url_hint"
                                 android:inputType="textUri"
                                 android:maxLines="1"
                                 android:textSize="13sp" />
