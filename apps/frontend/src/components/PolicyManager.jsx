@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPut } from '../lib/api.js';
 import { formatAppDisplayName } from '../lib/appDisplayNames.js';
-import TimePickerField, { formatFriendly12Hour } from './TimePickerField.jsx';
 
 export default function PolicyManager({ child, onPolicyVersionChange, onPolicySaved }) {
   const [loading, setLoading] = useState(true);
@@ -9,14 +8,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  const [dailyLimitMinutes, setDailyLimitMinutes] = useState('');
-  const [todayScreenTimeMinutes, setTodayScreenTimeMinutes] = useState(0);
-  const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
-  const [quietHoursStart, setQuietHoursStart] = useState('21:00');
-  const [quietHoursEnd, setQuietHoursEnd] = useState('07:00');
-  const [quietHoursDays, setQuietHoursDays] = useState([
-    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-  ]);
   const [appRestrictionsEnabled, setAppRestrictionsEnabled] = useState(false);
   const [blockedApps, setBlockedApps] = useState([]);
   const [newAppNameInput, setNewAppNameInput] = useState('');
@@ -131,52 +122,25 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
     return `app.${slug || 'custom'}`;
   }
 
-  const ALL_DAYS = [
-    { id: 'monday', label: 'Mon' },
-    { id: 'tuesday', label: 'Tue' },
-    { id: 'wednesday', label: 'Wed' },
-    { id: 'thursday', label: 'Thu' },
-    { id: 'friday', label: 'Fri' },
-    { id: 'saturday', label: 'Sat' },
-    { id: 'sunday', label: 'Sun' },
-  ];
-
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
 
-    const todayDate = new Date().toISOString().slice(0, 10);
-
-    Promise.all([
-      apiGet(`/children/${child.id}/policy`),
-      apiGet(`/children/${child.id}/screen-time?date=${todayDate}`).catch(() => null),
-    ])
-      .then(([data, screenData]) => {
+    apiGet(`/children/${child.id}/policy`)
+      .then((data) => {
         if (!active) return;
         const p = data?.policy || data?.data?.policy;
         if (p) {
           const ver = p.version || 1;
           setPolicyVersion(ver);
           onPolicyVersionChange?.(ver);
-          setDailyLimitMinutes(p.screenTime?.dailyLimitMinutes ?? '');
-          setQuietHoursEnabled(p.screenTime?.quietHours?.enabled ?? false);
-          setQuietHoursStart(p.screenTime?.quietHours?.start ?? '21:00');
-          setQuietHoursEnd(p.screenTime?.quietHours?.end ?? '07:00');
-          setQuietHoursDays(p.screenTime?.quietHours?.days ?? ALL_DAYS.map((d) => d.id));
           setAppRestrictionsEnabled(p.appRestrictions?.enabled ?? false);
           setBlockedApps(p.appRestrictions?.blockedApps ?? []);
           setWebRestrictionsEnabled(p.webRestrictions?.enabled ?? false);
           setBlockAdultContent(p.webRestrictions?.blockAdultContent ?? true);
           setBlockedDomains(p.webRestrictions?.blockedDomains ?? []);
-        }
-
-        const totalSec = screenData?.totalScreenTimeSeconds ?? screenData?.data?.totalScreenTimeSeconds;
-        if (typeof totalSec === 'number' && totalSec > 0) {
-          setTodayScreenTimeMinutes(Math.round(totalSec / 60));
-        } else {
-          setTodayScreenTimeMinutes(0);
         }
         setLoading(false);
       })
@@ -188,15 +152,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
     return () => { active = false; };
   }, [child.id]);
-
-  function toggleDay(dayId) {
-    if (quietHoursDays.includes(dayId)) {
-      if (quietHoursDays.length === 1) return; // Keep at least one day
-      setQuietHoursDays(quietHoursDays.filter((d) => d !== dayId));
-    } else {
-      setQuietHoursDays([...quietHoursDays, dayId]);
-    }
-  }
 
   function handleToggleAppPreset(preset) {
     const exists = blockedApps.some((a) =>
@@ -297,12 +252,12 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
 
     const payload = {
       screenTime: {
-        dailyLimitMinutes: dailyLimitMinutes === '' ? null : parseInt(dailyLimitMinutes, 10),
+        dailyLimitMinutes: null,
         quietHours: {
-          enabled: quietHoursEnabled,
-          start: quietHoursStart,
-          end: quietHoursEnd,
-          days: quietHoursDays,
+          enabled: false,
+          start: '21:00',
+          end: '07:00',
+          days: [],
         },
       },
       appRestrictions: {
@@ -365,228 +320,6 @@ export default function PolicyManager({ child, onPolicyVersionChange, onPolicySa
       )}
 
       <form onSubmit={handleSavePolicy} className="space-y-6">
-        {/* Daily Screen Time Budget */}
-        <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-b from-sky-50/20 to-white p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="dailyLimitMinutes" className="block text-sm font-bold text-slate-900">
-                  Daily Screen-Time Limit (Minutes)
-                </label>
-                {dailyLimitMinutes && (
-                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 border border-sky-200">
-                    {parseInt(dailyLimitMinutes, 10) >= 60
-                      ? `${(parseInt(dailyLimitMinutes, 10) / 60).toFixed(1)} hrs/day`
-                      : `${dailyLimitMinutes} mins/day`}
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-500">
-                Set maximum daily screen time budget. Leave blank for unconstrained allowance.
-              </p>
-            </div>
-          </div>
-
-          {/* Today's Usage Info Banner */}
-          {todayScreenTimeMinutes > 0 ? (
-            <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-xl bg-sky-50/90 border border-sky-200/80 px-3.5 py-2 text-xs text-sky-950">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sky-900">⏱️ Today's screen time so far:</span>
-                <span className="font-bold text-sky-950 bg-white border border-sky-200 px-2 py-0.5 rounded-md shadow-2xs">
-                  {Math.floor(todayScreenTimeMinutes / 60) > 0 ? `${Math.floor(todayScreenTimeMinutes / 60)}h ` : ''}
-                  {todayScreenTimeMinutes % 60}m ({todayScreenTimeMinutes} min)
-                </span>
-              </div>
-              <span className="text-[11px] text-sky-700">
-                Presets add extra time from now on top of today's screen time.
-              </span>
-            </div>
-          ) : (
-            <div className="mt-2 text-[11px] text-slate-500">
-              No screen time used yet today. Presets set your child's fresh daily allowance.
-            </div>
-          )}
-
-          {/* Quick-Pick Budget Presets */}
-          <div className="mt-3">
-            <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">
-              {todayScreenTimeMinutes > 0 ? 'Quick Presets (Add time from now)' : 'Quick Budget Presets'}
-            </span>
-            <div className="grid grid-cols-5 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
-              {[
-                { label: todayScreenTimeMinutes > 0 ? '+2m' : '2m', mins: 2 },
-                { label: todayScreenTimeMinutes > 0 ? '+5m' : '5m', mins: 5 },
-                { label: todayScreenTimeMinutes > 0 ? '+15m' : '15m', mins: 15 },
-                { label: todayScreenTimeMinutes > 0 ? '+30m' : '30m', mins: 30 },
-                { label: todayScreenTimeMinutes > 0 ? '+1h' : '1h', mins: 60 },
-                { label: todayScreenTimeMinutes > 0 ? '+1.5h' : '1.5h', mins: 90 },
-                { label: todayScreenTimeMinutes > 0 ? '+2h' : '2h', mins: 120 },
-                { label: todayScreenTimeMinutes > 0 ? '+3h' : '3h', mins: 180 },
-                { label: todayScreenTimeMinutes > 0 ? '+4h' : '4h', mins: 240 },
-                { label: 'No Limit', mins: 0, isNoLimit: true },
-              ].map((preset) => {
-                const targetValue = preset.isNoLimit ? '' : String(todayScreenTimeMinutes + preset.mins);
-                const isSelected = String(dailyLimitMinutes) === targetValue;
-                return (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => setDailyLimitMinutes(targetValue)}
-                    className={`rounded-lg px-2 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-center transition ${
-                      isSelected
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <input
-              id="dailyLimitMinutes"
-              type="number"
-              min="1"
-              max="1440"
-              placeholder={todayScreenTimeMinutes > 0 ? "Total minutes (e.g. 282 for 2m from now)" : "Total daily minutes (e.g. 120)"}
-              value={dailyLimitMinutes}
-              onChange={(e) => setDailyLimitMinutes(e.target.value)}
-              className="w-full sm:w-64 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
-            />
-            {dailyLimitMinutes && (
-              <span className="text-xs font-semibold text-slate-600">
-                ≈ {(parseInt(dailyLimitMinutes, 10) / 60).toFixed(1)} hours/day ({dailyLimitMinutes} min total)
-              </span>
-            )}
-          </div>
-
-          {/* Real-time Calculation and Locking Warnings */}
-          {dailyLimitMinutes && (
-            <div className="mt-2.5 text-xs">
-              {(() => {
-                const limitVal = parseInt(dailyLimitMinutes, 10);
-                if (isNaN(limitVal)) return null;
-                if (todayScreenTimeMinutes > 0) {
-                  if (limitVal > todayScreenTimeMinutes) {
-                    const remainingMins = limitVal - todayScreenTimeMinutes;
-                    return (
-                      <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-200/90 px-3 py-2 rounded-lg font-medium">
-                        <span>⏳</span>
-                        <span>
-                          <strong>Active Timer: {remainingMins} minutes remaining from now</strong>. Child app will show live reverse countdown and close all apps at 00:00 (Locks at {limitVal}m total: {todayScreenTimeMinutes}m used today + {remainingMins}m).
-                        </span>
-                      </div>
-                    );
-                  } else if (limitVal === todayScreenTimeMinutes) {
-                    return (
-                      <div className="flex items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-200/90 px-3 py-1.5 rounded-lg font-medium">
-                        <span>⚠️</span>
-                        <span>
-                          Daily limit ({limitVal}m) matches today's usage ({todayScreenTimeMinutes}m). Device will lock immediately.
-                        </span>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-rose-800 bg-rose-50 border border-rose-200/90 px-3 py-2 rounded-lg font-medium">
-                        <div className="flex items-center gap-1.5">
-                          <span>⏱️</span>
-                          <span>
-                            Child already used {todayScreenTimeMinutes}m today. Set as <strong>{limitVal}m timer from now</strong>?
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDailyLimitMinutes(String(todayScreenTimeMinutes + limitVal))}
-                          className="self-start sm:self-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition shadow-2xs cursor-pointer"
-                        >
-                          ▶ Set {limitVal}m Timer ({todayScreenTimeMinutes + limitVal}m total)
-                        </button>
-                      </div>
-                    );
-                  }
-                }
-                return null;
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* Quiet Hours / Bedtime */}
-        <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50/20 to-white p-4 sm:p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="block text-sm font-bold text-slate-900">Quiet Hours / Bedtime</span>
-              <p className="text-xs text-slate-500">Designate quiet windows (e.g. overnight sleep or study hours).</p>
-            </div>
-            <label className="relative inline-flex cursor-pointer items-center">
-              <input
-                type="checkbox"
-                checked={quietHoursEnabled}
-                onChange={(e) => setQuietHoursEnabled(e.target.checked)}
-                className="peer sr-only"
-              />
-              <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-amber-500 peer-checked:after:translate-x-full"></div>
-            </label>
-          </div>
-
-          {quietHoursEnabled && (
-            <div className="mt-4 space-y-4 border-t border-amber-100 pt-4">
-              {/* Starts At & Ends At Time Pickers (Direct Hour, Minute, & AM/PM) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <TimePickerField
-                  id="quietStart"
-                  label="Starts At"
-                  icon="🌙"
-                  value={quietHoursStart}
-                  onChange={setQuietHoursStart}
-                />
-                <TimePickerField
-                  id="quietEnd"
-                  label="Ends At"
-                  icon="☀️"
-                  value={quietHoursEnd}
-                  onChange={setQuietHoursEnd}
-                />
-              </div>
-
-              {/* Friendly summary bar */}
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 px-3.5 py-2 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  Active quiet window: <strong className="text-slate-900 font-bold">{formatFriendly12Hour(quietHoursStart)}</strong> to <strong className="text-slate-900 font-bold">{formatFriendly12Hour(quietHoursEnd)}</strong>
-                </span>
-                <span className="font-semibold text-amber-700 text-[11.5px]">Non-essential apps paused during bedtime</span>
-              </div>
-
-              <div>
-                <span className="block text-xs font-semibold text-slate-600 mb-2">Active Days</span>
-                <div className="grid grid-cols-4 sm:grid-cols-7 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
-                  {ALL_DAYS.map((day) => {
-                    const active = quietHoursDays.includes(day.id);
-                    return (
-                      <button
-                        key={day.id}
-                        type="button"
-                        onClick={() => toggleDay(day.id)}
-                        className={`rounded-lg px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-center transition ${
-                          active
-                            ? 'bg-amber-500 text-white shadow-xs'
-                            : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {day.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* App Restrictions / Blocked Apps (Android Mobile) */}
         <div className="rounded-2xl border border-purple-200/80 bg-gradient-to-b from-purple-50/20 to-white p-5 shadow-xs">
           <div className="flex items-center justify-between">

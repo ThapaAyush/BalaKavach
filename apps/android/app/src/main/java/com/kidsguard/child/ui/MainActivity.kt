@@ -118,14 +118,8 @@ class MainActivity : AppCompatActivity() {
         if (viewModel.deviceSession.value.isPaired) {
             viewModel.autoSync(uploadScreenTime = true)
         }
-        // Update quiet hours alert status for current time
-        updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
         // Update app restrictions alert banner
         updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
-        // Update daily limit alert banner
-        updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
-        // Update live reverse countdown timer
-        updateReverseTimerUi()
         // Check for application updates from backend (non-intrusive)
         viewModel.checkForAppUpdate(
             currentVersionCode = com.kidsguard.child.BuildConfig.VERSION_CODE,
@@ -148,21 +142,17 @@ class MainActivity : AppCompatActivity() {
 
     private var lastScreenTimeUploadTimeMs = 0L
     private var lastFullUsageRefreshMs = 0L
-    private var hasMovedToHomeScreenOnZero = false
 
     private fun startLiveRealTimeTicker() {
         liveTickerJob?.cancel()
         liveTickerJob = lifecycleScope.launch {
             while (isActive) {
-                delay(1000L) // 1-second real-time tick for live reverse countdown
+                delay(1000L)
                 val now = System.currentTimeMillis()
                 if (now - lastFullUsageRefreshMs >= 4000L) {
                     lastFullUsageRefreshMs = now
                     viewModel.refreshUsageData()
                 }
-                updateReverseTimerUi()
-                updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
-                updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
 
                 // Periodically upload updated screen-time telemetry while app is active in foreground
                 if (now - lastScreenTimeUploadTimeMs >= 45000L && viewModel.deviceSession.value.isPaired) {
@@ -723,9 +713,7 @@ class MainActivity : AppCompatActivity() {
                         if (viewModel.deviceSession.value.isPaired) {
                             viewModel.autoSync()
                         }
-                        updateQuietHoursAlertUi(viewModel.cachedPolicy.value)
                         updateAppRestrictionsAlertUi(viewModel.cachedPolicy.value)
-                        updateDailyLimitAlertUi(viewModel.cachedPolicy.value, viewModel.todayUsage.value)
                     }
                 }
 
@@ -763,8 +751,6 @@ class MainActivity : AppCompatActivity() {
                             policy = viewModel.cachedPolicy.value,
                             lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
                         )
-                        updateDailyLimitAlertUi(viewModel.cachedPolicy.value, usage)
-                        updateReverseTimerUi()
                     }
                 }
 
@@ -775,10 +761,7 @@ class MainActivity : AppCompatActivity() {
                             policy = policy,
                             lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
                         )
-                        updateQuietHoursAlertUi(policy)
                         updateAppRestrictionsAlertUi(policy)
-                        updateDailyLimitAlertUi(policy, viewModel.todayUsage.value)
-                        updateReverseTimerUi()
                     }
                 }
 
@@ -1021,128 +1004,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // 3. Parent Daily Limit (Read-Only)
-        val dailyLimitMin = policy?.dailyLimitMinutes
-        val usedMinutes = ScreenTimeLimitManager.computeUsedMinutesForLimit(this, policy, usage)
-
-        if (dailyLimitMin != null && dailyLimitMin > 0) {
-            val formattedBudget = formatMinutesHuman(dailyLimitMin)
-            binding.textDailyLimitBudget.text = "$formattedBudget daily allowance"
-            binding.progressDailyLimit.visibility = View.VISIBLE
-
-            val percent = ((usedMinutes.toDouble() / dailyLimitMin) * 100).toInt().coerceIn(0, 100)
-            binding.progressDailyLimit.progress = percent
-
-            binding.textDailyLimitBadge.visibility = View.VISIBLE
-            binding.textDailyLimitRemaining.visibility = View.VISIBLE
-
-            if (usedMinutes >= dailyLimitMin) {
-                val overMinutes = usedMinutes - dailyLimitMin
-                binding.textDailyLimitBadge.text = getString(R.string.daily_limit_reached_badge)
-                binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
-
-                if (overMinutes > 0) {
-                    binding.textDailyLimitRemaining.text = getString(
-                        R.string.daily_limit_exceeded_format,
-                        formatMinutesHuman(overMinutes),
-                        formatMinutesHuman(usedMinutes),
-                        formattedBudget
-                    )
-                } else {
-                    binding.textDailyLimitRemaining.text = "Daily limit reached ($formattedBudget used of $formattedBudget budget)"
-                }
-                binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.status_red))
-                binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
-            } else if (percent >= 80) {
-                val remainingMinutes = dailyLimitMin - usedMinutes
-                binding.textDailyLimitBadge.text = getString(R.string.daily_limit_near_badge)
-                binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
-
-                binding.textDailyLimitRemaining.text = getString(
-                    R.string.daily_limit_remaining_format,
-                    formatMinutesHuman(remainingMinutes),
-                    formatMinutesHuman(usedMinutes),
-                    formattedBudget
-                )
-                binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
-                binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
-            } else {
-                val remainingMinutes = dailyLimitMin - usedMinutes
-                binding.textDailyLimitBadge.text = getString(R.string.daily_limit_badge_on_track)
-                binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_green)
-
-                binding.textDailyLimitRemaining.text = getString(
-                    R.string.daily_limit_remaining_format,
-                    formatMinutesHuman(remainingMinutes),
-                    formatMinutesHuman(usedMinutes),
-                    formattedBudget
-                )
-                binding.textDailyLimitRemaining.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-                binding.progressDailyLimit.progressTintList = ContextCompat.getColorStateList(this, R.color.accent)
-            }
-        } else {
-            binding.textDailyLimitBudget.text = getString(R.string.no_limit_set)
-            binding.textDailyLimitBadge.visibility = View.VISIBLE
-            binding.textDailyLimitBadge.text = getString(R.string.daily_limit_badge_no_limit)
-            binding.textDailyLimitBadge.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-            binding.textDailyLimitBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.border)
-            binding.textDailyLimitRemaining.visibility = View.GONE
-            binding.progressDailyLimit.visibility = View.GONE
-        }
-
-        val isQuietActive = isQuietHoursCurrentlyActive(policy)
-        if (policy?.quietHoursEnabled == true) {
-            val formattedRange = "${formatTime12Hour(policy.quietHoursStart)} – ${formatTime12Hour(policy.quietHoursEnd)}"
-            val formattedDays = formatActiveDays(policy.quietHoursDays)
-
-            binding.textQuietHoursDays.text = formattedDays
-            binding.textQuietHoursSchedule.text = if (isQuietActive) "Active Now: $formattedRange" else "Scheduled: $formattedRange"
-
-            binding.containerQuietHoursDetails.visibility = View.VISIBLE
-            binding.textQuietHoursStartTime.text = formatTime12Hour(policy.quietHoursStart)
-            binding.textQuietHoursEndTime.text = formatTime12Hour(policy.quietHoursEnd)
-
-            val activeDaysSet = policy.quietHoursDays.map { it.lowercase() }.toSet()
-            updateDayChip(binding.chipDayMon, activeDaysSet.contains("monday"))
-            updateDayChip(binding.chipDayTue, activeDaysSet.contains("tuesday"))
-            updateDayChip(binding.chipDayWed, activeDaysSet.contains("wednesday"))
-            updateDayChip(binding.chipDayThu, activeDaysSet.contains("thursday"))
-            updateDayChip(binding.chipDayFri, activeDaysSet.contains("friday"))
-            updateDayChip(binding.chipDaySat, activeDaysSet.contains("saturday"))
-            updateDayChip(binding.chipDaySun, activeDaysSet.contains("sunday"))
-
-            if (isQuietActive) {
-                binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_in_effect_badge)
-                binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textQuietHoursBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_purple)
-                binding.textQuietHoursBadge.visibility = View.VISIBLE
-
-                binding.layoutQuietHoursActiveNowBanner.visibility = View.VISIBLE
-            } else {
-                binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_scheduled_badge)
-                binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textQuietHoursBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
-                binding.textQuietHoursBadge.visibility = View.VISIBLE
-
-                binding.layoutQuietHoursActiveNowBanner.visibility = View.GONE
-            }
-        } else {
-            binding.containerQuietHoursDetails.visibility = View.GONE
-            binding.layoutQuietHoursActiveNowBanner.visibility = View.GONE
-
-            binding.textQuietHoursBadge.text = getString(R.string.quiet_hours_disabled_badge)
-            binding.textQuietHoursBadge.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-            binding.textQuietHoursBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.border)
-            binding.textQuietHoursBadge.visibility = View.VISIBLE
-
-            binding.textQuietHoursSchedule.text = getString(R.string.quiet_hours_disabled)
-            binding.textQuietHoursSchedule.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-        }
-
-        // 4. Parental App Restrictions (Read-Only)
+        // 3. Parental App Restrictions (Read-Only)
         updateAppRestrictionsSectionUi(policy, usage)
 
         // 5. Foreground App Usage Breakdown
@@ -1497,209 +1359,7 @@ class MainActivity : AppCompatActivity() {
         return row
     }
 
-    private fun updateQuietHoursAlertUi(policy: DevicePolicyResponse?) {
-        val isCurrentlyActive = isQuietHoursCurrentlyActive(policy)
-        if (isCurrentlyActive && policy != null) {
-            binding.cardQuietHoursActiveAlert.visibility = View.VISIBLE
-            binding.cardQuietHoursActiveAlert.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
-            val formattedTime = "${formatTime12Hour(policy.quietHoursStart)} – ${formatTime12Hour(policy.quietHoursEnd)}"
-            val activeDays = formatActiveDays(policy.quietHoursDays)
-            binding.textQuietHoursActiveTime.text = "$formattedTime • $activeDays"
-        } else {
-            binding.cardQuietHoursActiveAlert.visibility = View.GONE
-        }
-    }
 
-    private fun updateDayChip(chip: TextView, isActive: Boolean) {
-        if (isActive) {
-            chip.setBackgroundResource(R.drawable.bg_day_pill_active)
-            chip.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        } else {
-            chip.setBackgroundResource(R.drawable.bg_day_pill_inactive)
-            chip.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-        }
-    }
-
-    private fun updateDailyLimitAlertUi(
-        policy: DevicePolicyResponse?,
-        usage: ScreenTimeReportRequest?
-    ) {
-        val dailyLimitMin = policy?.dailyLimitMinutes
-        if (dailyLimitMin == null || dailyLimitMin <= 0) {
-            binding.cardDailyLimitAlert.visibility = View.GONE
-            return
-        }
-
-        val usedMinutes = ScreenTimeLimitManager.computeUsedMinutesForLimit(this, policy, usage)
-        val formattedBudget = formatMinutesHuman(dailyLimitMin)
-        val formattedUsed = formatMinutesHuman(usedMinutes)
-        val percent = ((usedMinutes.toDouble() / dailyLimitMin) * 100).toInt().coerceIn(0, 100)
-
-        binding.cardDailyLimitAlert.visibility = View.VISIBLE
-        binding.progressDailyLimitAlert.progress = percent
-
-        val isLocked = ScreenTimeLimitManager.isLockedForToday(this)
-        val isExtActive = ScreenTimeLimitManager.isExtensionActive(this)
-
-        if (isLocked) {
-            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_red)
-            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.status_red_light))
-            binding.textDailyLimitAlertTitle.text = getString(R.string.time_over_locked_title)
-            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
-
-            binding.textDailyLimitAlertBadge.text = "LOCKED TODAY"
-            binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-            binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
-
-            binding.textDailyLimitAlertBody.text = getString(R.string.time_over_locked_body)
-            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
-            binding.progressDailyLimitAlert.progress = 100
-            return
-        }
-
-        if (usedMinutes >= dailyLimitMin) {
-            // Limit reached or exceeded
-            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_red)
-            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.status_red_light))
-            binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_reached_title)
-            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_red))
-
-            if (isExtActive) {
-                binding.textDailyLimitAlertBadge.text = "+5M EXTENSION ACTIVE"
-                binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
-            } else {
-                binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_reached_badge)
-                binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-                binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_red)
-            }
-
-            binding.textDailyLimitAlertBody.text = getString(
-                R.string.daily_limit_reached_body,
-                formattedBudget,
-                formattedUsed
-            )
-            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_red)
-        } else if (percent >= 80) {
-            // Approaching limit (>= 80%)
-            val remainingMin = dailyLimitMin - usedMinutes
-            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.status_yellow)
-            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.status_yellow_light))
-            binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_near_title)
-            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
-
-            binding.textDailyLimitAlertBadge.text = getString(R.string.daily_limit_near_badge)
-            binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-            binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
-
-            binding.textDailyLimitAlertBody.text = getString(
-                R.string.daily_limit_near_body,
-                formattedUsed,
-                formattedBudget,
-                formatMinutesHuman(remainingMin)
-            )
-            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.status_yellow)
-        } else {
-            // Active on-track budget
-            val remainingMin = dailyLimitMin - usedMinutes
-            binding.cardDailyLimitAlert.strokeColor = ContextCompat.getColor(this, R.color.accent)
-            binding.layoutDailyLimitAlertBg.setBackgroundColor(ContextCompat.getColor(this, R.color.surface_variant))
-            binding.textDailyLimitAlertTitle.text = getString(R.string.daily_limit_active_title)
-            binding.textDailyLimitAlertTitle.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
-
-            binding.textDailyLimitAlertBadge.text = "${formatMinutesHuman(remainingMin)} left"
-            binding.textDailyLimitAlertBadge.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-            binding.textDailyLimitAlertBadge.backgroundTintList = ContextCompat.getColorStateList(this, R.color.accent)
-
-            binding.textDailyLimitAlertBody.text = getString(
-                R.string.daily_limit_active_body,
-                formatMinutesHuman(remainingMin),
-                formattedBudget,
-                formattedUsed
-            )
-            binding.progressDailyLimitAlert.progressTintList = ContextCompat.getColorStateList(this, R.color.accent)
-        }
-    }
-
-    private fun updateReverseTimerUi() {
-        val policy = viewModel.cachedPolicy.value
-        val usage = viewModel.todayUsage.value
-        val dailyLimitMin = policy?.dailyLimitMinutes
-
-        if (dailyLimitMin == null || dailyLimitMin <= 0) {
-            binding.layoutReverseTimer.visibility = View.GONE
-            binding.layoutAlertReverseTimer.visibility = View.GONE
-            hasMovedToHomeScreenOnZero = false
-            return
-        }
-
-        val eval = ScreenTimeLimitManager.checkScreenTime(this, policy, usage)
-        val remainingSec = eval.remainingSeconds
-        val isLocked = ScreenTimeLimitManager.isLockedForToday(this)
-
-        binding.layoutReverseTimer.visibility = View.VISIBLE
-        binding.layoutAlertReverseTimer.visibility = View.VISIBLE
-
-        if (isLocked || eval.isTimeOver || remainingSec <= 0L) {
-            val zeroDisplay = "00:00"
-            binding.textReverseCountdown.text = zeroDisplay
-            binding.textReverseCountdown.setTextColor(ContextCompat.getColor(this, R.color.status_red))
-            binding.textReverseTimerHeader.text = "⏱️ TIMER REACHED 00:00"
-            binding.textReverseTimerHint.text = "Time is up! All apps are closed."
-
-            binding.textAlertReverseCountdown.text = zeroDisplay
-            binding.textAlertReverseCountdown.setTextColor(ContextCompat.getColor(this, R.color.status_red))
-            binding.textAlertReverseHeader.text = "⏱️ TIMER REACHED 00:00"
-            binding.textAlertReverseHint.text = "Time is up! All apps are closed."
-
-            if (!hasMovedToHomeScreenOnZero) {
-                hasMovedToHomeScreenOnZero = true
-                try {
-                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                        addCategory(Intent.CATEGORY_HOME)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    }
-                    startActivity(homeIntent)
-                } catch (_: Exception) {
-                }
-            }
-        } else {
-            hasMovedToHomeScreenOnZero = false
-            val hours = remainingSec / 3600
-            val minutes = (remainingSec % 3600) / 60
-            val seconds = remainingSec % 60
-
-            val timeDisplay = if (hours > 0) {
-                String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-            } else {
-                String.format(Locale.US, "%02d:%02d", minutes, seconds)
-            }
-
-            binding.textReverseCountdown.text = timeDisplay
-            binding.textAlertReverseCountdown.text = timeDisplay
-
-            val timerColor = when {
-                remainingSec <= 60L -> ContextCompat.getColor(this, R.color.status_red)
-                remainingSec <= 300L -> ContextCompat.getColor(this, R.color.status_yellow)
-                else -> ContextCompat.getColor(this, R.color.accent)
-            }
-
-            binding.textReverseCountdown.setTextColor(timerColor)
-            binding.textAlertReverseCountdown.setTextColor(timerColor)
-
-            val headerText = if (eval.isExtensionActive) {
-                "⏳ EXTENSION REVERSE COUNTDOWN"
-            } else {
-                "⏳ LIVE REVERSE COUNTDOWN"
-            }
-            binding.textReverseTimerHeader.text = headerText
-            binding.textAlertReverseHeader.text = headerText
-
-            val hint = "Apps will close automatically when timer reaches 00:00"
-            binding.textReverseTimerHint.text = hint
-            binding.textAlertReverseHint.text = hint
-        }
-    }
 
     private fun formatIsoTimestamp(isoString: String?, fallback: String): String {
         if (isoString.isNullOrBlank()) return fallback

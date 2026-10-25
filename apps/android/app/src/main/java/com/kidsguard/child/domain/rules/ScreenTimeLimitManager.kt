@@ -530,6 +530,34 @@ object ScreenTimeLimitManager {
         }
     }
 
+    /**
+     * Calculates the seconds remaining in the current active quiet hours / bedtime window.
+     * Returns -1 if quiet hours is not currently active.
+     */
+    fun getQuietHoursRemainingSeconds(
+        policy: DevicePolicyResponse?,
+        now: Calendar = Calendar.getInstance()
+    ): Long {
+        if (!isQuietHoursActive(policy, now)) return -1L
+
+        val endStr = policy?.quietHoursEnd ?: return -1L
+        val (endH, endM) = parseHourMinute(endStr) ?: return -1L
+
+        val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val currentSeconds = now.get(Calendar.SECOND)
+        val endMinutes = endH * 60 + endM
+
+        val diffMinutes = if (endMinutes > currentMinutes) {
+            endMinutes - currentMinutes
+        } else {
+            // Window crosses midnight (e.g. 21:00 to 07:00 and current time is 22:00)
+            (24 * 60 - currentMinutes) + endMinutes
+        }
+
+        val totalRemainingSec = (diffMinutes * 60L) - currentSeconds
+        return totalRemainingSec.coerceAtLeast(0L)
+    }
+
     fun parseHourMinute(timeStr: String): Pair<Int, Int>? {
         val trimmed = timeStr.trim()
         if (trimmed.isEmpty()) return null

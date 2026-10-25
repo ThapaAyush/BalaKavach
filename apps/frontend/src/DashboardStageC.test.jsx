@@ -116,12 +116,7 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
 
     // Verify policy loads
     expect(await screen.findByText('Rules & Schedules: Alex')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('60')).toBeInTheDocument();
     expect(screen.getByText('gamingsite.com')).toBeInTheDocument();
-
-    // Modify limit and save
-    const limitInput = screen.getByLabelText(/Daily Screen-Time Limit/);
-    fireEvent.change(limitInput, { target: { value: '120' } });
 
     const saveButton = screen.getByRole('button', { name: 'Save Rules & Policy' });
     fireEvent.click(saveButton);
@@ -129,7 +124,6 @@ describe('Parent Web Dashboard - Stage C Policies, Screen Time, and Sync', () =>
     // Verify save success message
     expect(await screen.findByText('Policy saved successfully (Version 2).')).toBeInTheDocument();
     expect(savedPolicy.version).toBe(2);
-    expect(savedPolicy.screenTime.dailyLimitMinutes).toBe(120);
   });
 
   it('displays permission denied alert when child device reports missing usage access', async () => {

@@ -103,53 +103,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 2. Check Quiet Hours / Bedtime Window (Parent configured active time window)
-        val isQuietHours = ScreenTimeLimitManager.isQuietHoursActive(policy)
-        if (isQuietHours) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
-            if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 2500L) {
-                lastBlockedPackage = packageName
-                lastBlockedTimestamp = now
-
-                val windowStr = ScreenTimeLimitManager.formatQuietHoursWindow(
-                    policy?.quietHoursStart,
-                    policy?.quietHoursEnd
-                )
-
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        applicationContext,
-                        "Bedtime / Quiet Hours active ($windowStr). Apps are closed.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            return
-        }
-
-        val usage = (applicationContext as? KidsGuardApp)?.usageStatsReader?.measureTodayUsage()
-
-        // 3. Check Daily Screen-Time Limit and Device Lockout
-        val isLocked = ScreenTimeLimitManager.isLockedForToday(this, now)
-        val screenTimeState = ScreenTimeLimitManager.checkScreenTime(this, policy, usage, now)
-
-        if (isLocked || screenTimeState.isTimeOver) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
-            if (packageName != lastBlockedPackage || (now - lastBlockedTimestamp) > 2500L) {
-                lastBlockedPackage = packageName
-                lastBlockedTimestamp = now
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        applicationContext,
-                        "Daily screen-time limit reached. Device is locked for today.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            return
-        }
-
-        // 4. Check individual parent-restricted apps (when quiet hours and daily limit not in effect)
+        // 2. Check individual parent-restricted apps
         if (AppBlockingRuleEngine.isExempt(packageName)) {
             return
         }
@@ -303,49 +257,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             }
         }
 
-        val policy = (applicationContext as? KidsGuardApp)?.localPolicyStorage?.getCachedPolicy()
-            ?: FilePolicyStorage(applicationContext).getCachedPolicy()
 
-        // Quiet Hours periodic check: if clock enters quiet hours while child is inside an app
-        val isQuietHours = ScreenTimeLimitManager.isQuietHoursActive(policy)
-        if (isQuietHours) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
-            if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 4000L)) {
-                val windowStr = ScreenTimeLimitManager.formatQuietHoursWindow(
-                    policy?.quietHoursStart,
-                    policy?.quietHoursEnd
-                )
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        applicationContext,
-                        "Bedtime / Quiet Hours active ($windowStr). Apps are closed.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            return
-        }
-
-        val isLocked = ScreenTimeLimitManager.isLockedForToday(this, now)
-        val usage = (applicationContext as? KidsGuardApp)?.usageStatsReader?.measureTodayUsage()
-        val screenTimeState = ScreenTimeLimitManager.checkScreenTime(this, policy, usage, now)
-
-        if (isLocked || screenTimeState.isTimeOver) {
-            val fgPkg = currentForegroundPackage
-            val isExemptPkg = fgPkg != null && (AppBlockingRuleEngine.isExempt(fgPkg) || fgPkg.contains("dialer") || fgPkg.contains("phone"))
-            if (!isExemptPkg) {
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                if (ScreenTimeLimitManager.canShowPopupNow(this, now, cooldownMs = 4000L)) {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(
-                            applicationContext,
-                            "Daily screen-time limit reached. Device is locked for today.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-        }
     }
 
     private fun resolveAppLabel(pkg: String): String {
