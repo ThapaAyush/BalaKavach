@@ -120,6 +120,7 @@ test('End-to-end integration: Chrome extension synchronizes parent-managed polic
     const updatedPolicy = await policyService.updatePolicy(parent.id, child.id, {
       webRestrictions: {
         enabled: true,
+        blockAdultContent: false,
         blockedDomains: ['badsite.example', 'gambling.co.uk'],
       },
     });

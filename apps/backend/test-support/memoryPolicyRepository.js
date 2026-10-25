@@ -45,7 +45,8 @@ export function createMemoryPolicyRepository() {
           },
           webRestrictions: {
             enabled: policyData.webRestrictions?.enabled ?? false,
-            enforcementPlatform: 'desktop_chrome',
+            enforcementPlatform: policyData.webRestrictions?.enforcementPlatform ?? 'desktop_chrome',
+            blockAdultContent: policyData.webRestrictions?.blockAdultContent ?? true,
             blockedDomains: policyData.webRestrictions?.blockedDomains ?? [],
           },
           createdAt: new Date(),
