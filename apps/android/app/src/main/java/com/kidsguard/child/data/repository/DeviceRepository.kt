@@ -197,7 +197,10 @@ class DeviceRepository(
         // 1. Send Heartbeat
         val hbResult = apiClient.sendHeartbeat(baseUrl, credential)
         if (hbResult is ApiResult.Error) {
-            return handleSyncError(hbResult, currentSession)
+            // Heartbeat rate limiting (429) should never abort policy sync or screen-time telemetry
+            if (hbResult.statusCode != 429 && !hbResult.isRateLimitError) {
+                return handleSyncError(hbResult, currentSession)
+            }
         }
 
         // 2. Fetch & Acknowledge Policy

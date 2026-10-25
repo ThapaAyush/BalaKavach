@@ -982,6 +982,7 @@
                             android:text="Sync Now"
                             android:textColor="@color/accent"
                             android:textSize="12.5sp"
+                            android:visibility="gone"
                             app:cornerRadius="10dp"
                             app:icon="@android:drawable/ic_popup_sync"
                             app:iconTint="@color/accent"
@@ -1294,13 +1295,14 @@
                                 android:textStyle="bold" />
                         </LinearLayout>
 
-                        <!-- Manual Sync with Web Dashboard Button & Feedback -->
+                        <!-- Manual Sync with Web Dashboard Button & Feedback (Automated: hidden from child UI) -->
                         <LinearLayout
+                            android:id="@+id/layoutManualSyncScreenTime"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
                             android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:orientation="horizontal"
+                            android:visibility="gone">
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btnSyncScreenTime"
@@ -1310,6 +1312,7 @@
                                 android:text="Sync"
                                 android:textColor="@color/accent"
                                 android:textSize="12sp"
+                                android:visibility="gone"
                                 app:cornerRadius="10dp"
                                 app:icon="@android:drawable/ic_popup_sync"
                                 app:iconSize="16dp"

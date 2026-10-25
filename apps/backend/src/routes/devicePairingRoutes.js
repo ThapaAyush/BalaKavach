@@ -38,13 +38,15 @@ function createPairingRateLimit(limit, store) {
   });
 }
 
-function createHeartbeatRateLimit({ limit = 60, windowMs = 15 * 60 * 1000, store } = {}) {
+function createHeartbeatRateLimit({ limit = 120, windowMs = 15 * 60 * 1000, store } = {}) {
   return rateLimit({
     windowMs,
     limit,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     message: heartbeatLimitedResponse,
+    validate: { keyGeneratorIpFallback: false },
+    keyGenerator: (req) => req.headers.authorization || req.ip,
     ...(store ? { store } : {}),
   });
 }

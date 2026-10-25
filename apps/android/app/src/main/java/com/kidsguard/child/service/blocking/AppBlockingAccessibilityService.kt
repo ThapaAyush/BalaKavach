@@ -254,7 +254,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                 delay(3000L) // Periodic check every 3 seconds
                 try {
                     val now = System.currentTimeMillis()
-                    if (now - lastBackgroundPolicySyncMs >= 20_000L) {
+                    if (now - lastBackgroundPolicySyncMs >= 45_000L) {
                         lastBackgroundPolicySyncMs = now
                         syncPolicyInBackground()
                     }

@@ -480,20 +480,16 @@ class MainActivity : AppCompatActivity() {
             openUsageSettings()
         }
 
-        // Manual Sync Buttons to push telemetry and pull policies immediately
+        // Background automated sync handlers (buttons hidden from child UI)
         binding.btnSyncScreenTime.setOnClickListener {
             if (viewModel.deviceSession.value.isPaired) {
-                viewModel.syncNow(isSilent = false)
-            } else {
-                Toast.makeText(this, "Device is not paired yet.", Toast.LENGTH_SHORT).show()
+                viewModel.autoSync(uploadScreenTime = true)
             }
         }
 
         binding.btnSyncDevice.setOnClickListener {
             if (viewModel.deviceSession.value.isPaired) {
-                viewModel.syncNow(isSilent = false)
-            } else {
-                Toast.makeText(this, "Device is not paired yet.", Toast.LENGTH_SHORT).show()
+                viewModel.autoSync(uploadScreenTime = true)
             }
         }
 
@@ -717,46 +713,21 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // Sync Loading State
+                // Sync Loading State (Seamless background synchronization without manual UI buttons)
                 launch {
-                    viewModel.syncLoading.collect { loading ->
-                        binding.syncProgressBar.visibility = if (loading) View.VISIBLE else View.GONE
-                        binding.progressScreenTimeSync.visibility = if (loading) View.VISIBLE else View.GONE
-                        binding.btnSyncScreenTime.isEnabled = !loading
-                        binding.btnSyncDevice.isEnabled = !loading
-                        if (loading) {
-                            binding.btnSyncScreenTime.text = "Syncing…"
-                            binding.btnSyncDevice.text = "Syncing…"
-                        } else {
-                            binding.btnSyncScreenTime.text = "Sync"
-                            binding.btnSyncDevice.text = "Sync Now"
-                        }
+                    viewModel.syncLoading.collect { _ ->
+                        binding.syncProgressBar.visibility = View.GONE
+                        binding.progressScreenTimeSync.visibility = View.GONE
+                        binding.btnSyncScreenTime.visibility = View.GONE
+                        binding.btnSyncDevice.visibility = View.GONE
                     }
                 }
 
-                // Sync Message
+                // Sync Message (Kept silent in UI; background engine synchronizes telemetry continuously)
                 launch {
-                    viewModel.syncMessage.collect { message ->
-                        if (!message.isNullOrBlank()) {
-                            val cleanMsg = when {
-                                message.contains("Too many heartbeat requests", ignoreCase = true) -> "Please wait a moment"
-                                message.startsWith("Synced with Dashboard") -> "Synced"
-                                else -> message
-                            }
-                            binding.textSyncMessage.text = cleanMsg
-                            binding.textSyncMessage.visibility = View.VISIBLE
-                            binding.textScreenTimeSyncStatus.text = cleanMsg
-                            binding.textScreenTimeSyncStatus.visibility = View.VISIBLE
-                            val isSuccess = message.startsWith("Synced with Dashboard") || cleanMsg == "Synced"
-                            val colorRes = if (isSuccess) R.color.status_green else R.color.status_red
-                            binding.textSyncMessage.setTextColor(ContextCompat.getColor(this@MainActivity, colorRes))
-                            binding.textScreenTimeSyncStatus.setTextColor(ContextCompat.getColor(this@MainActivity, colorRes))
-                            if (isSuccess) {
-                                Toast.makeText(this@MainActivity, cleanMsg, Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            binding.textSyncMessage.visibility = View.GONE
-                            binding.textScreenTimeSyncStatus.visibility = View.GONE
-                        }
+                    viewModel.syncMessage.collect { _ ->
+                        binding.textSyncMessage.visibility = View.GONE
+                        binding.textScreenTimeSyncStatus.visibility = View.GONE
                     }
                 }
 
