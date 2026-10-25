@@ -120,6 +120,7 @@ describe('Policy Management API (/api/v1/children/:childId/policy & /api/v1/devi
       },
       webRestrictions: {
         enabled: true,
+        blockAdultContent: true,
         blockedDomains: ['EXAMPLE.COM', 'https://badsite.org/', 'sub.domain.co.uk.', 'www.youtube.com', 'https://m.youtube.com/'],
       },
     };
@@ -139,6 +140,7 @@ describe('Policy Management API (/api/v1/children/:childId/policy & /api/v1/devi
     assert.equal(policy.screenTime.quietHours.start, '21:30');
     assert.equal(policy.screenTime.quietHours.end, '06:30');
     assert.equal(policy.webRestrictions.enabled, true);
+    assert.equal(policy.webRestrictions.blockAdultContent, true);
     // Verified domain normalization
     assert.deepEqual(policy.webRestrictions.blockedDomains, [
       'example.com',

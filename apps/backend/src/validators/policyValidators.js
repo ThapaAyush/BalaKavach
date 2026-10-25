@@ -101,6 +101,8 @@ const appRestrictionsSchema = z.object({
 
 const webRestrictionsSchema = z.object({
   enabled: z.boolean().optional(),
+  enforcementPlatform: z.string().optional(),
+  blockAdultContent: z.boolean().optional(),
   blockedDomains: z.array(domainSchema).max(100, 'Cannot exceed 100 blocked domains.').optional(),
 }).strict();
 
