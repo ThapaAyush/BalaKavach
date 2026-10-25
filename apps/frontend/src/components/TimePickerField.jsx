@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const HOURS = [
   { val: '01', label: '1' },
@@ -57,6 +57,50 @@ export function formatFriendly12Hour(time24) {
   return `${displayH}:${minute} ${period}`;
 }
 
+export function parseFlexibleTimeString(str, fallbackPeriod = 'PM') {
+  if (!str || typeof str !== 'string') return null;
+  const clean = str.trim().toLowerCase();
+  if (!clean) return null;
+
+  // Check for explicit am/pm
+  let period = null;
+  if (/am\b|am/i.test(clean)) period = 'AM';
+  else if (/pm\b|pm/i.test(clean)) period = 'PM';
+
+  // Remove am/pm and trailing/leading whitespace
+  const timeOnly = clean.replace(/am|pm/gi, '').trim();
+
+  // Match H:M, H.M, or just H
+  const match = timeOnly.match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
+  if (!match) return null;
+
+  let h = parseInt(match[1], 10);
+  let m = match[2] !== undefined ? parseInt(match[2], 10) : 0;
+
+  if (isNaN(h) || isNaN(m)) return null;
+  if (m < 0 || m > 59) return null;
+
+  if (period) {
+    if (h < 1 || h > 12) return null;
+    return formatTo24(h.toString().padStart(2, '0'), m.toString().padStart(2, '0'), period);
+  }
+
+  // If 24-hour hour (13 to 23)
+  if (h >= 13 && h <= 23) {
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  }
+
+  if (h === 0) {
+    return `00:${m.toString().padStart(2, '0')}`;
+  }
+
+  if (h >= 1 && h <= 12) {
+    return formatTo24(h.toString().padStart(2, '0'), m.toString().padStart(2, '0'), fallbackPeriod || 'PM');
+  }
+
+  return null;
+}
+
 export default function TimePickerField({
   id,
   label,
@@ -66,20 +110,82 @@ export default function TimePickerField({
   presets = [],
 }) {
   const { hour, minute, period } = parseTime24(value);
+  const displayHourNumber = parseInt(hour, 10).toString();
 
-  // Ensure current minute exists in minute options even if non-standard
+  const [hourInput, setHourInput] = useState(displayHourNumber);
+  const [minuteInput, setMinuteInput] = useState(minute);
+  const [textInput, setTextInput] = useState(formatFriendly12Hour(value));
+  const [isEditingText, setIsEditingText] = useState(false);
+
+  const [showHourDropdown, setShowHourDropdown] = useState(false);
+  const [showMinuteDropdown, setShowMinuteDropdown] = useState(false);
+
+  const containerRef = useRef(null);
+
+  // Sync state when incoming value changes
+  useEffect(() => {
+    setHourInput(parseInt(hour, 10).toString());
+    setMinuteInput(minute);
+    if (!isEditingText) {
+      setTextInput(formatFriendly12Hour(value));
+    }
+  }, [value, hour, minute, isEditingText]);
+
+  // Click outside to dismiss dropdowns
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowHourDropdown(false);
+        setShowMinuteDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
   const minuteList = STANDARD_MINUTES.includes(minute)
     ? STANDARD_MINUTES
     : [...STANDARD_MINUTES, minute].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
   const handleHourChange = (e) => {
-    const newH = e.target.value;
-    onChange(formatTo24(newH, minute, period));
+    const raw = e.target.value;
+    setHourInput(raw);
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return;
+    let num = parseInt(digits, 10);
+    if (num > 12) {
+      if (num >= 13 && num <= 23) {
+        // Parent typed 24h format (e.g. 20 -> 8 PM)
+        onChange(formatTo24((num - 12).toString().padStart(2, '0'), minute, 'PM'));
+        return;
+      }
+      num = 12;
+    } else if (num === 0) {
+      num = 12;
+    }
+    onChange(formatTo24(num.toString().padStart(2, '0'), minute, period));
+  };
+
+  const handleHourBlur = () => {
+    setHourInput(parseInt(hour, 10).toString());
   };
 
   const handleMinuteChange = (e) => {
-    const newM = e.target.value;
-    onChange(formatTo24(hour, newM, period));
+    const raw = e.target.value;
+    setMinuteInput(raw);
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return;
+    let num = parseInt(digits, 10);
+    if (num > 59) num = 59;
+    onChange(formatTo24(hour, num.toString().padStart(2, '0'), period));
+  };
+
+  const handleMinuteBlur = () => {
+    setMinuteInput(minute);
   };
 
   const handlePeriodChange = (newPeriod) => {
@@ -87,10 +193,31 @@ export default function TimePickerField({
     onChange(formatTo24(hour, minute, newPeriod));
   };
 
+  const handleTextInputChange = (e) => {
+    const raw = e.target.value;
+    setTextInput(raw);
+    const parsed = parseFlexibleTimeString(raw, period);
+    if (parsed) {
+      onChange(parsed);
+    }
+  };
+
+  const handleTextInputBlur = () => {
+    setIsEditingText(false);
+    setTextInput(formatFriendly12Hour(value));
+  };
+
+  const handleTextInputFocus = () => {
+    setIsEditingText(true);
+  };
+
   const friendlyDisplay = formatFriendly12Hour(value);
 
   return (
-    <div className="flex-1 rounded-2xl border border-amber-200/90 bg-white p-3.5 sm:p-4 shadow-xs transition hover:border-amber-300">
+    <div
+      ref={containerRef}
+      className="flex-1 rounded-2xl border border-amber-200/90 bg-white p-3.5 sm:p-4 shadow-xs transition hover:border-amber-300"
+    >
       {/* Hidden input for test / form compatibility */}
       <input type="hidden" id={id} value={value} readOnly />
 
@@ -105,46 +232,110 @@ export default function TimePickerField({
         </span>
       </div>
 
-      {/* Time Controls (Hour : Minute + AM/PM) */}
+      {/* Time Controls (Editable Hour : Editable Minute + AM/PM) */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Hour Select */}
+        {/* Hour Input + Dropdown */}
         <div className="relative flex-1">
-          <select
-            value={hour}
-            onChange={handleHourChange}
-            aria-label={`${label} hour`}
-            className="w-full appearance-none rounded-xl border border-slate-300 bg-slate-50/70 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-100 cursor-pointer"
-          >
-            {HOURS.map((h) => (
-              <option key={h.val} value={h.val}>
-                {h.label}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400 text-xs">
-            ▼
+          <div className="flex items-center rounded-xl border border-slate-300 bg-slate-50/70 transition focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-100">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={2}
+              value={hourInput}
+              onChange={handleHourChange}
+              onBlur={handleHourBlur}
+              aria-label={`${label} hour`}
+              placeholder="12"
+              className="w-full bg-transparent px-3 py-2 text-sm font-semibold text-slate-800 outline-none text-center sm:text-left"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setShowHourDropdown((prev) => !prev);
+                setShowMinuteDropdown(false);
+              }}
+              aria-label={`Open ${label} hour dropdown`}
+              className="flex items-center justify-center px-2 py-2 text-slate-400 hover:text-amber-600 transition"
+            >
+              <span className="text-[10px]">▼</span>
+            </button>
           </div>
+
+          {showHourDropdown && (
+            <div className="absolute left-0 top-full z-30 mt-1 max-h-48 w-full min-w-[75px] overflow-y-auto rounded-xl border border-amber-200 bg-white p-1 shadow-lg">
+              {HOURS.map((h) => (
+                <button
+                  key={h.val}
+                  type="button"
+                  onClick={() => {
+                    onChange(formatTo24(h.val, minute, period));
+                    setShowHourDropdown(false);
+                  }}
+                  className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-semibold text-left transition ${
+                    h.val === hour
+                      ? 'bg-amber-500 text-white font-bold'
+                      : 'text-slate-700 hover:bg-amber-50 hover:text-amber-800'
+                  }`}
+                >
+                  {h.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <span className="text-base font-bold text-slate-400 select-none">:</span>
 
-        {/* Minute Select */}
+        {/* Minute Input + Dropdown */}
         <div className="relative flex-1">
-          <select
-            value={minute}
-            onChange={handleMinuteChange}
-            aria-label={`${label} minute`}
-            className="w-full appearance-none rounded-xl border border-slate-300 bg-slate-50/70 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-100 cursor-pointer"
-          >
-            {minuteList.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400 text-xs">
-            ▼
+          <div className="flex items-center rounded-xl border border-slate-300 bg-slate-50/70 transition focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-100">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={2}
+              value={minuteInput}
+              onChange={handleMinuteChange}
+              onBlur={handleMinuteBlur}
+              aria-label={`${label} minute`}
+              placeholder="00"
+              className="w-full bg-transparent px-3 py-2 text-sm font-semibold text-slate-800 outline-none text-center sm:text-left"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setShowMinuteDropdown((prev) => !prev);
+                setShowHourDropdown(false);
+              }}
+              aria-label={`Open ${label} minute dropdown`}
+              className="flex items-center justify-center px-2 py-2 text-slate-400 hover:text-amber-600 transition"
+            >
+              <span className="text-[10px]">▼</span>
+            </button>
           </div>
+
+          {showMinuteDropdown && (
+            <div className="absolute left-0 top-full z-30 mt-1 max-h-48 w-full min-w-[75px] overflow-y-auto rounded-xl border border-amber-200 bg-white p-1 shadow-lg">
+              {minuteList.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    onChange(formatTo24(hour, m, period));
+                    setShowMinuteDropdown(false);
+                  }}
+                  className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-semibold text-left transition ${
+                    m === minute
+                      ? 'bg-amber-500 text-white font-bold'
+                      : 'text-slate-700 hover:bg-amber-50 hover:text-amber-800'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* AM / PM Segmented Toggle */}
@@ -172,6 +363,24 @@ export default function TimePickerField({
             PM
           </button>
         </div>
+      </div>
+
+      {/* Direct Text / Number Time Input */}
+      <div className="mt-2.5 flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/60 px-2.5 py-1.5 transition focus-within:border-amber-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-100">
+        <span className="text-xs text-slate-400 select-none">✍️</span>
+        <input
+          type="text"
+          value={textInput}
+          onChange={handleTextInputChange}
+          onFocus={handleTextInputFocus}
+          onBlur={handleTextInputBlur}
+          placeholder="Write time e.g. 8:00 PM or 20:00"
+          aria-label={`${label} text input`}
+          className="w-full bg-transparent text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none"
+        />
+        <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap hidden sm:inline">
+          (Text / Number)
+        </span>
       </div>
 
       {/* Quick Presets */}

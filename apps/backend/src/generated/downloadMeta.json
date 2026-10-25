@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-25T15:28:56.827Z",
+  "updatedAt": "2026-10-25T15:38:01.220Z",
   "android": {
     "version": "0.1.5",
     "versionCode": 6,
@@ -25,8 +25,8 @@
     "downloadUrl": "/balakavach-chrome-extension.zip",
     "sizeBytes": 266098,
     "sizeFormatted": "260 KB",
-    "updatedAt": "2026-10-25T15:28:56.816Z",
-    "versionHash": "266098-1792942136815",
+    "updatedAt": "2026-10-25T15:38:01.217Z",
+    "versionHash": "266098-1792942681217",
     "releaseNotes": "Automatic 18+ adult content removal, spontaneous tab purge on connection, and live Chrome browsing history tracking.",
     "features": [
       "Strict 18+ Adult Content Filter",
