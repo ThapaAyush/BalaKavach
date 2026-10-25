@@ -94,6 +94,15 @@ class MainActivity : AppCompatActivity() {
         binding.clockRealTime.format12Hour = "h:mm a"
         binding.clockRealTime.format24Hour = "HH:mm"
 
+        // Continuous automated sync: ensure manual sync buttons and technical status messages are never visible to the child
+        binding.btnSyncDevice.visibility = View.GONE
+        binding.textSyncMessage.visibility = View.GONE
+        binding.syncProgressBar.visibility = View.GONE
+        binding.btnSyncScreenTime.visibility = View.GONE
+        binding.progressScreenTimeSync.visibility = View.GONE
+        binding.textScreenTimeSyncStatus.visibility = View.GONE
+        binding.layoutManualSyncScreenTime.visibility = View.GONE
+
         setupTabs()
         setupHandGestureGuide()
         setupSwipeGestures()
@@ -910,6 +919,9 @@ class MainActivity : AppCompatActivity() {
         binding.textLastPolicySync.text = "${getString(R.string.last_policy_sync_label)} $formattedSync"
 
         binding.textPolicyVersionDisplay.text = "Policy v${session.acknowledgedPolicyVersion}"
+        binding.btnSyncDevice.visibility = View.GONE
+        binding.textSyncMessage.visibility = View.GONE
+        binding.syncProgressBar.visibility = View.GONE
     }
 
     private fun updatePermissionUi(hasPermission: Boolean) {

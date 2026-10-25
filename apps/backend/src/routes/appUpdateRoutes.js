@@ -30,8 +30,8 @@ export function createAppUpdateRouter({ runtimeEnv = process.env } = {}) {
       }
     }
 
-    const latestAndroidVersionName = runtimeEnv.LATEST_ANDROID_VERSION_NAME || meta?.android?.version || '0.1.1';
-    const latestAndroidVersionCode = parseInt(runtimeEnv.LATEST_ANDROID_VERSION_CODE || meta?.android?.versionCode || '2', 10);
+    const latestAndroidVersionName = runtimeEnv.LATEST_ANDROID_VERSION_NAME || meta?.android?.version || '0.1.2';
+    const latestAndroidVersionCode = parseInt(runtimeEnv.LATEST_ANDROID_VERSION_CODE || meta?.android?.versionCode || '3', 10);
     const androidFileSizeBytes = meta?.android?.sizeBytes || 8378634;
     const androidDownloadUrl = runtimeEnv.ANDROID_DOWNLOAD_URL || '/api/v1/app-update/download';
 
