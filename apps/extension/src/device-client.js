@@ -1,5 +1,5 @@
-export const DEFAULT_API_BASE_URL = 'http://localhost:5000/api/v1';
 export const DEFAULT_CLOUD_API_BASE_URL = 'https://balakavach-be.onrender.com/api/v1';
+export const DEFAULT_API_BASE_URL = DEFAULT_CLOUD_API_BASE_URL;
 export const DEVICE_SESSION_STORAGE_KEY = 'kidsguard_device_session';
 export const CONFIG_API_BASE_URL_KEY = 'kidsguard_api_base_url';
 

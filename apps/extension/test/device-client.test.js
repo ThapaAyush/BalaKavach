@@ -141,7 +141,7 @@ test('redeemPairingCode stores credential securely and returns sanitized device 
 
   // 1. Verify API request
   assert.equal(mock.calls.length, 1);
-  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/device-pairing/redeem');
+  assert.equal(mock.calls[0].url, `${DEFAULT_API_BASE_URL}/device-pairing/redeem`);
   assert.equal(mock.calls[0].options.method, 'POST');
   const sentBody = JSON.parse(mock.calls[0].options.body);
   assert.deepEqual(sentBody, {
@@ -335,7 +335,7 @@ test('sendHeartbeat sends Bearer authorization header and updates lastSeenAt', a
 
   // 1. Verify Bearer header
   assert.equal(mock.calls.length, 1);
-  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/heartbeat');
+  assert.equal(mock.calls[0].url, `${DEFAULT_API_BASE_URL}/devices/heartbeat`);
   assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
   assert.equal(mock.calls[0].options.body, '{}');
 
@@ -533,7 +533,7 @@ test('fetchPolicy returns policy and updates lastPolicySyncAt and acknowledgedPo
 
   // 1. Verify Bearer header and endpoint
   assert.equal(mock.calls.length, 1);
-  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/policy');
+  assert.equal(mock.calls[0].url, `${DEFAULT_API_BASE_URL}/devices/policy`);
   assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
 
   // 2. Verify returned result
@@ -601,7 +601,7 @@ test('acknowledgePolicy sends version and updates session acknowledgedPolicyVers
   const result = await client.acknowledgePolicy(4);
 
   assert.equal(mock.calls.length, 1);
-  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/policy/ack');
+  assert.equal(mock.calls[0].url, `${DEFAULT_API_BASE_URL}/devices/policy/ack`);
   assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
   const sent = JSON.parse(mock.calls[0].options.body);
   assert.deepEqual(sent, { acknowledgedVersion: 4 });
@@ -640,7 +640,7 @@ test('sendWebHistory sends Bearer authorization header and uploads visits payloa
   const result = await client.sendWebHistory(sampleVisits);
 
   assert.equal(mock.calls.length, 1);
-  assert.equal(mock.calls[0].url, 'http://localhost:5000/api/v1/devices/web-history');
+  assert.equal(mock.calls[0].url, `${DEFAULT_API_BASE_URL}/devices/web-history`);
   assert.equal(mock.calls[0].options.headers.Authorization, `Bearer ${rawCredential}`);
   const sent = JSON.parse(mock.calls[0].options.body);
   assert.deepEqual(sent.visits, sampleVisits);
