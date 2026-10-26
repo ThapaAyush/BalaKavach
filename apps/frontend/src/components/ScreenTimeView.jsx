@@ -98,11 +98,7 @@ export default function ScreenTimeView({ child }) {
     return `${hours}h ${mins}m`;
   }
 
-  function getProgressColor(percent) {
-    if (percent >= 100) return 'bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600';
-    if (percent >= 75) return 'bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500';
-    return 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500';
-  }
+
 
   function formatHistoryDate(dateStr) {
     const today = new Date().toISOString().slice(0, 10);
@@ -128,12 +124,6 @@ export default function ScreenTimeView({ child }) {
   }
 
   const totalSecs = data?.totalScreenTimeSeconds;
-  const limitMins = data?.dailyLimitMinutes;
-  const limitSecs = limitMins ? limitMins * 60 : null;
-  const percentUsed = limitSecs && totalSecs !== null
-    ? Math.min(Math.round((totalSecs / limitSecs) * 100), 100)
-    : 0;
-  const isOverLimit = data?.limitExceeded;
   const isPermissionDenied = data?.permissionStatus === 'denied';
 
   // Metrics: mobile unlock / open count and total app open count
@@ -330,52 +320,30 @@ export default function ScreenTimeView({ child }) {
             </div>
 
             {/* Metric Value */}
-            <div className="mt-3.5 flex items-baseline gap-2 flex-wrap">
+            <div className="mt-3.5 flex items-baseline gap-2">
               <span className="text-3xl sm:text-[32px] font-extrabold tracking-tight text-slate-900">
                 {formatDuration(totalSecs)}
               </span>
-              {limitMins && (
-                <span className="text-xs font-semibold text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200/60">
-                  / {Math.floor(limitMins / 60)}h {limitMins % 60 ? `${limitMins % 60}m` : ''}
-                </span>
-              )}
+              <span className="text-xs font-semibold text-slate-500">
+                active duration
+              </span>
             </div>
           </div>
 
-          {/* Progress Bar & Budget */}
-          {limitSecs && totalSecs !== null ? (
-            <div className="mt-3.5">
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100/90 p-0.5 border border-slate-200/70 shadow-inner">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 shadow-xs ${getProgressColor(percentUsed)}`}
-                  style={{ width: `${percentUsed}%` }}
-                />
-              </div>
-              <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-600">
-                <span>{percentUsed}% budget</span>
-                {isOverLimit && (
-                  <span className="inline-flex items-center gap-1 font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200/80 text-[10px]">
-                    Limit reached
-                  </span>
-                )}
-              </div>
+          <div className="mt-3">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Total active foreground screen time measured on child device today.
+            </p>
+            {/* Bottom Footer Info */}
+            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-sky-700">
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="size-1.5 rounded-full bg-sky-500" />
+                {(data?.appUsage || []).filter((a) => (a.durationSeconds || 0) > 0).length} apps run
+              </span>
+              <span className="group-hover:underline flex items-center gap-0.5">
+                {isTimingMode ? 'Showing run times' : 'Tap to show times →'}
+              </span>
             </div>
-          ) : (
-            <div className="mt-3.5 flex items-center gap-1.5 text-[11px] text-slate-400">
-              <span className="size-1.5 rounded-full bg-slate-300" />
-              <span>No daily budget limit configured</span>
-            </div>
-          )}
-
-          {/* Bottom Footer Info */}
-          <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-sky-700">
-            <span className="flex items-center gap-1.5 text-slate-600">
-              <span className="size-1.5 rounded-full bg-sky-500" />
-              {(data?.appUsage || []).filter((a) => (a.durationSeconds || 0) > 0).length} apps run
-            </span>
-            <span className="group-hover:underline flex items-center gap-0.5">
-              {isTimingMode ? 'Showing run times' : 'Tap to show times →'}
-            </span>
           </div>
         </button>
 
