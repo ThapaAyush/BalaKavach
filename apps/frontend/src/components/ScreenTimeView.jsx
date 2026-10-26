@@ -99,9 +99,9 @@ export default function ScreenTimeView({ child }) {
   }
 
   function getProgressColor(percent) {
-    if (percent >= 100) return 'bg-rose-500';
-    if (percent >= 75) return 'bg-amber-500';
-    return 'bg-emerald-500';
+    if (percent >= 100) return 'bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600';
+    if (percent >= 75) return 'bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500';
+    return 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500';
   }
 
   function formatHistoryDate(dateStr) {
@@ -280,7 +280,7 @@ export default function ScreenTimeView({ child }) {
       )}
 
       {/* 4-Card Summary Metrics Grid: Clicking switches between Timing and App Open frequency */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Metric 1: Total Screen Time (Clickable to switch to Timing mode) */}
         <button
           type="button"
@@ -288,60 +288,92 @@ export default function ScreenTimeView({ child }) {
           aria-expanded={isTimingMode}
           aria-label="Total Screen Time summary card"
           aria-controls="app-breakdown-section"
-          className={`group text-left rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-xs flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-400 ${
+          className={`group relative text-left rounded-2xl border transition-all duration-300 p-4 sm:p-5 flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 overflow-hidden ${
             isTimingMode
-              ? 'border-sky-500 bg-gradient-to-br from-sky-100/90 via-sky-50/60 to-indigo-50/50 ring-2 ring-sky-300 shadow-md scale-[1.01]'
-              : 'border-sky-200/80 bg-gradient-to-br from-sky-50/70 via-white to-indigo-50/30 hover:border-sky-400 hover:shadow-md hover:bg-sky-50/90'
+              ? 'border-sky-500 bg-gradient-to-br from-white via-sky-50/50 to-indigo-50/40 shadow-md ring-2 ring-sky-300/70 scale-[1.01]'
+              : 'border-slate-200/90 bg-white hover:border-sky-300 hover:bg-sky-50/20 hover:shadow-md hover:-translate-y-0.5'
           }`}
           title="Click to view all applications run during this timing"
         >
+          {/* Top accent glow line when active */}
+          {isTimingMode && (
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-sky-600" />
+          )}
+
           <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">
-                Total Screen Time
-              </span>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2.5 py-0.5 transition-colors ${
+            {/* Header: Icon + Title + Status Pill */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
+                  isTimingMode
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'bg-sky-50 text-sky-600 border border-sky-200/60'
+                }`}>
+                  <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-900 truncate">
+                  Total Screen Time
+                </span>
+              </div>
+
+              <span className={`inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold rounded-full px-2.5 py-1 transition-all ${
                 isTimingMode
                   ? 'bg-sky-600 text-white shadow-xs'
-                  : 'bg-sky-100 text-sky-700 group-hover:bg-sky-200'
+                  : 'bg-sky-50 text-sky-700 border border-sky-200/60 group-hover:bg-sky-100 group-hover:border-sky-300'
               }`}>
+                {isTimingMode && <span className="size-1.5 rounded-full bg-white animate-pulse" />}
                 <span>{isTimingMode ? '✓ Active View' : 'Tap for Timing →'}</span>
               </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+
+            {/* Metric Value */}
+            <div className="mt-3.5 flex items-baseline gap-2 flex-wrap">
+              <span className="text-3xl sm:text-[32px] font-extrabold tracking-tight text-slate-900">
                 {formatDuration(totalSecs)}
               </span>
               {limitMins && (
-                <span className="text-xs font-semibold text-slate-500">
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200/60">
                   / {Math.floor(limitMins / 60)}h {limitMins % 60 ? `${limitMins % 60}m` : ''}
                 </span>
               )}
             </div>
           </div>
 
+          {/* Progress Bar & Budget */}
           {limitSecs && totalSecs !== null ? (
-            <div className="mt-3">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/60">
+            <div className="mt-3.5">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100/90 p-0.5 border border-slate-200/70 shadow-inner">
                 <div
-                  className={`h-full rounded-full transition-all duration-300 ${getProgressColor(percentUsed)}`}
+                  className={`h-full rounded-full transition-all duration-500 shadow-xs ${getProgressColor(percentUsed)}`}
                   style={{ width: `${percentUsed}%` }}
                 />
               </div>
-              <div className="mt-1.5 flex justify-between text-[11px] font-semibold text-slate-600">
+              <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-600">
                 <span>{percentUsed}% budget</span>
-                {isOverLimit && <span className="font-bold text-rose-600">Limit reached</span>}
+                {isOverLimit && (
+                  <span className="inline-flex items-center gap-1 font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200/80 text-[10px]">
+                    Limit reached
+                  </span>
+                )}
               </div>
             </div>
           ) : (
-            <p className="mt-3 text-[11px] text-slate-400">
-              No daily budget limit configured
-            </p>
+            <div className="mt-3.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+              <span className="size-1.5 rounded-full bg-slate-300" />
+              <span>No daily budget limit configured</span>
+            </div>
           )}
 
-          <div className="mt-2 pt-2 border-t border-sky-100/80 flex items-center justify-between text-[11px] text-sky-700 font-semibold">
-            <span>{(data?.appUsage || []).filter((a) => (a.durationSeconds || 0) > 0).length} apps run</span>
-            <span className="group-hover:underline">
+          {/* Bottom Footer Info */}
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-sky-700">
+            <span className="flex items-center gap-1.5 text-slate-600">
+              <span className="size-1.5 rounded-full bg-sky-500" />
+              {(data?.appUsage || []).filter((a) => (a.durationSeconds || 0) > 0).length} apps run
+            </span>
+            <span className="group-hover:underline flex items-center gap-0.5">
               {isTimingMode ? 'Showing run times' : 'Tap to show times →'}
             </span>
           </div>
@@ -354,28 +386,51 @@ export default function ScreenTimeView({ child }) {
           aria-expanded={!isTimingMode}
           aria-label="Mobile Pickups & Opens summary card"
           aria-controls="app-breakdown-section"
-          className={`group text-left rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-xs flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-400 ${
+          className={`group relative text-left rounded-2xl border transition-all duration-300 p-4 sm:p-5 flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 overflow-hidden ${
             !isTimingMode
-              ? 'border-violet-500 bg-gradient-to-br from-violet-100/90 via-violet-50/60 to-purple-50/50 ring-2 ring-violet-300 shadow-md scale-[1.01]'
-              : 'border-violet-200/80 bg-gradient-to-br from-violet-50/70 via-white to-purple-50/30 hover:border-violet-400 hover:shadow-md hover:bg-violet-50/90'
+              ? 'border-violet-500 bg-gradient-to-br from-white via-violet-50/50 to-purple-50/40 shadow-md ring-2 ring-violet-300/70 scale-[1.01]'
+              : 'border-slate-200/90 bg-white hover:border-violet-300 hover:bg-violet-50/20 hover:shadow-md hover:-translate-y-0.5'
           }`}
           title="Click to inspect how many times each app was opened"
         >
+          {/* Top accent glow line when active */}
+          {!isTimingMode && (
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-400 via-purple-500 to-indigo-600" />
+          )}
+
           <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-violet-800">
-                Mobile Pickups &amp; Opens
-              </span>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2.5 py-0.5 transition-colors ${
+            {/* Header: Icon + Title + Status Pill */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
+                  !isTimingMode
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'bg-violet-50 text-violet-600 border border-violet-200/60'
+                }`}>
+                  <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="3" />
+                    <line x1="12" y1="18" x2="12.01" y2="18" strokeWidth="2.5" />
+                    <path d="M9 7h6" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-violet-900 truncate">
+                  Mobile Pickups &amp; Opens
+                </span>
+              </div>
+
+              <span className={`inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold rounded-full px-2.5 py-1 transition-all ${
                 !isTimingMode
                   ? 'bg-violet-600 text-white shadow-xs'
-                  : 'bg-violet-100 text-violet-700 group-hover:bg-violet-200'
+                  : 'bg-violet-50 text-violet-700 border border-violet-200/60 group-hover:bg-violet-100 group-hover:border-violet-300'
               }`}>
+                {!isTimingMode && <span className="size-1.5 rounded-full bg-white animate-pulse" />}
                 <span>{!isTimingMode ? '✓ Active View' : 'Tap for Opens →'}</span>
               </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+
+            {/* Metric Value */}
+            <div className="mt-3.5 flex items-baseline gap-2">
+              <span className="text-3xl sm:text-[32px] font-extrabold tracking-tight text-slate-900">
                 {deviceOpens}
               </span>
               <span className="text-xs font-semibold text-slate-500">
@@ -383,13 +438,17 @@ export default function ScreenTimeView({ child }) {
               </span>
             </div>
           </div>
+
           <div className="mt-3">
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
               Number of times the phone was unlocked &amp; active today.
             </p>
-            <div className="mt-2 pt-2 border-t border-violet-100/80 flex items-center justify-between text-[11px] text-violet-700 font-semibold">
-              <span>{totalAppOpens} app opens</span>
-              <span className="group-hover:underline">
+            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-violet-700">
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="size-1.5 rounded-full bg-violet-500" />
+                {totalAppOpens} app opens
+              </span>
+              <span className="group-hover:underline flex items-center gap-0.5">
                 {!isTimingMode ? 'Showing frequencies' : 'Tap to show frequencies →'}
               </span>
             </div>
@@ -403,28 +462,52 @@ export default function ScreenTimeView({ child }) {
           aria-expanded={!isTimingMode}
           aria-label="Total App Launches summary card"
           aria-controls="app-breakdown-section"
-          className={`group text-left rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-xs flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 ${
+          className={`group relative text-left rounded-2xl border transition-all duration-300 p-4 sm:p-5 flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 overflow-hidden ${
             !isTimingMode
-              ? 'border-amber-500 bg-gradient-to-br from-amber-100/90 via-amber-50/60 to-orange-50/50 ring-2 ring-amber-300 shadow-md scale-[1.01]'
-              : 'border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-white to-orange-50/30 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/90'
+              ? 'border-amber-500 bg-gradient-to-br from-white via-amber-50/50 to-orange-50/40 shadow-md ring-2 ring-amber-300/70 scale-[1.01]'
+              : 'border-slate-200/90 bg-white hover:border-amber-300 hover:bg-amber-50/20 hover:shadow-md hover:-translate-y-0.5'
           }`}
           title="Click to view app launch frequencies"
         >
+          {/* Top accent glow line when active */}
+          {!isTimingMode && (
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600" />
+          )}
+
           <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
-                Total App Launches
-              </span>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2.5 py-0.5 transition-colors ${
+            {/* Header: Icon + Title + Status Pill */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
+                  !isTimingMode
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-amber-50 text-amber-600 border border-amber-200/60'
+                }`}>
+                  <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="2" />
+                    <rect x="14" y="3" width="7" height="7" rx="2" />
+                    <rect x="14" y="14" width="7" height="7" rx="2" />
+                    <rect x="3" y="14" width="7" height="7" rx="2" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 truncate">
+                  Total App Launches
+                </span>
+              </div>
+
+              <span className={`inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold rounded-full px-2.5 py-1 transition-all ${
                 !isTimingMode
                   ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-amber-100 text-amber-700 group-hover:bg-amber-200'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200/60 group-hover:bg-amber-100 group-hover:border-amber-300'
               }`}>
+                {!isTimingMode && <span className="size-1.5 rounded-full bg-white animate-pulse" />}
                 <span>{!isTimingMode ? '✓ Active View' : 'Tap for Opens →'}</span>
               </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+
+            {/* Metric Value */}
+            <div className="mt-3.5 flex items-baseline gap-2">
+              <span className="text-3xl sm:text-[32px] font-extrabold tracking-tight text-slate-900">
                 {totalAppOpens}
               </span>
               <span className="text-xs font-semibold text-slate-500">
@@ -432,13 +515,17 @@ export default function ScreenTimeView({ child }) {
               </span>
             </div>
           </div>
+
           <div className="mt-3">
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
               Total times applications were opened or switched into today.
             </p>
-            <div className="mt-2 pt-2 border-t border-amber-100/80 flex items-center justify-between text-[11px] text-amber-700 font-semibold">
-              <span>{(data?.appUsage || []).filter((a) => (a.openCount || 0) > 0).length} apps opened</span>
-              <span className="group-hover:underline">
+            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-amber-700">
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="size-1.5 rounded-full bg-amber-500" />
+                {(data?.appUsage || []).filter((a) => (a.openCount || 0) > 0).length} apps opened
+              </span>
+              <span className="group-hover:underline flex items-center gap-0.5">
                 {!isTimingMode ? 'Showing frequencies' : 'Tap to show frequencies →'}
               </span>
             </div>
@@ -446,67 +533,118 @@ export default function ScreenTimeView({ child }) {
         </button>
 
         {/* Metric 4: Data Freshness & Sync */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 shadow-xs flex flex-col justify-between">
+        <div className="relative rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex flex-col justify-between overflow-hidden hover:border-slate-300 hover:shadow-md transition-all duration-300">
+          {/* Subtle top accent */}
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-sky-500" />
+
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Device Sync &amp; Freshness</span>
-            <div className="mt-2 text-xs space-y-1.5 text-slate-700">
+            {/* Header: Icon + Title */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 shadow-xs">
+                <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
+                </svg>
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 truncate">
+                Device Sync &amp; Freshness
+              </span>
+            </div>
+
+            <div className="mt-3.5 text-xs space-y-2 text-slate-700">
               {data?.dataFreshness ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <span className={`size-2 rounded-full ${data.dataFreshness.isStale ? 'bg-amber-400' : 'bg-emerald-500 ring-2 ring-emerald-100'}`} />
-                    <span className="font-semibold text-slate-800">
+                  <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-50/90 border border-emerald-200/70 px-2.5 py-1.5 text-xs">
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        data.dataFreshness.isStale ? 'bg-amber-400' : 'bg-emerald-400'
+                      }`} />
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                        data.dataFreshness.isStale ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`} />
+                    </span>
+                    <span className="font-bold text-slate-800">
                       {data.dataFreshness.isStale ? 'Stale' : 'Live & Fresh'} • {data.dataFreshness.reportingDeviceName || 'Paired Device'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    Timestamp: {new Date(data.dataFreshness.lastReportedAt).toLocaleTimeString()}
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                    <svg className="size-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 15 13" />
+                    </svg>
+                    <span>Timestamp: {new Date(data.dataFreshness.lastReportedAt).toLocaleTimeString()}</span>
                   </p>
                 </>
               ) : (
-                <p className="text-slate-500 italic">No device reports received for this date.</p>
+                <p className="text-slate-400 italic text-xs py-1">No device reports received for this date.</p>
               )}
             </div>
           </div>
-          <div className="mt-2 pt-2.5 border-t border-slate-200 text-[11px] font-medium text-slate-500">
-            Source: {data?.source === 'measured' ? 'Measured on-device via Android UsageStats' : 'Awaiting device sync'}
+
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
+            <svg className="size-3.5 text-emerald-600 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+            </svg>
+            <span className="truncate">
+              Source: {data?.source === 'measured' ? 'Measured on-device via Android UsageStats' : 'Awaiting device sync'}
+            </span>
           </div>
         </div>
       </div>
 
       {/* App Breakdown Section */}
-      <div id="app-breakdown-section" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-sm font-bold text-slate-900">
-                {isTimingMode
-                  ? 'Application Usage & Screen Time Breakdown'
-                  : 'Application Launch Frequency & Open Counts'}
-              </h4>
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                isTimingMode
-                  ? 'bg-sky-100 text-sky-800'
-                  : 'bg-violet-100 text-violet-800'
-              }`}>
-                {appsToShow.length} {appsToShow.length === 1 ? (isTimingMode ? 'app run' : 'app opened') : (isTimingMode ? 'apps run' : 'apps opened')}
-              </span>
+      <div id="app-breakdown-section" className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs transition-all duration-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+              isTimingMode
+                ? 'bg-sky-50 text-sky-600 border border-sky-200/60'
+                : 'bg-violet-50 text-violet-600 border border-violet-200/60'
+            }`}>
+              {isTimingMode ? (
+                <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              ) : (
+                <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="3" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" strokeWidth="2.5" />
+                  <path d="M9 7h6" />
+                </svg>
+              )}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {isTimingMode
-                ? `Showing only apps run in this timing (${formatDuration(totalSecs)}) with foreground screen time.`
-                : `Showing only application open frequency (${totalAppOpens} total app opens across ${deviceOpens} phone unlocks).`}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm sm:text-base font-bold text-slate-900">
+                  {isTimingMode
+                    ? 'Application Usage & Screen Time Breakdown'
+                    : 'Application Launch Frequency & Open Counts'}
+                </h4>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  isTimingMode
+                    ? 'bg-sky-100 text-sky-800 border border-sky-200/70'
+                    : 'bg-violet-100 text-violet-800 border border-violet-200/70'
+                }`}>
+                  {appsToShow.length} {appsToShow.length === 1 ? (isTimingMode ? 'app run' : 'app opened') : (isTimingMode ? 'apps run' : 'apps opened')}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {isTimingMode
+                  ? `Showing only apps run in this timing (${formatDuration(totalSecs)}) with foreground screen time.`
+                  : `Showing only application open frequency (${totalAppOpens} total app opens across ${deviceOpens} phone unlocks).`}
+              </p>
+            </div>
           </div>
 
           {/* Setting Switcher: Timing vs App Open */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs self-start sm:self-auto">
+          <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 text-xs self-start sm:self-auto shadow-inner">
             <button
               type="button"
               onClick={() => setActiveMetric('screenTime')}
               aria-label="Switch to Timing view"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 isTimingMode
-                  ? 'bg-white text-sky-700 shadow-2xs'
+                  ? 'bg-white text-sky-700 shadow-xs border border-slate-200/60'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Show only apps run during this timing"
@@ -517,9 +655,9 @@ export default function ScreenTimeView({ child }) {
               type="button"
               onClick={() => setActiveMetric('appOpens')}
               aria-label="Switch to App Open frequency view"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 !isTimingMode
-                  ? 'bg-white text-violet-700 shadow-2xs'
+                  ? 'bg-white text-violet-700 shadow-xs border border-slate-200/60'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Show only how many times each app was opened (frequency)"
@@ -539,7 +677,16 @@ export default function ScreenTimeView({ child }) {
               const cleanName = formatAppDisplayName(app.appName, app.packageName);
 
               return (
-                <div key={app.packageName || cleanName} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/60 -mx-2 px-2 rounded-xl transition-colors">
+                <div key={app.packageName || cleanName} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/70 -mx-2 px-2.5 rounded-xl transition-colors">
+                  {/* App Monogram Icon */}
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold shadow-2xs border ${
+                    isTimingMode
+                      ? 'bg-gradient-to-br from-sky-50 to-indigo-50/60 text-sky-700 border-sky-200/60'
+                      : 'bg-gradient-to-br from-violet-50 to-purple-50/60 text-violet-700 border-violet-200/60'
+                  }`}>
+                    {cleanName.charAt(0).toUpperCase()}
+                  </div>
+
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-1.5">
                       <div className="flex items-center gap-2 min-w-0">
@@ -557,9 +704,9 @@ export default function ScreenTimeView({ child }) {
                       )}
                     </div>
 
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/40">
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100/90 border border-slate-200/60 p-0.5">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${
+                        className={`h-full rounded-full transition-all duration-500 ${
                           isTimingMode
                             ? 'bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-600'
                             : 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600'

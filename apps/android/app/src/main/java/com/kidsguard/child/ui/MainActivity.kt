@@ -58,8 +58,7 @@ class MainActivity : AppCompatActivity() {
     private var liveTickerJob: Job? = null
     private var activeMetric: String = "screenTime" // "screenTime" | "appOpens"
 
-    // Hand Animation & Horizontal Swipe Gesture support
-    private var handAnimator: ObjectAnimator? = null
+    // Horizontal Swipe Gesture support
     private lateinit var gestureDetector: GestureDetector
     private var swipeStartX = 0f
     private var swipeStartY = 0f
@@ -104,7 +103,6 @@ class MainActivity : AppCompatActivity() {
         binding.layoutManualSyncScreenTime.visibility = View.GONE
 
         setupTabs()
-        setupHandGestureGuide()
         setupSwipeGestures()
         setupClickListeners()
         observeViewModel()
@@ -128,16 +126,12 @@ class MainActivity : AppCompatActivity() {
         )
         // Start live ticker to update real-time screen stats while active on screen
         startLiveRealTimeTicker()
-        // Start continuous hand swipe animation guide
-        startHandSwipeAnimation()
     }
 
     override fun onPause() {
         super.onPause()
         liveTickerJob?.cancel()
         liveTickerJob = null
-        handAnimator?.cancel()
-        handAnimator = null
     }
 
     private var lastScreenTimeUploadTimeMs = 0L
@@ -185,7 +179,6 @@ class MainActivity : AppCompatActivity() {
                     2 -> if (isDebuggable) showSection(binding.sectionSettings, animateFromRight)
                 }
                 currentSectionPosition = newPos
-                updateHandGuideText(newPos)
             }
 
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
@@ -193,81 +186,7 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupHandGestureGuide() {
-        updateHandGuideText(binding.tabLayout.selectedTabPosition)
-        startHandSwipeAnimation()
 
-        // Tapping the card cycles to next tab
-        binding.cardHandGestureGuide.setOnClickListener {
-            switchTabBySwipe(forward = true)
-        }
-
-        // Dismiss button smoothly hides the guide
-        binding.btnDismissHandGuide.setOnClickListener {
-            binding.cardHandGestureGuide.animate()
-                .alpha(0f)
-                .translationY(-dp(10).toFloat())
-                .setDuration(180L)
-                .withEndAction {
-                    binding.cardHandGestureGuide.visibility = View.GONE
-                }
-                .start()
-        }
-    }
-
-    private fun startHandSwipeAnimation() {
-        val handView = binding.imageAnimatedHand ?: return
-        handAnimator?.cancel()
-
-        val distance = dp(14).toFloat()
-        handAnimator = ObjectAnimator.ofFloat(handView, View.TRANSLATION_X, -distance, distance).apply {
-            duration = 1000L
-            repeatCount = ValueAnimator.INFINITE
-            repeatMode = ValueAnimator.REVERSE
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animator ->
-                val currentVal = animator.animatedValue as Float
-                val fraction = animator.animatedFraction
-                handView.rotation = (fraction * 16f) - 8f
-
-                if (currentVal < 0) {
-                    binding.textLeftArrowHint.alpha = 0.35f + (abs(currentVal) / distance) * 0.65f
-                    binding.textRightArrowHint.alpha = 0.25f
-                } else {
-                    binding.textRightArrowHint.alpha = 0.35f + (currentVal / distance) * 0.65f
-                    binding.textLeftArrowHint.alpha = 0.25f
-                }
-            }
-            start()
-        }
-    }
-
-    private fun updateHandGuideText(position: Int) {
-        val tabCount = binding.tabLayout.tabCount
-        when (position) {
-            0 -> {
-                binding.textHandGuideTitle.text = "Swipe ⟵ for Screen Time"
-                binding.textHandGuideHint.text = "● Connection  ⟶  Screen Time"
-            }
-            1 -> {
-                if (tabCount > 2) {
-                    binding.textHandGuideTitle.text = "Swipe ⟵ for Settings, ⟶ for Connection"
-                    binding.textHandGuideHint.text = "⟵ Connection  •  Screen Time ●  •  Settings ⟶"
-                } else {
-                    binding.textHandGuideTitle.text = "Swipe ⟶ for Connection"
-                    binding.textHandGuideHint.text = "⟵ Connection  •  Screen Time ●"
-                }
-            }
-            2 -> {
-                binding.textHandGuideTitle.text = "Swipe ⟶ for Screen Time"
-                binding.textHandGuideHint.text = "Screen Time  ⟵  Settings ●"
-            }
-            else -> {
-                binding.textHandGuideTitle.text = "Swipe to switch tabs"
-                binding.textHandGuideHint.text = "Connection • Screen Time • Settings"
-            }
-        }
-    }
 
     private fun getActiveSection(): View {
         return when (binding.tabLayout.selectedTabPosition) {
@@ -854,7 +773,6 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.GONE
                 binding.cardOfflineAlert.visibility = View.GONE
                 binding.cardNeedsAttentionAlert.visibility = View.GONE
-                binding.cardAdultProtectionShield.visibility = View.GONE
                 binding.textParentNotice.text = getString(R.string.parent_notice_unpaired)
                 binding.textStatusBadge.text = getString(R.string.status_unpaired)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_gray))
@@ -868,7 +786,6 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.VISIBLE
                 binding.cardOfflineAlert.visibility = View.GONE
                 binding.cardNeedsAttentionAlert.visibility = View.GONE
-                binding.cardAdultProtectionShield.visibility = View.VISIBLE
                 binding.textParentNotice.text = getString(R.string.parent_notice_paired)
                 binding.textStatusBadge.text = getString(R.string.status_paired)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_green))
@@ -878,7 +795,6 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.VISIBLE
                 binding.cardOfflineAlert.visibility = View.VISIBLE
                 binding.cardNeedsAttentionAlert.visibility = View.GONE
-                binding.cardAdultProtectionShield.visibility = View.VISIBLE
                 binding.textParentNotice.text = getString(R.string.parent_notice_paired)
                 binding.textStatusBadge.text = getString(R.string.status_offline)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_yellow))
@@ -888,7 +804,6 @@ class MainActivity : AppCompatActivity() {
                 binding.cardStatus.visibility = View.VISIBLE
                 binding.cardOfflineAlert.visibility = View.GONE
                 binding.cardNeedsAttentionAlert.visibility = View.VISIBLE
-                binding.cardAdultProtectionShield.visibility = View.VISIBLE
                 binding.textParentNotice.text = getString(R.string.parent_notice_unpaired)
                 binding.textStatusBadge.text = getString(R.string.status_needs_attention)
                 binding.textStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_red))

@@ -280,11 +280,11 @@ export function syncAndroidApk(options = { buildApk: false }) {
     sizeFormatted: formatBytes(finalStat.size),
     updatedAt: finalStat.mtime.toISOString(),
     versionHash: `${finalStat.size}-${Math.floor(finalStat.mtimeMs)}`,
-    releaseNotes: 'Real-time screen-time tracking, app open counts, bedtime schedule enforcement, and zero-battery VPN-free architecture.',
+    releaseNotes: 'Streamlined companion with real-time screen-time tracking, mobile pickups, app launch frequencies, and battery-friendly architecture.',
     features: [
       'Background Screen Time Measurement',
-      'Daily Usage & App Launch Limits',
-      'Quiet Bedtime Hours Enforcement',
+      'Mobile Pickups & Opens Counter',
+      'App Launch Frequency Tracking',
       'Zero VPN Battery-Friendly Engine',
     ],
   };
