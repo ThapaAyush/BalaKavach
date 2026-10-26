@@ -437,23 +437,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        binding.cardMetricMobilePickups.setOnClickListener {
-            activeMetric = "appOpens"
-            updateScreenTimeUi(
-                usage = viewModel.todayUsage.value,
-                policy = viewModel.cachedPolicy.value,
-                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
-            )
-        }
 
-        binding.cardMetricAppLaunches.setOnClickListener {
-            activeMetric = "appOpens"
-            updateScreenTimeUi(
-                usage = viewModel.todayUsage.value,
-                policy = viewModel.cachedPolicy.value,
-                lastMeasurementTimeMs = viewModel.lastSuccessfulMeasurementTime.value
-            )
-        }
 
         // In-table Capsule Switcher Clicks
         binding.btnFilterTiming.setOnClickListener {
@@ -992,10 +976,10 @@ class MainActivity : AppCompatActivity() {
             } else {
                 binding.cardScreenTimeSummary.strokeColor = ContextCompat.getColor(this, R.color.border)
                 binding.cardScreenTimeSummary.strokeWidth = dp(1)
-                binding.cardMetricMobilePickups.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
-                binding.cardMetricMobilePickups.strokeWidth = dp(2)
-                binding.cardMetricAppLaunches.strokeColor = ContextCompat.getColor(this, R.color.status_purple)
-                binding.cardMetricAppLaunches.strokeWidth = dp(2)
+                binding.cardMetricMobilePickups.strokeColor = ContextCompat.getColor(this, R.color.border)
+                binding.cardMetricMobilePickups.strokeWidth = dp(1)
+                binding.cardMetricAppLaunches.strokeColor = ContextCompat.getColor(this, R.color.border)
+                binding.cardMetricAppLaunches.strokeWidth = dp(1)
 
                 binding.textBadgeScreenTime.text = "Timing →"
                 binding.textBadgeScreenTime.background = ContextCompat.getDrawable(this, R.drawable.bg_badge_pill)
